@@ -1,0 +1,8 @@
+#sales Order APP
+[x] add : customer and product search api
+[x] add : aktivkan cronjob manggil cron-customer dan cron-product tiap 1 jam
+[x] add: edit apiSource 
+[x] add: revoke login user
+[x] add: register a user
+[x] add: search di process page
+[] add:  

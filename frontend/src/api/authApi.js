@@ -1,0 +1,87 @@
+import axiosInstance from "./axiosInstance";
+
+//login LDAP
+export const loginLdap = async (body) => {
+  const response = await axiosInstance.post(`/api/auth/login/ldap`, body);
+  return response?.data;
+};
+
+export const loginApp = async (body) => {
+  const response = await axiosInstance.post(`/api/auth/login/app`, body);
+  return response?.data;
+};
+
+export const register = async (body) => {
+  const response = await axiosInstance.post(
+    "/api/auth/multi-tenant/register",
+    body
+  );
+  return response?.data;
+};
+
+export const createAppUser = async (body) => {
+  const response = await axiosInstance.post("/api/auth/createAppUser", body);
+  return response.data;
+};
+export const getUserInfo = async () => {
+  try {
+    const res = await axiosInstance.get("/api/auth/getUserInfo", {
+      withCredentials: true,
+    });
+    return res.data;
+  } catch (error) {
+    const originalRequest = error.config;
+
+    // Jika token expired
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      try {
+        // Coba refresh token (tidak perlu ambil accessToken)
+        await axiosInstance.post("/api/auth/refresh-token", null, {
+          withCredentials: true,
+        });
+
+        // Ulangi getUserInfo
+        const retryRes = await axiosInstance(originalRequest);
+        return retryRes.data;
+      } catch (refreshError) {
+        console.error("🔁 Refresh token failed (cookie-based)", refreshError);
+        throw refreshError;
+      }
+    }
+
+    throw error;
+  }
+};
+
+export const getAllAccount = async () => {
+  const response = await axiosInstance.get(`/api/auth/getAllAccount`);
+  return response.data;
+};
+
+//mostly update role
+export const updateUser = async (body) => {
+  const response = await axiosInstance.put(`/api/auth/updateUser`, body);
+  return response.data;
+};
+
+export const getUserById = async (id) => {
+  const response = await axiosInstance.get(`/api/auth/getUserById/${id}`);
+  return response?.data;
+};
+
+export const deleteAppUser = async (id) => {
+  const response = await axiosInstance.delete(`/api/auth/deleteAppUser/${id}`);
+  return response.data;
+};
+
+export const refreshToken = async () => {
+  const response = await axiosInstance.delete(`/api/auth/refresh-token`);
+  return response.data;
+};
+
+export const logout = async () => {
+  const response = await axiosInstance.delete(`/api/auth/logout`);
+  return response.data;
+};
