@@ -1,12 +1,16 @@
 import axiosInstance from "./axiosInstance";
 
 const configApi = {
-  getConfig: async () => {
-    const response = await axiosInstance.get(`/api/config`);
+  getAllConfig: async () => {
+    const response = await axiosInstance.get(`/api/config/all`);
     return response.data;
   },
-  updateConfig: async (body) => {
-    const response = await axiosInstance.put(`/api/config`, body);
+  updateAllConfig: async (body) => {
+    const response = await axiosInstance.put(`/api/config/all`, body);
+    return response.data;
+  },
+  testSMTP: async (body) => {
+    const response = await axiosInstance.post(`/api/smtp/test`, body);
     return response.data;
   },
 };

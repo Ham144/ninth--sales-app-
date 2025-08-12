@@ -2,16 +2,16 @@ import { Router } from "express";
 import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import Org from "../models/Organization.model.js";
-import ApiSource from "../models/apiSource.model.js";
 
 dotenv.config();
 
 const router = Router();
 
-router.get("/ad", async (req, res) => {
+//dapatkan semua field konfigurasi dari Organization model
+router.get("/all", async (req, res) => {
   try {
     const org = await Org.findById(req.user.org).select(
-      "AD_HOST AD_PORT AD_DOMAIN AD_BASE_DN"
+      "AD_HOST AD_PORT AD_DOMAIN AD_BASE_DN EMAIL_USER EMAIL_PASS EMAIL_HOST EMAIL_PORT EMAIL_SECURE SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_SOAPACTION SOAP_STOCK_URL SOAP_STOCK_USERNAME  SOAP_STOCK_SOAPACTION SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_SOAPACTION SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_SOAPACTION"
     );
 
     if (!org) {
@@ -33,66 +33,33 @@ router.get("/ad", async (req, res) => {
 });
 
 //edit
-router.put("/ad", async (req, res) => {
-  const { AD_HOST, AD_PORT, AD_DOMAIN, AD_BASE_DN } = req.body;
-  console.log(AD_HOST, AD_PORT, AD_DOMAIN, AD_BASE_DN);
-
+router.put("/all", async (req, res) => {
   try {
-    await Org.findOneAndUpdate(
-      { _id: req.user.org },
-      {
-        AD_HOST,
-        AD_PORT,
-        AD_DOMAIN,
-        AD_BASE_DN,
-      }
+    const orgId = req.user.org;
+
+    // Hapus field dengan value kosong ("" atau null)
+    const filteredData = Object.fromEntries(
+      Object.entries(req.body).filter(([_, value]) => value !== "")
+    );
+
+    // Update hanya field yang ada di filteredData
+    const updatedOrg = await Organization.findOneAndUpdate(
+      { _id: orgId },
+      { $set: filteredData },
+      { new: true, upsert: false }
     );
 
     return res.json({
-      message: "Berhasil mengubah konfigurasi LDAP organisasi.",
+      message: "Berhasil mengubah konfigurasi organisasi.",
+      data: updatedOrg,
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({ message: "Gagal, internal server error." });
   }
 });
 
-router.get("/smtp", async (req, res) => {
-  try {
-    const data = await Org.findById(req.user.org).select(
-      "EMAIL_USER  EMAIL_HOST EMAIL_PORT EMAIL_SECURE"
-    );
-    return res.json({ message: "berhasil mengambil konfigurasi smtp", data });
-  } catch (error) {
-    return res.status(400).json({ message: "internal server error" });
-  }
-});
-
-router.put("/smtp", async (req, res) => {
-  const { EMAIL_USER, EMAIL_PASS, EMAIL_HOST, EMAIL_PORT, EMAIL_SECURE } =
-    req.body;
-
-  try {
-    await Org.findOneAndUpdate(
-      { _id: req.user.org },
-      {
-        EMAIL_USER,
-        EMAIL_PASS,
-        EMAIL_HOST,
-        EMAIL_PORT,
-        EMAIL_SECURE,
-      }
-    );
-
-    return res.json({
-      message: "Berhasil mengubah konfigurasi SMTP organisasi.",
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Gagal, internal server error." });
-  }
-});
-
+//test email
 router.post("/smtp/test", async (req, res) => {
   const {
     EMAIL_HOST,
@@ -142,49 +109,6 @@ router.post("/smtp/test", async (req, res) => {
       message: "Gagal mengirim email percobaan.",
       error: error.message,
     });
-  }
-});
-
-router.post("/set/apiSource", async (req, res) => {
-  const { title, getProductUrl, getCustomerUrl, authLoginUrl, authFormData } =
-    req.body;
-
-  try {
-    if (
-      !title ||
-      !authLoginUrl ||
-      !getProductUrl ||
-      !authLoginUrl ||
-      !authFormData
-    ) {
-      return res.status(400).json({
-        message:
-          "Semua field harus diisi title,authLoginUrl, getProductUrl, authLoginUrl, authFormData",
-      });
-    }
-
-    const configIsExisted = await ApiSource.find({});
-    if (configIsExisted.length > 0) {
-      return res
-        .status(400)
-        .json({ message: "API Source sudah ada, edit saja" });
-    }
-
-    const configApiSource = await ApiSource.create({
-      title,
-      getProductUrl,
-      getCustomerUrl,
-      authLoginUrl,
-      authFormData,
-    });
-
-    return res.json({
-      message: "Berhasil mengubah konfigurasi API organisasi.",
-      data: configApiSource,
-    });
-  } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Gagal, internal server error." });
   }
 });
 

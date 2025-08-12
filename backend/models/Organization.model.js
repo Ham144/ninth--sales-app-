@@ -8,25 +8,6 @@ const organizationSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    // start AD---------------
-    AD_HOST: {
-      type: String,
-      required: true,
-    },
-    AD_PORT: {
-      type: Number,
-      required: true,
-    },
-    AD_DOMAIN: {
-      type: String,
-      required: true,
-    },
-    AD_BASE_DN: {
-      //contoh : DC=csi,DC=my,DC=id
-      type: String,
-      required: true,
-    },
-    //END AD------------------
 
     owners: [
       {
@@ -51,6 +32,27 @@ const organizationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // start Active Directory---------------
+    AD_HOST: {
+      type: String,
+      required: true,
+    },
+    AD_PORT: {
+      type: Number,
+      required: true,
+    },
+    AD_DOMAIN: {
+      type: String,
+      required: true,
+    },
+    AD_BASE_DN: {
+      //contoh : DC=csi,DC=my,DC=id
+      type: String,
+      required: true,
+    },
+    //END Active Directory-----------------------
+
     // start smtp---------------
     EMAIL_USER: {
       type: String,
@@ -74,7 +76,33 @@ const organizationSchema = new mongoose.Schema(
       required: true,
       default: false,
     },
-    // start smtp---------------
+    // END smtp---------------
+    //START SOAP---------------
+    SOAP_PRODUCT_URL: String,
+    SOAP_PRODUCT_USERNAME: String,
+    SOAP_PRODUCT_PASSWORD: String,
+    SOAP_PRODUCT_SOAPACTION: String,
+
+    SOAP_STOCK_URL: String,
+    SOAP_STOCK_USERNAME: String,
+    SOAP_STOCK_PASSWORD: String,
+    SOAP_STOCK_SOAPACTION: String,
+
+    SOAP_CUSTOMER_URL: String,
+    SOAP_CUSTOMER_USERNAME: String,
+    SOAP_CUSTOMER_PASSWORD: String,
+    SOAP_CUSTOMER_SOAPACTION: String,
+
+    SOAP_TRANSACTION_URL: String,
+    SOAP_TRANSACTION_USERNAME: String,
+    SOAP_TRANSACTION_PASSWORD: String,
+    SOAP_TRANSACTION_SOAPACTION: String,
+
+    SOAP_PEMBAYARANTERTUNDA_URL: String,
+    SOAP_PEMBAYARANTERTUNDA_USERNAME: String,
+    SOAP_PEMBAYARANTERTUNDA_PASSWORD: String,
+    SOAP_PEMBAYARANTERTUNDA_SOAPACTION: String,
+    //END SOAP---------------
   },
   {
     timestamps: true,

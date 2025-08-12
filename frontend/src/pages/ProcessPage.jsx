@@ -14,41 +14,65 @@ export function ProcessPage() {
   const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
   const ref = useRef(null);
   const id = useId();
+
   const [search, setSearch] = useState("");
 
-  const { data: salesOrderList, isLoading: isLoadingList } = useQuery({
-    queryKey: ["salesOrders"],
-    queryFn: async () => await SalesOrderApi.getAllSalesOrder(),
+  const {
+    data: salesOrderList,
+    isLoading: isLoadingList,
+    refetch: refetchSalesOrder,
+  } = useQuery({
+    queryKey: ["salesOrders", search], // ✅ search dimasukkan agar query auto update
+    queryFn: async () => await SalesOrderApi.getAllSalesOrder(search),
   });
 
+  // detail order
   const { data: salesOrderDetail, isLoading: isLoadingDetail } = useQuery({
     queryKey: ["salesOrderDetail", selectedSalesOrder?._id],
     queryFn: async () => await SalesOrderApi.getById(selectedSalesOrder._id),
     enabled: !!selectedSalesOrder,
   });
 
-  useEffect(() => {
-    function onKeyDown(event) {
-      if (event.key === "Escape") {
-        setActive(null);
-      }
-    }
-    document.body.style.overflow = active ? "hidden" : "auto";
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [active]);
-  useOutsideClick(ref, () => setActive(null));
+  // tombol clear search
+  const handleClearSearch = () => {
+    setSearch("");
+    refetchSalesOrder(); // optional, karena queryKey sudah berubah
+  };
 
   return (
-    <div className="flex flex-col mx-auto container min-h-screen justify-center">
-      <PlaceholdersAndVanishInput
-        placeholders={placeHolderSearchSalesOrder}
-        onChange={(e) => setSearch(e.target.value)}
+    <div className="flex items-center flex-col mx-auto container min-h-screen justify-center">
+      <form
         onSubmit={(e) => {
           e.preventDefault();
-          handleSearchSalesOrder();
+          if (search.trim().length === 0) {
+            toast.error("Kolom pencarian tidak boleh kosong");
+            return;
+          }
+          refetchSalesOrder();
         }}
-      />
+        className="flex items-center  gap-2 relative w-full max-w-md"
+      >
+        {/* Input dengan tombol clear di dalamnya */}
+        <div className="relative flex-1">
+          <PlaceholdersAndVanishInput
+            placeholders={placeHolderSearchSalesOrder}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pr-16" // kasih padding kanan supaya tombol clear nggak nutup teks
+          />
+
+          {search.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearSearch}
+              className="absolute right-12 top-1/2 -translate-y-1/2 px-3 py-1 text-sm bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </form>
+
       {/* Background Overlay */}
       <AnimatePresence>
         {active && (
@@ -68,13 +92,16 @@ export function ProcessPage() {
             <motion.div
               ref={ref}
               layoutId={`card-${active._id}-${id}`}
-              className="w-full max-w-[600px] bg-white rounded-xl shadow-lg overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-[600px] backdrop-blur-lg bg-white/50 rounded-2xl shadow-2xl overflow-hidden"
             >
-              <div className="flex justify-between items-center p-4 border-b">
-                <h3 className="font-bold text-lg">Sales Order Detail</h3>
+              <div className="flex justify-between items-center p-4 border-b border-gray-200">
+                <h3 className="font-bold text-2xl">Sales Order Detail</h3>
                 <button
                   onClick={() => setActive(null)}
-                  className="text-gray-500 hover:text-gray-800"
+                  className="text-gray-500 hover:text-gray-800 transition-colors"
                 >
                   ✕
                 </button>
@@ -83,54 +110,75 @@ export function ProcessPage() {
               {isLoadingDetail ? (
                 <div className="p-6 text-center text-gray-500">Loading...</div>
               ) : salesOrderDetail?.data ? (
-                <div className="p-4 space-y-4">
+                <div className="p-4 space-y-6">
                   <div>
-                    <p>
-                      <strong>Return Value:</strong>{" "}
-                      {salesOrderDetail.data.return_value}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Return Value:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.return_value}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Document No:</strong>{" "}
-                      {salesOrderDetail.data.DocumentNo}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Document No:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.DocumentNo}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Customer No:</strong>{" "}
-                      {salesOrderDetail.data.SellToCustNo}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Customer No:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.SellToCustNo}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Order Date:</strong>{" "}
-                      {new Date(
-                        salesOrderDetail.data.OrderDate
-                      ).toLocaleDateString()}
-                    </p>{" "}
-                    <p>
-                      <strong>Ext doc:</strong> {salesOrderDetail?.data?.ExtDoc}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Order Date:</strong>
+                      <span className="text-lg">
+                        {new Date(
+                          salesOrderDetail.data.OrderDate
+                        ).toLocaleDateString()}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Request Delivery Date:</strong>{" "}
-                      {new Date(
-                        salesOrderDetail.data.RequestDeliveryDate
-                      ).toLocaleDateString()}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Ext doc:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail?.data?.ExtDoc}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Location Code:</strong>{" "}
-                      {salesOrderDetail.data.LocationCode}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">
+                        Request Delivery Date:
+                      </strong>
+                      <span className="text-lg">
+                        {new Date(
+                          salesOrderDetail.data.RequestDeliveryDate
+                        ).toLocaleDateString()}
+                      </span>
                     </p>
-                    <p>
-                      <strong>Sales Person Code:</strong>{" "}
-                      {salesOrderDetail.data.SalespersonCode}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Location Code:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.LocationCode}
+                      </span>
+                    </p>
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">
+                        Sales Person Code:
+                      </strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.SalespersonCode}
+                      </span>
                     </p>
                   </div>
 
-                  <div>
+                  <div className="bg-gray-50 rounded-2xl p-4">
                     <h4 className="font-semibold mb-2">Sales Lines</h4>
-                    <div className="border rounded-lg overflow-hidden">
+                    <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="p-2 text-left">Item No</th>
                             <th className="p-2 text-right">Qty</th>
-                            <th className="p-2 text-right">Unit Price</th>
+                            <th className="p-2 text-right">Total Price</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -157,7 +205,7 @@ export function ProcessPage() {
       </AnimatePresence>
 
       {/* Sales Order List */}
-      <ul className="max-w-2xl mx-auto w-full gap-4 mt-6">
+      <ul className="max-w-2xl gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
         {isLoadingList ? (
           <p className="text-center text-gray-500">Loading Sales Orders...</p>
         ) : (
@@ -168,7 +216,7 @@ export function ProcessPage() {
                 setSelectedSalesOrder(so);
                 setActive(so);
               }}
-              className="p-4 flex justify-between items-center bg-white border rounded-lg shadow-sm hover:bg-gray-50 cursor-pointer"
+              className="p-4 flex justify-between items-center backdrop-blur-lg bg-white/50 border rounded-lg shadow-sm hover:bg-gray-50 cursor-pointer"
             >
               <div>
                 <p className="font-semibold">{so.return_value}</p>

@@ -36,28 +36,49 @@ const SideDrawer = ({ children }) => {
   const location = useLocation();
 
   return (
-    <div className="flex flex-col h-screen w-full ">
-      <main className="flex-1 overflow-y-auto w-full min-w-0 pb-16">
-        {children}
-      </main>
+    <div className="flex  flex-col h-screen w-full ">
+      <div className="relative flex flex-col h-screen w-full overflow-hidden ">
+        {/* Layer background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-100 via-purple-100 to-blue-100" />
 
-      {/* Bottom Navigation Bar */}
-      <div className="fixed bottom-0 left-0 right-0 bg-base-100 border-t border-base-300 shadow-lg z-50">
-        <div className="flex justify-around items-center h-16 px-2">
+        {/* Layer blob dekorasi */}
+        <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
+        <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
+
+        {/* Konten utama */}
+        <div className="h-screen">{children}</div>
+      </div>
+
+      {/* <main className="flex-1 overflow-y-auto w-full min-w-0 pb-16">
+        {children}
+      </main> */}
+
+      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-20">
+        <div
+          className="flex justify-around items-center h-16 px-4 rounded-xl
+                backdrop-blur-lg bg-gradient-to-l from-pink-200 to-indigo-200"
+        >
           {menuItem.map((item) => {
             const isActive = location.pathname === item.path;
             return (
               <button
                 key={item.name}
                 onClick={() => navigate(item.path)}
-                className={`flex flex-col items-center justify-center w-full h-full transition-colors duration-200 ${
+                className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${
                   isActive
-                    ? "text-primary"
-                    : "text-base-content/60 hover:text-primary"
+                    ? "text-indigo-600 scale-105"
+                    : "text-gray-600 hover:text-indigo-500"
                 }`}
               >
-                {item.icon}
-                <span className="text-xs mt-1 font-medium">{item.name}</span>
+                <div
+                  className={`p-1.5 rounded-full ${
+                    isActive ? "bg-indigo-100/80" : ""
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                <span className="text-xs mt-0.5 font-medium">{item.name}</span>
               </button>
             );
           })}

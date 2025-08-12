@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { motion } from "motion/react";
 
-export const TextHoverEffect = ({ text, duration }) => {
+export const TextHoverEffect = ({ text, duration = 0.3 }) => {
   const svgRef = useRef(null);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(false);
@@ -23,51 +23,42 @@ export const TextHoverEffect = ({ text, duration }) => {
   return (
     <svg
       ref={svgRef}
-      width="120%"
-      height="100px" // ← Ubah dari 30% ke nilai pasti
+      width="100%"
+      height="100px"
       viewBox="0 0 300 100"
       xmlns="http://www.w3.org/2000/svg"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={(e) => setCursor({ x: e.clientX, y: e.clientY })}
-      className="select-none "
+      className="select-none overflow-visible"
     >
       <defs>
-        <linearGradient
-          id="textGradient"
-          gradientUnits="userSpaceOnUse"
-          cx="50%"
-          cy="50%"
-          r="25%"
-        >
-          {hovered && (
-            <>
-              <stop offset="0%" stopColor="#eab308" />
-              <stop offset="25%" stopColor="#ef4444" />
-              <stop offset="50%" stopColor="#3b82f6" />
-              <stop offset="75%" stopColor="#06b6d4" />
-              <stop offset="100%" stopColor="#8b5cf6" />
-            </>
-          )}
+        {/* Gradient yang hanya muncul saat hover */}
+        <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#3b82f6" />
+          <stop offset="50%" stopColor="#8b5cf6" />
+          <stop offset="100%" stopColor="#ec4899" />
         </linearGradient>
 
+        {/* Mask yang mengikuti cursor */}
         <motion.radialGradient
           id="revealMask"
           gradientUnits="userSpaceOnUse"
-          r="20%"
-          initial={{ cx: "50%", cy: "50%" }}
-          animate={maskPosition}
-          // example for a smoother animation below
-          //   transition={{
-          //     type: "spring",
-          //     stiffness: 300,
-          //     damping: 50,
-          //   }}
-          transition={{ duration: duration ?? 0, ease: "easeOut" }}
+          r={hovered ? "30%" : "0%"}
+          animate={{
+            ...maskPosition,
+            r: hovered ? "30%" : "0%",
+          }}
+          transition={{
+            duration: duration,
+            ease: "easeOut",
+            r: { duration: duration * 0.7 },
+          }}
         >
           <stop offset="0%" stopColor="white" />
           <stop offset="100%" stopColor="black" />
         </motion.radialGradient>
+
         <mask id="textMask">
           <rect
             x="0"
@@ -78,45 +69,32 @@ export const TextHoverEffect = ({ text, duration }) => {
           />
         </mask>
       </defs>
+
+      {/* Text dasar (selalu transparan) */}
       <text
         x="50%"
         y="50%"
         textAnchor="middle"
         dominantBaseline="middle"
-        strokeWidth="0.3"
-        className="fill-transparent stroke-neutral-200 font-[helvetica] text-7xl font-bold dark:stroke-neutral-800"
-        style={{ opacity: hovered ? 0.7 : 0 }}
+        className="fill-transparent font-bold text-7xl"
       >
         {text}
       </text>
-      <motion.text
-        x="50%"
-        y="50%"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        strokeWidth="0.3"
-        className="fill-transparent stroke-neutral-200 font-[helvetica] text-7xl font-bold dark:stroke-neutral-800"
-        initial={{ strokeDashoffset: 1000, strokeDasharray: 1000 }}
-        animate={{
-          strokeDashoffset: 0,
-          strokeDasharray: 1000,
-        }}
-        transition={{
-          duration: 4,
-          ease: "easeInOut",
-        }}
-      >
-        {text}
-      </motion.text>
+
+      {/* Text yang muncul saat hover */}
       <text
         x="50%"
         y="50%"
         textAnchor="middle"
         dominantBaseline="middle"
         stroke="url(#textGradient)"
-        strokeWidth="0.3"
+        strokeWidth="0.5"
         mask="url(#textMask)"
-        className="fill-transparent font-[helvetica] text-7xl font-bold"
+        className="fill-transparent font-bold text-7xl"
+        style={{
+          opacity: hovered ? 1 : 0,
+          transition: `opacity ${duration * 0.5}s ease-out`,
+        }}
       >
         {text}
       </text>

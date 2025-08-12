@@ -5,4 +5,7 @@
 [x] add: revoke login user
 [x] add: register a user
 [x] add: search di process page
-[] add:  
+[x] fix: interceptor refresh-token
+[x] modify: pindahin config .env ke organization.
+[x] add: config page
+[] modify: fitur show stock detail di sesuaikan dengan ambil customer.Location_Code

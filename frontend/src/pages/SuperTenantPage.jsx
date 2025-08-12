@@ -12,7 +12,6 @@ import {
 import { useState } from "react";
 import { format } from "date-fns";
 import { initialOrg } from "./RegisterPage";
-import { getAllAccount } from "@/api/authApi";
 import { toast, Toaster } from "sonner";
 
 export default function SuperTenantPage() {
@@ -21,7 +20,6 @@ export default function SuperTenantPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedOrg, setSelectedOrg] = useState(null);
   const [newOrg, setNewOrg] = useState(initialOrg);
-  const [searchUsername, setSearchUsername] = useState("");
 
   // --- React Query for Fetching Organizations ---
   const {
@@ -32,8 +30,6 @@ export default function SuperTenantPage() {
   } = useQuery({
     queryKey: ["orgs", searchTerm],
     queryFn: async () => await OrgApi.getAllOrgSuperTenant(searchTerm),
-    staleTime: 5 * 60 * 1000, // Data dianggap segar selama 5 menit
-    keepPreviousData: true, // Opsional: menjaga data sebelumnya saat searchTerm berubah untuk UX yang lebih mulus
   });
 
   const orgsList = orgsData?.data || []; // Amankan akses data
@@ -157,10 +153,10 @@ export default function SuperTenantPage() {
 
   return (
     <PengelolaSideBarMenu>
-      <div className="p-6 bg-base-100 min-h-screen">
+      <div className="p-6 backdrop rounded-md min-h-screen">
         {/* --- Header & Search Bar --- */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-bold text-gray-800">
+          <h1 className="text-3xl font-ligth text-gray-800">
             Super Tenant Dashboard
           </h1>
           <div className="flex items-center gap-2 w-full md:w-auto">
@@ -168,7 +164,7 @@ export default function SuperTenantPage() {
               <input
                 type="text"
                 placeholder="Search organizations..."
-                className="grow"
+                className="border-none"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />

@@ -20,7 +20,7 @@ import { toast } from "sonner";
 // authMethod === 'app'  => username, email, password bisa diubah.
 // authMethod === 'ldap' => hanya bisa ubah role (owner/member), tidak bisa ubah username/password.
 
-export default function UserManagement() {
+export default function AccountManagement() {
   const [isOpen, setIsOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [formData, setFormData] = useState({
@@ -194,10 +194,10 @@ export default function UserManagement() {
     <PengelolaSideBarMenu>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl rounded-  md font-bold">User Management</h1>
+          <h1 className="text-3xl rounded-md font-light">Account Management</h1>
           <button
             onClick={handleOpenDialog}
-            className="btn btn-primary text-white"
+            className="btn bg-orange-500 rounded-lg text-white font-medium"
           >
             <Plus className="h-5 w-5 mr-1" />
             Tambah User (non ldap)
@@ -207,8 +207,8 @@ export default function UserManagement() {
         {/* Dialog for Add/Edit User */}
         {isOpen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto max-md:py-32">
-            <div className="bg-base-100 p-6 rounded-lg w-full max-w-md">
-              <h2 className="text-xl font-bold mb-4">
+            <div className="backdrop p-6 rounded-lg w-full max-w-md">
+              <h2 className="text-xl font-light text-center  mb-4">
                 {isEditMode ? "Edit User" : "Tambah User non ldap (app)"}
               </h2>
 
@@ -247,7 +247,7 @@ export default function UserManagement() {
                     onChange={(e) =>
                       setFormData({ ...formData, username: e.target.value })
                     }
-                    className={`input input-bordered ${
+                    className={`input backdrop input-bordered ${
                       errors.username ? "input-error" : ""
                     }`}
                     placeholder="Masukkan username"
@@ -272,7 +272,7 @@ export default function UserManagement() {
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
-                      className={`input input-bordered ${
+                      className={`input backdrop input-bordered ${
                         errors.password ? "input-error" : ""
                       }`}
                       placeholder="Masukkan Password baru, atau biarkan"
@@ -295,7 +295,7 @@ export default function UserManagement() {
                     onChange={(e) =>
                       setFormData({ ...formData, email: e.target.value })
                     }
-                    className={`input input-bordered ${
+                    className={`input backdrop input-bordered ${
                       errors.email ? "input-error" : ""
                     }`}
                     placeholder="Masukkan Email"
@@ -318,7 +318,7 @@ export default function UserManagement() {
                       onChange={(e) =>
                         setFormData({ ...formData, password: e.target.value })
                       }
-                      className={`input input-bordered ${
+                      className={`input backdrop input-bordered ${
                         errors.password ? "input-error" : ""
                       }`}
                       placeholder="Masukkan password"
@@ -340,7 +340,7 @@ export default function UserManagement() {
                     onChange={(e) =>
                       setFormData({ ...formData, role: e.target.value })
                     }
-                    className="select select-bordered"
+                    className="select backdrop select-bordered"
                     disabled={
                       formData.authMethod === "ldap" &&
                       formData.role === "supertenant"
@@ -393,13 +393,13 @@ export default function UserManagement() {
         )}
 
         {/* User Table */}
-        <div className="overflow-x-auto bg-white dark:bg-gray-800 shadow-xl rounded-lg p-4">
+        <div className="overflow-x-auto backdrop dark:bg-gray-800 shadow-xl rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <input
                 type="text"
                 placeholder="Cari user..."
-                className="input input-bordered input-sm"
+                className="input backdrop rounded-md input-bordered input-sm"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />

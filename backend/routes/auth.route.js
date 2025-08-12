@@ -288,8 +288,6 @@ router.post(
         ],
       });
 
-      console.log(userDB);
-
       let departementDB = await Department.findOne({
         org: selectedOrg,
         name: userLDAP["physicalDeliveryOfficeName"],
@@ -371,6 +369,7 @@ router.post(
         role: userDB.role,
         department: departementDB?._id,
       };
+
       const accessToken = await generateTokenJWT(payload);
       const refreshToken = await generateRefreshToken(payload);
 
@@ -394,7 +393,6 @@ router.post(
       // Hilangkan password sebelum kirim response
       const {
         password: _pw,
-        refreshToken: _rt,
         ...userWithoutPassword
       } = userDB.toObject();
 
@@ -405,6 +403,8 @@ router.post(
         success: true,
         message: "Selamat datang kembali.",
         data: userWithoutPassword,
+        accessToken,
+        refreshToken,
       });
     } catch (error) {
       console.log(error);
@@ -519,7 +519,6 @@ router.post("/login/app", async (req, res) => {
   // Hilangkan password sebelum kirim response
   const {
     password: _pw,
-    refreshToken: _rt,
     ...userWithoutPassword
   } = userDB.toObject();
 
@@ -527,12 +526,14 @@ router.post("/login/app", async (req, res) => {
     success: true,
     message: "Selamat datang.",
     data: userWithoutPassword,
+    accessToken,
+        refreshToken,
   });
 });
 
 router.post("/refresh-token", async (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
-  console.log(refreshToken);
+  const refreshToken =
+    req.cookies.refresh_token || req.headers.authorization?.split(" ")[1];
   if (!refreshToken)
     return res.status(401).json({ message: "No refresh token" });
 

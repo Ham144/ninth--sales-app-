@@ -5,8 +5,10 @@ const SalesOrderApi = {
     const response = await axiosInstance.post(`/api/v1/salesOrder/new`, body);
     return response;
   },
-  getAllSalesOrder: async () => {
-    const response = await axiosInstance.get(`/api/v1/salesOrder/list`);
+  getAllSalesOrder: async (searchKey) => {
+    const response = await axiosInstance.get(
+      `/api/v1/salesOrder/list?searchKey=${searchKey}`
+    );
     return response;
   },
   getById: async (id) => {

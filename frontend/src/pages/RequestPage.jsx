@@ -2,7 +2,7 @@ import CustomerApi from "@/api/customerApi";
 import SalesOrderApi from "@/api/SalesOrderApi";
 import ProductApi from "@/api/productApi";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +52,10 @@ const RequestPage = () => {
   });
 
   const navigate = useNavigate();
-  const { mutateAsync: handleRequestSalesOrder } = useMutation({
+  const {
+    mutateAsync: handleRequestSalesOrder,
+    isPending: isPendingProcessing,
+  } = useMutation({
     mutationKey: ["salesOrder"],
     mutationFn: async () => await SalesOrderApi.requestSalesOrder(salesOrder),
     onSuccess: () => {
@@ -129,11 +132,17 @@ const RequestPage = () => {
     }));
   };
 
-  return (
-    <div className="p-4 py-20  backdrop-blur-sm  w-full mx-auto space-y-6 container bg">
-      {/* 🔍 Search Customer */}
-      <h3 className="text-2xl font-bold">Sales Order Request</h3>
+  useEffect(() => {
+    //jika product search kosong maka hapus rekomendasi
+    if (productSearch === "") {
+      toast("Rekomendasi dihapus");
+    }
+  }, [productSearch]);
 
+  return (
+    <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg">
+      {/* 🔍 Search Customer */}
+      <h3 className="text-2xl font-light text-center">Sales Order Request</h3>
       <div className="space-y-2">
         <Input
           placeholder="Cari Customer (min 2 huruf)"
@@ -254,6 +263,7 @@ const RequestPage = () => {
       {/* 📦 Search Produk */}
       <div className="space-y-2">
         <Input
+          disabled={salesOrder.customer?.No ? false : true}
           placeholder="Cari Produk (min 2 huruf)"
           value={productSearch}
           onChange={(e) => setProductSearch(e.target.value)}
@@ -278,11 +288,11 @@ const RequestPage = () => {
         <Card>
           <CardContent className="p-4 space-y-4 ">
             <h2 className="font-bold text-lg">Daftar Produk</h2>
-            <ScrollArea className="max-h-80 space-y-2 pr-2">
+            <ScrollArea className="max-h-80 overflow-y-auto space-y-2 pr-2">
               {salesOrder.products.map((prod) => (
                 <div
                   key={prod.No}
-                  className="border rounded-lg p-3 flex justify-between items-center"
+                  className="border rounded-lg mb-3 p-3 flex justify-between items-center"
                 >
                   <div className="text-sm space-y-1">
                     <AlertDialog>
@@ -337,11 +347,21 @@ const RequestPage = () => {
       )}
       <button
         onClick={handleRequestSalesOrder}
-        disabled={!salesOrder.customer?.No || salesOrder.products.length === 0}
+        disabled={
+          !salesOrder.customer?.No ||
+          salesOrder.products.length === 0 ||
+          isPendingProcessing
+        }
         className="w-full px-8 py-2 rounded-full relative bg-slate-700 text-white text-sm hover:shadow-2xl hover:shadow-white/[0.1] transition duration-200 border border-slate-600"
       >
         <div className="absolute inset-x-0 h-px w-1/2 mx-auto -top-px shadow-2xl  bg-gradient-to-r from-transparent via-teal-500 to-transparent" />
-        <span className="relative z-20"> Kirim Sales Order</span>
+        <span className="relative z-20">
+          {" "}
+          {isPendingProcessing && (
+            <span className="loading loading-ring loading-lg"></span>
+          )}{" "}
+          Kirim Sales Order
+        </span>
       </button>
       {/** per-product dialogs are rendered inline above */}
     </div>

@@ -1,5 +1,5 @@
-const DEV_URL = "http://192.168.169.12:3000";
-let PROD_URL = "http://192.168.169.22:3000";
+const DEV_URL = "http://192.168.169.12:7047";
+let PROD_URL = "http://midcsi.muara.co.id:7047";
 
 if (import.meta.env.VITE_BACKEND_URL) {
   PROD_URL = import.meta.env.VITE_BACKEND_URL;

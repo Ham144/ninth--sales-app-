@@ -30,9 +30,9 @@ const ManagementButton = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex gap-y-2  flex-col justify-center">
+    <div className="flex gap-y-2   flex-col justify-center">
       {managementMenus.map((menu) => (
-        <div className="card bg-base-100 shadow-xl">
+        <div className="card bg-transparent shadow-xl">
           <div className="card-body">
             <h2 className="card-title">{menu.title}</h2>
             <p>{menu.description}</p>
@@ -118,9 +118,9 @@ const Profile = () => {
   ];
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen flex flex-col dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Header with Tab Navigation */}
-      <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 shadow-md py-3 px-4 sm:px-6">
+      <div className="sticky  top-0 z-20  dark:bg-gray-800 shadow-md py-3 px-4 sm:px-6">
         <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
           {tabs.map((tab) => (
             <button
@@ -140,7 +140,7 @@ const Profile = () => {
               aria-current={activeTab === tab.id ? "page" : undefined}
             >
               {tab.icon}
-              <span className="hidden sm:inline">{tab.label}</span>
+              <span className="sm:inline">{tab.label}</span>
             </button>
           ))}
           {/* Logout Button */}
@@ -165,17 +165,17 @@ const Profile = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 sm:p-8">
+      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w">
+        <div className=" dark:bg-gray-800  p-6 sm:p-8">
           {activeTab === "profile" && (
             <div className="space-y-8">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-gray-200 border-b pb-4 mb-4">
+              <h2 className="text-2xl sm:text-3xl text-center text-gray-800 dark:text-gray-200 border-b pb-4 font-light  mb-4">
                 Informasi Profile
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid  grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Username Card */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-2">
                     <User className="w-6 h-6 text-blue-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -186,7 +186,7 @@ const Profile = () => {
                     {userInfo?.username || "N/A"}
                   </p>
                 </div>
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-2">
                     <Group className="w-6 h-6 text-blue-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -199,7 +199,7 @@ const Profile = () => {
                 </div>
 
                 {/* Role Card */}
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className=" dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-2">
                     <KeyRound className="w-6 h-6 text-purple-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -221,7 +221,7 @@ const Profile = () => {
               {userInfo?.role !== "owner" ? (
                 <ManagementButton />
               ) : (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700  mx-auto flex justify-center flex-col  ">
                   <div className="flex items-center gap-3 mb-2">
                     <Info className="w-6 h-6 text-gray-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">

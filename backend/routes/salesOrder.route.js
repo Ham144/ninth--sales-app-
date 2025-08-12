@@ -6,6 +6,7 @@ import generateGlobalIndex from "../utils/generateGlobalIndex.js";
 import { getCurrentDateForNAV } from "../utils/getCurrentDateTanggalBlnThn.js";
 import GetMyOrganizationAbbr from "../utils/getMyOrganizationAbbr.js";
 import SalesOrder from "../models/SalesOrder.model.js";
+import { parse } from "dotenv";
 
 const router = Router();
 
@@ -71,27 +72,46 @@ export const requestSalesOrder = async ({
 
     if (!rawXmlResponse) {
       console.log("Response kosong");
-      return null;
+      return { error: true, message: "Response kosong" };
     }
-    const parsed = await xml2js.parseStringPromise(rawXmlResponse, {
-      explicitArray: false,
-      trim: true,
-      tagNameProcessors: [xml2js.processors.stripPrefix],
-    });
 
+    let parsed;
+    try {
+      parsed = await xml2js.parseStringPromise(rawXmlResponse, {
+        explicitArray: false,
+        trim: true,
+        tagNameProcessors: [xml2js.processors.stripPrefix],
+      });
+    } catch (err) {
+      console.error("Gagal parse XML:", err);
+      return { error: true, message: "Gagal parse XML" };
+    }
+
+    // 🔹 Cek kalau respons berisi error SOAP
+    const fault = parsed?.Envelope?.Body?.Fault;
+    if (fault) {
+      return {
+        error: true,
+        code: fault?.faultcode || null,
+        message: fault?.faultstring || "SOAP Fault tanpa pesan",
+      };
+    }
+
+    // 🔹 Kalau sukses
     const result = parsed?.Envelope?.Body?.SalesMobileInsert_Result;
-
-    const json = {
-      return_value: result?.return_value,
-      salesHeader: result?.xML_Sales?.SalesHeader,
-    };
-
-    if (!json) {
+    if (!result) {
       console.log("Tidak bisa mendapatkan response transaction");
-      return null;
+      return {
+        error: true,
+        message: "Tidak bisa mendapatkan response transaction",
+      };
     }
 
-    return json;
+    return {
+      error: false,
+      return_value: result?.return_value || null,
+      salesHeader: result?.xML_Sales?.SalesHeader || null,
+    };
   } catch (error) {
     console.log("Terjadi error:", error);
     return null;
@@ -135,6 +155,12 @@ router.post("/new", async (req, res) => {
       SalesLine: SalesLine,
     });
 
+    if (salesOrderResponseXml?.error) {
+      return res
+        .status(500)
+        .json({ message: JSON.stringify(salesOrderResponseXml.message) });
+    }
+
     const generatedSalesOrder = await SalesOrder.create({
       return_value: salesOrderResponseXml.return_value,
       DocumentNo: globalIndex,
@@ -152,7 +178,6 @@ router.post("/new", async (req, res) => {
       org: req.user.org,
     });
 
-    console.log(generatedSalesOrder);
     return res.status(200).json(generatedSalesOrder);
   } catch (error) {
     console.log(error);
@@ -163,18 +188,16 @@ router.post("/new", async (req, res) => {
 router.get("/list", async (req, res) => {
   const { searchKey } = req.query;
 
-  console.log(searchKey);
-
   try {
     let query = { org: req.user.org };
-    if (searchKey) {
+    if (searchKey != "" && searchKey != "undefined") {
       query = {
         $or: [
-          { DocumentNo: { $regex: "^" + searchKey, $options: "i" } },
-          { SalespersonCode: { $regex: "^" + searchKey, $options: "i" } },
-          { ExtDoc: { $regex: "^" + searchKey, $options: "i" } },
-          { SellToCustNo: { $regex: "^" + searchKey, $options: "i" } },
-          { return_value: { $regex: "^" + searchKey, $options: "i" } },
+          { DocumentNo: { $regex: searchKey, $options: "i" } },
+          { SalespersonCode: { $regex: searchKey, $options: "i" } },
+          { ExtDoc: { $regex: searchKey, $options: "i" } },
+          { SellToCustNo: { $regex: searchKey, $options: "i" } },
+          { return_value: { $regex: searchKey, $options: "i" } },
         ],
       };
     }

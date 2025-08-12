@@ -11,12 +11,13 @@ import Profile from "./pages/Profile.jsx";
 import NotFound from "./pages/not-found.jsx";
 import AllAccounts from "./pages/AllAccounts.jsx";
 import LevelWrapper from "./components/LevelWrapper";
-import UserManagement from "./pages/UserManagement";
 import Config from "./pages/Config";
 import SuperTenantPage from "./pages/SuperTenantPage";
 import ProductManagement from "./pages/ProductManagement";
 import RequestPage from "./pages/RequestPage";
 import ProcessPage from "./pages/ProcessPage";
+import AccountManagement from "./pages/AccountManagement";
+import CustomerManagement from "./pages/CustomerManagement";
 // import RegisterPage from "./pages/RegisterPage";
 
 const router = createBrowserRouter(
@@ -32,8 +33,9 @@ const router = createBrowserRouter(
 
         {/* menu IT and admin */}
         <Route path="/management/product" element={<ProductManagement />} />
-        <Route path="/management/user" element={<UserManagement />} />
-        <Route path="/management/config/app" element={<Config />} />
+        <Route path="/management/customer" element={<CustomerManagement />} />
+        <Route path="/management/account" element={<AccountManagement />} />
+        <Route path="/management/config" element={<Config />} />
         <Route path="/supertenant/management" element={<SuperTenantPage />} />
         <Route path="/all_account" element={<AllAccounts />} />
       </Route>
