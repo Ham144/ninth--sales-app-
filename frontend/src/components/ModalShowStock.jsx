@@ -10,14 +10,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/api/productApi";
-const ModalShowStock = ({ No }) => {
+const ModalShowStock = ({ No, customer }) => {
   const { data, isPending } = useQuery({
     queryKey: ["showStock", No],
     queryFn: () => ProductApi.getStockByNo(No),
     enabled: !!No,
   });
-
-  console.log(data);
 
   const stockData = data?.data?.[0]
     ? Object.entries(data.data[0])
@@ -28,7 +26,9 @@ const ModalShowStock = ({ No }) => {
         }))
     : [];
 
-  console.log(stockData);
+  const specificQuantityByLocationCode = stockData.find(
+    (item) => item.name === customer._x003C_Area_x003E_
+  );
 
   return (
     <AlertDialogContent className="max-w-lg backdrop-blur-lg">
@@ -45,25 +45,17 @@ const ModalShowStock = ({ No }) => {
             {stockData.length === 0 ? (
               <p className="text-gray-600">Tidak ada data stok.</p>
             ) : (
-              <div className="grid grid-cols-2 gap-y-1 mt-4 text-sm">
-                {stockData.map(({ name, value }, i) => (
-                  <React.Fragment key={name}>
-                    <div
-                      className={`px-2 py-1 ${
-                        i % 2 === 0 ? "bg-gray-100" : "bg-white"
-                      } text-gray-800 font-semibold rounded-l`}
-                    >
-                      {name}
-                    </div>
-                    <div
-                      className={`px-2 py-1 text-right font-mono ${
-                        i % 2 === 0 ? "bg-gray-50" : "bg-white"
-                      } text-gray-900 rounded-r`}
-                    >
-                      {value}
-                    </div>
-                  </React.Fragment>
-                ))}
+              <div className="grid text-white grid-cols-2 gap-y-1 mt-4 text-sm">
+                <React.Fragment key={specificQuantityByLocationCode.name}>
+                  <div
+                    className={`px-2 py-1text-gray-800 font-semibold rounded-l`}
+                  >
+                    {specificQuantityByLocationCode.name}
+                  </div>
+                  <div className={`px-2 py-1 text-right font-mono  rounded-r`}>
+                    {specificQuantityByLocationCode.value}
+                  </div>
+                </React.Fragment>
               </div>
             )}
           </AlertDialogDescription>
@@ -71,7 +63,6 @@ const ModalShowStock = ({ No }) => {
       </AlertDialogHeader>
 
       <AlertDialogFooter>
-        <AlertDialogCancel className="text-white">Tutup</AlertDialogCancel>
         <AlertDialogAction className="text-white">Ok</AlertDialogAction>
       </AlertDialogFooter>
     </AlertDialogContent>

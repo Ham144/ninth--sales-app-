@@ -7,19 +7,23 @@ import "dotenv/config";
 import xml2js from "xml2js";
 import crypto from "crypto";
 import Product from "../models/product.model.js";
+import Org from "../models/Organization.model.js";
 
 function hashProductData(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }
 
-export const fetchingSoapToGetStock = async (No) => {
+export const fetchingSoapToGetStock = async (No, req) => {
   try {
+    const org = await Org.findById(req.user.org).select(
+      "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION"
+    );
     const {
       SOAP_STOCK_URL,
       SOAP_STOCK_USERNAME,
       SOAP_STOCK_PASSWORD,
       SOAP_STOCK_SOAPACTION,
-    } = process.env;
+    } = org;
 
     if (
       !SOAP_STOCK_URL ||
@@ -27,7 +31,7 @@ export const fetchingSoapToGetStock = async (No) => {
       !SOAP_STOCK_PASSWORD ||
       !SOAP_STOCK_SOAPACTION
     ) {
-      console.log("Tidak ada konfigurasi API Source");
+      console.log("Konfigurasi soap stock tidak lengkap");
       return null;
     }
 
@@ -69,12 +73,16 @@ export const fetchingSoapToGetStock = async (No) => {
 
 export const fetchingSoap = async () => {
   try {
+    const org = await Org.findById(req.user.org).select(
+      "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION"
+    );
+
     const {
       SOAP_PRODUCT_URL,
       SOAP_PRODUCT_USERNAME,
       SOAP_PRODUCT_PASSWORD,
       SOAP_PRODUCT_SOAPACTION,
-    } = process.env;
+    } = org;
 
     if (
       !SOAP_PRODUCT_URL ||
@@ -82,7 +90,7 @@ export const fetchingSoap = async () => {
       !SOAP_PRODUCT_PASSWORD ||
       !SOAP_PRODUCT_SOAPACTION
     ) {
-      console.log("Tidak ada konfigurasi API Source");
+      console.log("Konfigurasi soap product tidak lengkap");
       return null;
     }
 

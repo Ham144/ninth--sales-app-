@@ -32,4 +32,5 @@ export const placeHolderSearchSalesOrder = [
   "Cari berdasarkan SalespersonCode",
   "Cari berdasarkan ExtDoc",
   "Cari berdasarkan SellToCustNo",
+  "Cari berdasarkan CustomerName",
 ];

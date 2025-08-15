@@ -205,17 +205,19 @@ const asyncHandler = (fn) => (req, res, next) => {
 // );
 
 //login LDAP ✅
-
 router.post(
   "/login/ldap",
   asyncHandler(async (req, res) => {
-    const { username, password, selectedOrg } = req.body;
-    if (!username || !password || !selectedOrg) {
+    const { username: usernameRaw, password, selectedOrg } = req.body;
+    if (!usernameRaw || !password || !selectedOrg) {
       return res.status(400).json({
         success: false,
         message: "perlu melengkapi semua credentials",
       });
     }
+
+    const username = usernameRaw.toLowerCase();
+
     if (username == "SUPERTENANT") {
       return res.status(400).json({
         success: false,
@@ -274,20 +276,10 @@ router.post(
 
       //cari apakah user dan departement demikian sudah ada
       let userDB = await UserRefrensi.findOne({
-        $or: [
-          {
-            username,
-            org: selectedOrg,
-            authMethod: "ldap",
-          },
-          {
-            username,
-            org: selectedOrg,
-            role: "supertenant",
-          },
-        ],
+        username,
+        org: selectedOrg,
+        authMethod: "ldap",
       });
-
       let departementDB = await Department.findOne({
         org: selectedOrg,
         name: userLDAP["physicalDeliveryOfficeName"],
@@ -340,6 +332,7 @@ router.post(
       }
 
       //cek apakah departement dari ldap cocok dengan departemnt si user
+      //cek apakah departement dari ldap cocok dengan departemnt si user
       const myPreviousDepartment = await Department.findOne({
         org: OrgDB._id,
         members: { $in: [userDB._id] },
@@ -348,17 +341,22 @@ router.post(
         myPreviousDepartment &&
         myPreviousDepartment.name !== departementDB.name
       ) {
-        const toDeleteMemberIdx = await myPreviousDepartment.findIndex(
-          (i) => i.members === userDB._id
+        const toDeleteMemberIdx = myPreviousDepartment.members.findIndex(
+          (dep) => String(dep) === String(userDB._id)
         );
-        myPreviousDepartment.members = myPreviousDepartment.members.splice(
-          toDeleteMemberIdx,
-          1
-        );
+
+        if (toDeleteMemberIdx !== -1) {
+          myPreviousDepartment.members.splice(toDeleteMemberIdx, 1);
+        }
       } else {
         //jika departement sebelumnya ga ada tapi departement yang dimaksud sudah terdaftar maka add
         if (!myPreviousDepartment && departementDB) {
-          departementDB.members.push(userDB._id);
+          const duplicateId = departementDB.members.some(
+            (f) => f._id === userDB._id
+          );
+          if (!duplicateId) {
+            departementDB.members.push(userDB._id);
+          }
         }
       }
 
@@ -370,31 +368,14 @@ router.post(
         department: departementDB?._id,
       };
 
-      const accessToken = await generateTokenJWT(payload);
-      const refreshToken = await generateRefreshToken(payload);
+      const token = await generateTokenJWT(payload);
 
-      res.cookie("access_token", accessToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-        maxAge: 1 * 60 * 1000, // 1 menit
+      res.cookie("token", token, {
+        httpOnly: true, // ✅ Aman
+        secure: false, // ✅ karena http
+        sameSite: "Lax", // ✅ Agar bisa cross-origin
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
-
-      res.cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
-      });
-
-      userDB.refreshToken = refreshToken;
-      await userDB?.save();
-
-      // Hilangkan password sebelum kirim response
-      const {
-        password: _pw,
-        ...userWithoutPassword
-      } = userDB.toObject();
 
       await userDB.save();
       await departementDB.save();
@@ -402,9 +383,7 @@ router.post(
       return res.json({
         success: true,
         message: "Selamat datang kembali.",
-        data: userWithoutPassword,
-        accessToken,
-        refreshToken,
+        data: payload,
       });
     } catch (error) {
       console.log(error);
@@ -517,17 +496,14 @@ router.post("/login/app", async (req, res) => {
   await userDB?.save();
 
   // Hilangkan password sebelum kirim response
-  const {
-    password: _pw,
-    ...userWithoutPassword
-  } = userDB.toObject();
+  const { password: _pw, ...userWithoutPassword } = userDB.toObject();
 
   return res.json({
     success: true,
     message: "Selamat datang.",
     data: userWithoutPassword,
     accessToken,
-        refreshToken,
+    refreshToken,
   });
 });
 

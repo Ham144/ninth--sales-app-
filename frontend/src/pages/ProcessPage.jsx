@@ -2,8 +2,7 @@
 
 import React, { useEffect, useId, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useOutsideClick } from "@/hooks/use-outside-click";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import SalesOrderApi from "@/api/SalesOrderApi";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 import { placeHolderSearchSalesOrder } from "@/api/constant";
@@ -205,9 +204,11 @@ export function ProcessPage() {
       </AnimatePresence>
 
       {/* Sales Order List */}
-      <ul className="max-w-2xl gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
+      <ul className="max-w-2xl md:h-[50vh] overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
         {isLoadingList ? (
-          <p className="text-center text-gray-500">Loading Sales Orders...</p>
+          <div className="flex justify-center items-center">
+            <span className="loading loading-ring loading-lg"></span>
+          </div>
         ) : (
           salesOrderList.data?.map((so) => (
             <li
@@ -218,9 +219,36 @@ export function ProcessPage() {
               }}
               className="p-4 flex justify-between items-center backdrop-blur-lg bg-white/50 border rounded-lg shadow-sm hover:bg-gray-50 cursor-pointer"
             >
-              <div>
-                <p className="font-semibold">{so.return_value}</p>
-                <p className="text-sm text-gray-600">{so.DocumentNo}</p>
+              <div className="flex flex-col w-full">
+                <p className="font-semibold text-gray-800">{so.return_value}</p>
+
+                <div className="flex justify-between mt-1">
+                  <p className="text-sm text-gray-600">{so.DocumentNo}</p>
+
+                  <div className="flex flex-col items-end">
+                    <p className="text-sm text-gray-700 ">
+                      {so.customer?.Name ?? "-"}
+                    </p>
+                    <p className="text-sm text-gray-700">
+                      Rp{" "}
+                      {Intl.NumberFormat("id-ID").format(so.SalesLineTotal) ??
+                        "-"}
+                    </p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-1">
+                  {so.RequestDeliveryDate
+                    ? new Date(so.RequestDeliveryDate).toLocaleDateString(
+                        "id-ID",
+                        {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        }
+                      )
+                    : "-"}
+                </p>
               </div>
               <span className="text-gray-400">›</span>
             </li>

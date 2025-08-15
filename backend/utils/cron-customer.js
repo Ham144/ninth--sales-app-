@@ -7,6 +7,7 @@ import { fetchData } from "./soap-util.js";
 import "dotenv/config";
 import xml2js from "xml2js";
 import crypto from "crypto";
+import Org from "../models/Organization.model.js";
 
 function hashCustomerData(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
@@ -14,12 +15,15 @@ function hashCustomerData(data) {
 
 export const fetchingSoap = async () => {
   try {
+    const org = await Org.findById(req.user.org).select(
+      "SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_PASSWORD SOAP_CUSTOMER_SOAPACTION"
+    );
     const {
       SOAP_CUSTOMER_URL,
       SOAP_CUSTOMER_USERNAME,
       SOAP_CUSTOMER_PASSWORD,
       SOAP_CUSTOMER_SOAPACTION,
-    } = process.env;
+    } = org;
 
     if (
       !SOAP_CUSTOMER_URL ||
@@ -27,7 +31,7 @@ export const fetchingSoap = async () => {
       !SOAP_CUSTOMER_PASSWORD ||
       !SOAP_CUSTOMER_SOAPACTION
     ) {
-      console.log("Tidak ada konfigurasi API Source");
+      console.log("konfigurasi soap customer tidak lengkap");
       return null;
     }
 
@@ -138,9 +142,9 @@ function startCronCustomer() {
   reinitilizeCustomerFromSoap();
   cron.schedule("0 1 * * *", async () => {
     try {
-      console.log("🔃reinitilize Customer From ApiSource..");
+      console.log("🔃reinitilize Customer From soap..");
       await reinitilizeCustomerFromSoap();
-      console.log("✅reinitilize Customer From api source end");
+      console.log("✅reinitilize Customer From from SOAP");
     } catch (error) {
       console.log(error);
     }

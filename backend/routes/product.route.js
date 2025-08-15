@@ -57,7 +57,7 @@ router.get("/getStock", async (req, res) => {
   const { No } = req.query;
 
   try {
-    const product = await fetchingSoapToGetStock(No);
+    const product = await fetchingSoapToGetStock(No, req);
 
     if (!product) {
       return res.status(404).json({ message: "Produk tidak ditemukan." });

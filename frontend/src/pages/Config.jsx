@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Building, SaveAll, Settings2 } from "lucide-react";
 
 export default function Config() {
+  const [recipientTEMP, setrecipientTEMP] = useState("");
   const [openIndex, setOpenIndex] = useState(null);
   const [form, setForm] = useState({
     SOAP_PRODUCT_URL: "",
@@ -38,6 +39,26 @@ export default function Config() {
     "Pembayaran Tertunda Service",
   ];
 
+  const { mutateAsync: handleTestEmail, isPending: loadingSendingEmail } =
+    useMutation({
+      mutationKey: ["test"],
+      mutationFn: async () =>
+        await configApi.testSMTP({
+          EMAIL_HOST: form.EMAIL_HOST,
+          EMAIL_PORT: form.EMAIL_PORT,
+          EMAIL_SECURE: form.EMAIL_SECURE,
+          EMAIL_USER: form.EMAIL_USER,
+          EMAIL_PASS: form.EMAIL_PASS,
+          recipient: recipientTEMP,
+        }),
+      onSuccess: () => {
+        toast.success("TEST BERHASIL, Email berhasil dikirim");
+      },
+      onError: (error) => {
+        toast.error(error?.response?.data?.message || "Gagal mengirim email");
+      },
+    });
+
   const {
     data: configData,
     isLoading,
@@ -49,23 +70,11 @@ export default function Config() {
     refetchOnWindowFocus: false,
   });
 
-  const [AD_HOST, setAD_HOST] = useState("");
-  const [AD_PORT, setAD_PORT] = useState("");
-
-  const fields = [
-    { label: "SOAP URL", type: "text" },
-    { label: "Username", type: "text" },
-    { label: "Password", type: "password" },
-    { label: "SOAP Action", type: "text" },
-  ];
-
-  const queryClient = useQueryClient();
   const { mutate: handleUpdate, isLoading: isUpdating } = useMutation({
     mutationKey: ["config", "update"],
     mutationFn: async () =>
       await configApi.updateAllConfig({
-        AD_HOST,
-        AD_PORT,
+        ...form,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries(["config"]);
@@ -76,11 +85,58 @@ export default function Config() {
     },
   });
 
+  const queryClient = useQueryClient();
+
+  // helper mapping
+  const prefixes = [
+    "SOAP_PRODUCT_",
+    "SOAP_STOCK_",
+    "SOAP_CUSTOMER_",
+    "SOAP_TRANSACTION_",
+    "SOAP_PEMBAYARANTERTUNDA_",
+  ];
+
+  console.log(form);
+
+  const suffixMap = {
+    URL: "URL",
+    Username: "USERNAME",
+    Password: "PASSWORD",
+    SOAPAction: "SOAPACTION",
+  };
+
+  function buildKey(name, index) {
+    if (index == null) return null; // kalau collapse ditutup
+    const pref = prefixes[index];
+    const suf = suffixMap[name];
+    if (!pref || !suf) return null;
+    return pref + suf;
+  }
+
+  // generic onChange
+  function onChangeSoapService(e) {
+    const key = buildKey(e.target.name, openIndex);
+    if (!key) return;
+    const value = e.target.value;
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // getter untuk value (dipakai di JSX)
+  function getSoapValue(name) {
+    const key = buildKey(name, openIndex);
+    return key ? form[key] ?? "" : "";
+  }
+
+  const fields = [
+    { label: "SOAP URL", type: "text", name: "URL" },
+    { label: "Username", type: "text", name: "Username" },
+    { label: "Password", type: "password", name: "Password" },
+    { label: "SOAP Action", type: "text", name: "SOAPAction" },
+  ];
+
   useEffect(() => {
-    // Jalankan kode ini hanya jika configData sudah ada
-    if (configData?.data) {
-      setAD_HOST(configData?.data.AD_HOST || "");
-      setAD_PORT(configData?.data.AD_PORT || "");
+    if (configData) {
+      setForm(configData?.data);
     }
   }, [configData]);
 
@@ -103,6 +159,7 @@ export default function Config() {
       </PengelolaSideBarMenu>
     );
   }
+
   return (
     <PengelolaSideBarMenu>
       {/* Background elements */}
@@ -121,6 +178,10 @@ export default function Config() {
             <p className="opacity-90">
               Pengaturan ini hanya berlaku di organisasi anda bukan di seluruh
               tenant
+            </p>
+            <p className="text-gray-200 text-xs mt-6">
+              Jika tidak ingin mengubah field, kosongkan saja, field kosong
+              tidak akan berdampak apapun
             </p>
           </div>
 
@@ -144,6 +205,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. ad.example.com"
                       className="input input-bordered"
+                      value={form["AD_HOST"]}
+                      onChange={(e) =>
+                        setForm({ ...form, AD_HOST: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -156,6 +221,10 @@ export default function Config() {
                       type="number"
                       placeholder="e.g. 389"
                       className="input input-bordered"
+                      value={form["AD_PORT"]}
+                      onChange={(e) =>
+                        setForm({ ...form, AD_PORT: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -168,6 +237,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. example.com"
                       className="input input-bordered"
+                      value={form["AD_DOMAIN"]}
+                      onChange={(e) =>
+                        setForm({ ...form, AD_DOMAIN: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -180,6 +253,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. DC=csi,DC=my,DC=id"
                       className="input input-bordered"
+                      value={form["AD_BASE_DN"]}
+                      onChange={(e) =>
+                        setForm({ ...form, AD_BASE_DN: e.target.value })
+                      }
                     />
                   </div>
                 </div>
@@ -217,6 +294,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. smtp.example.com"
                       className="input input-bordered"
+                      value={form["EMAIL_HOST"]}
+                      onChange={(e) =>
+                        setForm({ ...form, EMAIL_HOST: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -229,6 +310,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. 587"
                       className="input input-bordered"
+                      value={form["EMAIL_PORT"]}
+                      onChange={(e) =>
+                        setForm({ ...form, EMAIL_PORT: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -241,6 +326,10 @@ export default function Config() {
                       type="text"
                       placeholder="e.g. user@example.com"
                       className="input input-bordered"
+                      value={form["EMAIL_USER"]}
+                      onChange={(e) =>
+                        setForm({ ...form, EMAIL_USER: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -253,6 +342,10 @@ export default function Config() {
                       type="password"
                       placeholder="••••••••"
                       className="input input-bordered"
+                      value={form["EMAIL_PASS"]}
+                      onChange={(e) =>
+                        setForm({ ...form, EMAIL_PASS: e.target.value })
+                      }
                     />
                   </div>
                   <div className="form-control">
@@ -261,7 +354,13 @@ export default function Config() {
                         Secure Connection
                       </span>
                     </label>
-                    <select className="select select-bordered">
+                    <select
+                      value={form["EMAIL_SECURE"]}
+                      onChange={(e) =>
+                        setForm({ ...form, EMAIL_SECURE: e.target.value })
+                      }
+                      className="select select-bordered"
+                    >
                       <option value="false">No (STARTTLS)</option>
                       <option value="true">Yes (SSL/TLS)</option>
                     </select>
@@ -275,10 +374,21 @@ export default function Config() {
                     <div className="flex space-x-2">
                       <input
                         type="text"
-                        placeholder="test@example.com"
+                        placeholder="yafizham@catur.co.id"
                         className="input input-bordered flex-1"
+                        value={recipientTEMP}
+                        onChange={(e) => setrecipientTEMP(e.target.value)}
                       />
-                      <button className="btn btn-primary">Test</button>
+                      <button
+                        onClick={handleTestEmail}
+                        className="btn bg-orange-500 rounded-lg text-white"
+                      >
+                        {loadingSendingEmail ? (
+                          <span className="loading loading-ring loading-lg"></span>
+                        ) : (
+                          "TEST"
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -315,7 +425,11 @@ export default function Config() {
                             </label>
                             <input
                               type={f.type}
+                              name={f.name}
                               className="input input-bordered"
+                              placeholder={f.name}
+                              onChange={onChangeSoapService}
+                              value={getSoapValue(f.name)}
                             />
                           </div>
                         ))}
@@ -327,7 +441,16 @@ export default function Config() {
             </div>
             {/* Submit Button */}
             <div className="flex justify-end">
-              <button className="btn btn-primary bg-orange-500 rounded-lg border-0 text-white">
+              <button
+                type="button"
+                onClick={handleUpdate}
+                disabled={isLoading || isUpdating}
+                className="btn btn-primary bg-orange-500 rounded-lg border-0 text-white"
+              >
+                {isLoading ||
+                  (isUpdating && (
+                    <span className="loading loading-ring loading-lg"></span>
+                  ))}{" "}
                 Save Configuration
                 <SaveAll />
               </button>

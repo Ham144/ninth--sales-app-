@@ -2,7 +2,7 @@ import CustomerApi from "@/api/customerApi";
 import SalesOrderApi from "@/api/SalesOrderApi";
 import ProductApi from "@/api/productApi";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -125,19 +125,21 @@ const RequestPage = () => {
     }));
   };
 
+  const setManualQty = (productNo, newQty) => {
+    setSalesOrder((prev) => ({
+      ...prev,
+      products: prev.products.map((p) =>
+        p.No === productNo ? { ...p, qty: newQty } : p
+      ),
+    }));
+  };
+
   const removeProduct = (sku) => {
     setSalesOrder((prev) => ({
       ...prev,
       products: prev.products.filter((p) => p.No !== sku),
     }));
   };
-
-  useEffect(() => {
-    //jika product search kosong maka hapus rekomendasi
-    if (productSearch === "") {
-      toast("Rekomendasi dihapus");
-    }
-  }, [productSearch]);
 
   return (
     <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg">
@@ -306,12 +308,15 @@ const RequestPage = () => {
                       <AlertDialogTrigger asChild>
                         <Button variant="outline">Show Stock Detail</Button>
                       </AlertDialogTrigger>
-                      <ModalShowStock No={prod.No} />
+                      <ModalShowStock
+                        No={prod.No}
+                        customer={salesOrder.customer}
+                      />
                     </AlertDialog>
                   </div>
                   <div
                     key={prod.No}
-                    className="border h-full rounded-lg p-3 flex flex-col md:flex-row md:justify-between  md:items-center gap-2"
+                    className="border h-full rounded-lg p-3 flex flex-col md:flex-row md:justify-between md:items-center gap-2"
                   >
                     {/* Tombol-tombol qty */}
                     <div className="flex items-center gap-2 flex-wrap">
@@ -322,7 +327,19 @@ const RequestPage = () => {
                       >
                         -
                       </Button>
-                      <span>{prod.qty}</span>
+
+                      {/* Input manual qty */}
+                      <input
+                        type="number"
+                        className="w-16 border rounded text-center"
+                        value={prod.qty}
+                        min="0"
+                        onChange={(e) => {
+                          const newQty = parseInt(e.target.value, 10) || 0;
+                          setManualQty(prod.No, newQty);
+                        }}
+                      />
+
                       <Button
                         size="sm"
                         variant="outline"

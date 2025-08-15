@@ -10,7 +10,7 @@ const configApi = {
     return response.data;
   },
   testSMTP: async (body) => {
-    const response = await axiosInstance.post(`/api/smtp/test`, body);
+    const response = await axiosInstance.post(`/api/config/smtp/test`, body);
     return response.data;
   },
 };

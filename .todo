@@ -1,11 +1,13 @@
 #sales Order APP
 [x] add : customer and product search api
 [x] add : aktivkan cronjob manggil cron-customer dan cron-product tiap 1 jam
-[x] add: edit apiSource 
 [x] add: revoke login user
 [x] add: register a user
 [x] add: search di process page
 [x] fix: interceptor refresh-token
 [x] modify: pindahin config .env ke organization.
 [x] add: config page
-[] modify: fitur show stock detail di sesuaikan dengan ambil customer.Location_Code
+[x] modify: fitur show stock detail di sesuaikan dengan ambil customer.Location_Code
+[x] modify: quantity input bukan increment decrement
+[] add: filter bulan di processPage
+[] add: bisa tambah properti ke customer dan product

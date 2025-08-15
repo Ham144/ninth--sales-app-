@@ -17,7 +17,11 @@ const salesOrderSchema = new mongoose.Schema(
   {
     return_value: { type: String, required: true },
     DocumentNo: { type: String, required: true },
-    SellToCustNo: { type: String, required: true },
+    customer: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      required: true,
+    },
     ShiptToCode: { type: String },
     OrderDate: { type: Date },
     LocationCode: { type: String },
@@ -28,11 +32,17 @@ const salesOrderSchema = new mongoose.Schema(
     NoSeries: { type: String },
     ExtDoc: { type: String },
     RequestDeliveryDate: { type: Date, default: null },
+    Keterangan: { type: String },
     SalesLine: [salesLineSchema],
+    SalesLineTotal: { type: Number, default: 0 },
     org: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Org",
       required: true,
+    },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "UserRefrensi",
     },
   },
   { timestamps: true }

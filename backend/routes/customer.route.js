@@ -4,6 +4,7 @@ import Customer from "../models/Customer.model.js";
 import { cekPembayaranTertundaXml } from "../xml.js";
 import { parseStringPromise } from "xml2js";
 import { fetchData } from "../utils/soap-util.js";
+import Org from "../models/Organization.model.js";
 
 const router = Router();
 
@@ -65,12 +66,16 @@ router.post("/getByNo/:no", async (req, res) => {
       });
     }
 
+    const myOrganization = await Org.findById(req.user.org).select(
+      "SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL"
+    );
+
     //cek pembayaran tertunda
     const xml = cekPembayaranTertundaXml({ customerNo: customer?.No });
-    const username = process.env.SOAP_PEMBAYARANTERTUNDA_USERNAME;
-    const password = process.env.SOAP_PEMBAYARANTERTUNDA_PASSWORD;
-    const soap_action = process.env.SOAP_PEMBAYARANTERTUNDA_SOAPACTION;
-    const url = process.env.SOAP_PEMBAYARANTERTUNDA_URL;
+    const username = myOrganization.SOAP_PEMBAYARANTERTUNDA_USERNAME;
+    const password = myOrganization.SOAP_PEMBAYARANTERTUNDA_PASSWORD;
+    const soap_action = myOrganization.SOAP_PEMBAYARANTERTUNDA_SOAPACTION;
+    const url = myOrganization.SOAP_PEMBAYARANTERTUNDA_URL;
 
     const pembayaranTertundaXmlResponse = await fetchData({
       xml,

@@ -37,62 +37,49 @@ export const checkStockXML = (No) => {
     </Body>
 </Envelope>`;
 };
+
 export const requestSalesOrderXml = ({
   DocumentNo,
   SellToCustNo,
-  ShiptToCode,
-  OrderDate,
-  LocationCode,
-  Dim1,
-  CustomerPriceGrp,
-  SalespersonCode,
-  SellToContact,
-  NoSeries,
   ExtDoc,
   RequestDeliveryDate,
   SalesLine,
+  Keterangan,
 }) => {
   return `
 <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
   <Body>
-    <SalesMobileInsert xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
+    <SalesMobileInsertCSI xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
       <xML_Sales>
-        <SalesHeader xmlns="urn:microsoft-dynamics-nav/xmlports/x50009">
+        <SalesHeader xmlns="urn:microsoft-dynamics-nav/xmlports/x50023">
           <DocumentNo>${DocumentNo}</DocumentNo>
           <SellToCustNo>${SellToCustNo}</SellToCustNo>
-          <ShiptToCode>${ShiptToCode || ""}</ShiptToCode>
-          <OrderDate>${OrderDate || ""}</OrderDate>
-          <LocationCode>${LocationCode || ""}</LocationCode>
-          <Dim1>${Dim1 || ""}</Dim1>
-          <CustomerPriceGrp>${CustomerPriceGrp || ""}</CustomerPriceGrp>
+          <ShiptToCode></ShiptToCode>
+          <OrderDate></OrderDate>
+          <LocationCode></LocationCode>
+          <Dim1></Dim1>
+          <CustomerPriceGrp></CustomerPriceGrp>
           <SalespersonCode></SalespersonCode>
-          <SellToContact>${SellToContact || ""}</SellToContact>
+          <SellToContact></SellToContact>
           <NoSeries>SO-SMA</NoSeries>
           <ExtDoc>${ExtDoc || ""}</ExtDoc>
           <RequestDeliveryDate>${RequestDeliveryDate}</RequestDeliveryDate>
+          <Keterangan>${Keterangan}</Keterangan>
           ${SalesLine.map(
-            ({
-              DocumentNo,
-              LineNo,
-              ItemNo,
-              Qty,
-              UnitPrice,
-              LineDiscountAmount,
-              PromoCode,
-            }) => `
+            ({ DocumentNo, LineNo, ItemNo, Qty }) => `
           <SalesLine>
             <DocumentNo>${DocumentNo}</DocumentNo>
             <LineNo>${LineNo}</LineNo>
             <ItemNo>${ItemNo}</ItemNo>
             <Qty>${Qty}</Qty>
-            <UnitPrice>${UnitPrice || ""}</UnitPrice>
-            <LineDiscountAmount>${LineDiscountAmount || ""}</LineDiscountAmount>
-            <PromoCode>${PromoCode || ""}</PromoCode>
+            <UnitPrice></UnitPrice>
+            <LineDiscountAmount></LineDiscountAmount>
+            <PromoCode></PromoCode>
           </SalesLine>`
           ).join("")}
         </SalesHeader>
       </xML_Sales>
-    </SalesMobileInsert>
+    </SalesMobileInsertCSI>
   </Body>
 </Envelope>`;
 };

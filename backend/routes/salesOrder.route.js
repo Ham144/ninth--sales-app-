@@ -6,37 +6,30 @@ import generateGlobalIndex from "../utils/generateGlobalIndex.js";
 import { getCurrentDateForNAV } from "../utils/getCurrentDateTanggalBlnThn.js";
 import GetMyOrganizationAbbr from "../utils/getMyOrganizationAbbr.js";
 import SalesOrder from "../models/SalesOrder.model.js";
-import { parse } from "dotenv";
+import Org from "../models/Organization.model.js";
 
 const router = Router();
 
 export const requestSalesOrder = async ({
   DocumentNo,
   SellToCustNo,
-  ShiptToCode,
-  OrderDate,
-  LocationCode,
-  CustomerPriceGrp,
-  SalespersonCode,
-  NoSeries,
   ExtDoc,
   RequestDeliveryDate,
+  Keterangan,
   SalesLine,
+  req,
 }) => {
-  if (!DocumentNo) return console.log("DocumentNo not found");
-  if (!SellToCustNo) return console.log("SellToCustNo not found");
-  if (!CustomerPriceGrp) return console.log("CustomerPriceGrp not found");
-  if (!NoSeries) return console.log("NoSeries not found");
-  if (!RequestDeliveryDate) return console.log("RequestDeliveryDate not found");
-  if (!SalesLine) return console.log("SalesLine not found");
-
   try {
+    const org = await Org.findById(req.user.org).select(
+      "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION"
+    );
+
     const {
       SOAP_TRANSACTION_URL,
       SOAP_TRANSACTION_USERNAME,
       SOAP_TRANSACTION_PASSWORD,
       SOAP_TRANSACTION_SOAPACTION,
-    } = process.env;
+    } = org;
 
     if (
       !SOAP_TRANSACTION_URL ||
@@ -44,22 +37,17 @@ export const requestSalesOrder = async ({
       !SOAP_TRANSACTION_PASSWORD ||
       !SOAP_TRANSACTION_SOAPACTION
     ) {
-      console.log("Tidak ada konfigurasi API Source");
+      console.log("konfigurasi SOAP Transaction tidak lengkap");
       return null;
     }
 
     const xml = requestSalesOrderXml({
       DocumentNo,
       SellToCustNo,
-      ShiptToCode,
-      OrderDate,
-      LocationCode,
-      CustomerPriceGrp,
-      SalespersonCode,
-      NoSeries,
       ExtDoc,
       RequestDeliveryDate,
       SalesLine,
+      Keterangan,
     });
 
     const rawXmlResponse = await fetchData({
@@ -97,8 +85,13 @@ export const requestSalesOrder = async ({
       };
     }
 
-    // 🔹 Kalau sukses
-    const result = parsed?.Envelope?.Body?.SalesMobileInsert_Result;
+    // 🔹 Ambil node utama secara dinamis
+    const body = parsed?.Envelope?.Body;
+    const key = body
+      ? Object.keys(body).find((k) => k.includes("SalesMobileInsert"))
+      : null;
+    const result = key ? body[key] : null;
+
     if (!result) {
       console.log("Tidak bisa mendapatkan response transaction");
       return {
@@ -107,6 +100,7 @@ export const requestSalesOrder = async ({
       };
     }
 
+    // 🔹 Normalisasi response
     return {
       error: false,
       return_value: result?.return_value || null,
@@ -143,28 +137,31 @@ router.post("/new", async (req, res) => {
     const orderDate = new Date().toISOString().split("T")[0];
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: globalIndex,
-      SellToCustNo: customer.No,
-      ShiptToCode: customer.ShiptToCode || "",
-      OrderDate: orderDate,
-      LocationCode: customer.Location_Code || "",
-      CustomerPriceGrp: customer.Customer_Price_Group,
-      SalespersonCode: customer.Salesperson_Code || "",
-      NoSeries: "SO-" + (await GetMyOrganizationAbbr({ req })),
       ExtDoc: globalIndex,
+      SellToCustNo: customer.No,
       RequestDeliveryDate: getCurrentDateForNAV(),
-      SalesLine: SalesLine,
+      Keterangan: req.user.username,
+      SalesLine,
+      req,
     });
 
-    if (salesOrderResponseXml?.error) {
-      return res
-        .status(500)
-        .json({ message: JSON.stringify(salesOrderResponseXml.message) });
+    if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
+      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
+      return res.status(500).json({
+        message: JSON.stringify(
+          salesOrderResponseXml?.message || salesOrderResponseXml
+        ),
+      });
     }
+
+    const SalesLineTotal = SalesLine.reduce((total, item) => {
+      return total + item.UnitPrice;
+    }, 0);
 
     const generatedSalesOrder = await SalesOrder.create({
       return_value: salesOrderResponseXml.return_value,
       DocumentNo: globalIndex,
-      SellToCustNo: customer.No,
+      customer: customer._id,
       ShiptToCode: customer.ShiptToCode || "",
       OrderDate: orderDate,
       LocationCode: customer.Location_Code || "",
@@ -172,10 +169,14 @@ router.post("/new", async (req, res) => {
       CustomerPriceGrp: customer.Customer_Price_Group,
       SalespersonCode: customer.Salesperson_Code || "",
       NoSeries: await GetMyOrganizationAbbr({ req }),
-      ExtDoc: globalIndex,
-      RequestDeliveryDate: getCurrentDateForNAV(),
+      ExtDoc: req.user.username, //nama si user
+      RequestDeliveryDate: new Date(
+        convertToISOConvertableDate(getCurrentDateForNAV())
+      ),
       SalesLine: SalesLine,
+      SalesLineTotal: SalesLineTotal,
       org: req.user.org,
+      createdBy: req.user._id,
     });
 
     return res.status(200).json(generatedSalesOrder);
@@ -189,25 +190,36 @@ router.get("/list", async (req, res) => {
   const { searchKey } = req.query;
 
   try {
-    let query = { org: req.user.org };
-    if (searchKey != "" && searchKey != "undefined") {
-      query = {
-        $or: [
-          { DocumentNo: { $regex: searchKey, $options: "i" } },
-          { SalespersonCode: { $regex: searchKey, $options: "i" } },
-          { ExtDoc: { $regex: searchKey, $options: "i" } },
-          { SellToCustNo: { $regex: searchKey, $options: "i" } },
-          { return_value: { $regex: searchKey, $options: "i" } },
+    let matchStage = { org: req.user.org, createdBy: req.user._id };
+
+    if (searchKey && searchKey !== "undefined") {
+      matchStage = {
+        $and: [
+          { org: req.user.org },
+          {
+            $or: [
+              { DocumentNo: { $regex: searchKey, $options: "i" } },
+              { SalespersonCode: { $regex: searchKey, $options: "i" } },
+              { ExtDoc: { $regex: searchKey, $options: "i" } },
+              { SellToCustNo: { $regex: searchKey, $options: "i" } },
+              { return_value: { $regex: searchKey, $options: "i" } },
+              { "customer.Name": { $regex: searchKey, $options: "i" } },
+            ],
+          },
         ],
       };
     }
 
-    const salesOrders = await SalesOrder.find(query)
-      .select("_id return_value DocumentNo RequestDeliveryDate ")
+    const salesOrders = await SalesOrder.find(matchStage)
+      .populate("customer", "Name No")
+      .select(
+        "_id return_value DocumentNo RequestDeliveryDate customer SalesLineTotal"
+      )
       .lean();
+
     return res.status(200).json(salesOrders);
   } catch (error) {
-    console.log(error);
+    console.error(error);
     return res.status(500).json({ message: "Kesalahan Server Internal" });
   }
 });
@@ -224,3 +236,9 @@ router.get("/getById/:id", async (req, res) => {
 });
 
 export default router;
+
+export const convertToISOConvertableDate = (dateStr) => {
+  // dari DD/MM/YYYY → YYYY-MM-DD
+  const [day, month, year] = dateStr.split("/");
+  return `${year}-${month}-${day}`;
+};

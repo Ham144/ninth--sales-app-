@@ -1,9 +1,6 @@
 import { Router } from "express";
-import dotenv from "dotenv";
 import nodemailer from "nodemailer";
 import Org from "../models/Organization.model.js";
-
-dotenv.config();
 
 const router = Router();
 
@@ -11,7 +8,7 @@ const router = Router();
 router.get("/all", async (req, res) => {
   try {
     const org = await Org.findById(req.user.org).select(
-      "AD_HOST AD_PORT AD_DOMAIN AD_BASE_DN EMAIL_USER EMAIL_PASS EMAIL_HOST EMAIL_PORT EMAIL_SECURE SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_SOAPACTION SOAP_STOCK_URL SOAP_STOCK_USERNAME  SOAP_STOCK_SOAPACTION SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_SOAPACTION SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_SOAPACTION"
+      "AD_HOST AD_PORT AD_DOMAIN AD_BASE_DN EMAIL_USER EMAIL_HOST EMAIL_PORT EMAIL_SECURE SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_SOAPACTION SOAP_STOCK_URL SOAP_STOCK_USERNAME  SOAP_STOCK_SOAPACTION SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_SOAPACTION SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_SOAPACTION"
     );
 
     if (!org) {
@@ -20,12 +17,7 @@ router.get("/all", async (req, res) => {
 
     return res.status(200).json({
       message: "Berhasil mengambil konfigurasi LDAP organisasi.",
-      data: {
-        AD_HOST: org.AD_HOST,
-        AD_PORT: org.AD_PORT,
-        AD_DOMAIN: org.AD_DOMAIN,
-        AD_BASE_DN: org.AD_BASE_DN,
-      },
+      data: org,
     });
   } catch (error) {
     return res.status(500).json({ message: "Gagal, internal server error." });
@@ -43,7 +35,7 @@ router.put("/all", async (req, res) => {
     );
 
     // Update hanya field yang ada di filteredData
-    const updatedOrg = await Organization.findOneAndUpdate(
+    const updatedOrg = await Org.findOneAndUpdate(
       { _id: orgId },
       { $set: filteredData },
       { new: true, upsert: false }
@@ -70,6 +62,7 @@ router.post("/smtp/test", async (req, res) => {
     recipient,
   } = req.body;
 
+  console.log(req.body);
   if (!recipient) {
     return res.status(400).json({ message: "Email penerima diperlukan." });
   }
