@@ -25,7 +25,6 @@ export default function PengelolaSideBarMenu({ children }) {
     { name: "Product", path: "/management/product", icon: Package },
     { name: "Account", path: "/management/account", icon: Users2 },
     { name: "Configuration", path: "/management/config", icon: Cog },
-    { name: "department", path: "/management/department", icon: Hotel },
     { name: "supertenant", path: "/supertenant/management", icon: Crown },
   ];
 

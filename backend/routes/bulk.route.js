@@ -2,7 +2,6 @@ import { Router } from "express";
 import Org from "../models/Organization.model.js";
 import LdapClient from "ldapjs-client";
 import UserRefrensi from "../models/User.model.js";
-import Department from "../models/Department.model.js";
 
 const router = Router();
 
@@ -84,42 +83,6 @@ router.post("/initialize/all", async (req, res) => {
       // Pastikan user masuk Org.members
       await Org.updateOne(
         { _id: selectedOrg },
-        { $addToSet: { members: userDB._id } }
-      );
-
-      // Temukan / buat departemen
-      let department = await Department.findOne({
-        org: selectedOrg,
-        name: physicalDeliveryOfficeName,
-      });
-
-      if (!department) {
-        department = await Department.create({
-          name: physicalDeliveryOfficeName,
-          org: selectedOrg,
-          members: [userDB._id],
-        });
-      }
-
-      // Hapus dari departemen lama (jika beda)
-      const currentDepartment = await Department.findOne({
-        org: selectedOrg,
-        members: userDB._id,
-      });
-
-      if (
-        currentDepartment &&
-        currentDepartment._id.toString() !== department._id.toString()
-      ) {
-        await Department.updateOne(
-          { _id: currentDepartment._id },
-          { $pull: { members: userDB._id } }
-        );
-      }
-
-      // Pastikan user masuk ke departemen yang sesuai
-      await Department.updateOne(
-        { _id: department._id },
         { $addToSet: { members: userDB._id } }
       );
     }

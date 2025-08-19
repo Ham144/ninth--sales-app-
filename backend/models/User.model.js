@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     displayName: String,
+    description: String, //dari AD
     email: String,
     role: {
       type: String,

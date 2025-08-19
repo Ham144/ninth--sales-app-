@@ -6,7 +6,6 @@ import LdapClient from "ldapjs-client";
 import authenticate from "../middlewares/authenticate.js";
 import Org from "../models/Organization.model.js";
 import authorize from "../middlewares/authorize.js";
-import Department from "../models/Department.model.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 import jwt from "jsonwebtoken";
 
@@ -232,6 +231,7 @@ router.post(
         message: "Organisasi yang dipilih tidak ditemukan.",
       });
     }
+
     if (OrgDB?.isDisabled) {
       return res.status(400).json({
         message:
@@ -253,17 +253,11 @@ router.post(
       try {
         // Langkah 1: Bind dulu
         await client.bind(bindDn, password);
-
         // Langkah 2: Search
         const result = await client.search(baseDN, {
           scope: "sub",
           filter: `(sAMAccountName=${username})`, // ganti dengan user yang kamu tahu
-          attributes: [
-            "physicalDeliveryOfficeName",
-            "displayName",
-            "mail",
-            "telephoneNumber",
-          ],
+          attributes: ["description", "displayName", "mail", "telephoneNumber"],
         });
         userLDAP = result[0];
       } catch (error) {
@@ -273,18 +267,21 @@ router.post(
           error,
         });
       }
-
-      //cari apakah user dan departement demikian sudah ada
+      
+      //cari apakah user demikian sudah ada
       let userDB = await UserRefrensi.findOne({
         username,
         org: selectedOrg,
         authMethod: "ldap",
       });
-      let departementDB = await Department.findOne({
-        org: selectedOrg,
-        name: userLDAP["physicalDeliveryOfficeName"],
-      });
 
+      if ((userLDAP?.description || "").toUpperCase() !== "SALES") {
+        return res.status(400).json({
+          message: "User tidak diizinkan karena bukan SALES.",
+        });
+      }
+
+      
       const isFirstMember = OrgDB?.owners?.length < 2;
 
       if (!userDB) {
@@ -295,7 +292,9 @@ router.post(
           authMethod: "ldap",
           displayName: userLDAP["displayName"],
           email: userLDAP["mail"],
+          description: userLDAP["description"],
         });
+
         await userDB.save();
         const updateData = {
           $addToSet: {
@@ -309,14 +308,14 @@ router.post(
 
         await Org.findByIdAndUpdate(selectedOrg, updateData);
       }
-      if (!departementDB) {
-        departementDB = new Department({
-          name: userLDAP["physicalDeliveryOfficeName"],
-          org: selectedOrg,
-          members: [userDB._id],
-        });
+     
+      //jika user sebelumnya memiliki description yg berbeda dengan ldap :ganti
+      if (userDB.email !== userLDAP["description"]) {
+        await UserRefrensi.findOneAndUpdate(
+          { username },
+          { $set: { description: userLDAP["description"] } }
+        );
       }
-
       //jika user ada cek apakah email dan physicalDeliveryOfficeName diubah di AD maka update
       if (userDB.email !== userLDAP["mail"]) {
         await UserRefrensi.findOneAndUpdate(
@@ -331,59 +330,40 @@ router.post(
         );
       }
 
-      //cek apakah departement dari ldap cocok dengan departemnt si user
-      //cek apakah departement dari ldap cocok dengan departemnt si user
-      const myPreviousDepartment = await Department.findOne({
-        org: OrgDB._id,
-        members: { $in: [userDB._id] },
-      });
-      if (
-        myPreviousDepartment &&
-        myPreviousDepartment.name !== departementDB.name
-      ) {
-        const toDeleteMemberIdx = myPreviousDepartment.members.findIndex(
-          (dep) => String(dep) === String(userDB._id)
-        );
-
-        if (toDeleteMemberIdx !== -1) {
-          myPreviousDepartment.members.splice(toDeleteMemberIdx, 1);
-        }
-      } else {
-        //jika departement sebelumnya ga ada tapi departement yang dimaksud sudah terdaftar maka add
-        if (!myPreviousDepartment && departementDB) {
-          const duplicateId = departementDB.members.some(
-            (f) => f._id === userDB._id
-          );
-          if (!duplicateId) {
-            departementDB.members.push(userDB._id);
-          }
-        }
-      }
-
       const payload = {
         _id: userDB._id,
         username: username,
         org: OrgDB._id,
         role: userDB.role,
-        department: departementDB?._id,
+        description: userLDAP["description"],
       };
 
-      const token = await generateTokenJWT(payload);
+      const access_token = await generateTokenJWT(payload);
+      const refresh_token = await generateRefreshToken(payload);
 
-      res.cookie("token", token, {
+      res.cookie("refresh_token", refresh_token, {
         httpOnly: true, // ✅ Aman
         secure: false, // ✅ karena http
         sameSite: "Lax", // ✅ Agar bisa cross-origin
-        maxAge: 7 * 24 * 60 * 60 * 1000,
+        maxAge: 7 * 24 * 60 * 60 * 1000, //7 hari
       });
 
+      res.cookie("access_token", access_token, {
+        httpOnly: true, // ✅ Aman
+        secure: false, // ✅ karena http
+        sameSite: "Lax", // ✅ Agar bisa cross-origin
+        maxAge: 5 * 60 * 1000, //5 menit
+      });
+
+      userDB.refreshToken = refresh_token;
       await userDB.save();
-      await departementDB.save();
 
       return res.json({
         success: true,
         message: "Selamat datang kembali.",
         data: payload,
+        refresh_token: refresh_token,
+        access_token: access_token,
       });
     } catch (error) {
       console.log(error);
@@ -457,22 +437,11 @@ router.post("/login/app", async (req, res) => {
     console.log("org terhubung ke supertenant telah berganti");
   }
 
-  //cari departmentnya nya
-  const myDepartment = await Department.findOne({
-    org: OrgDB._id,
-    members: { $in: [userDB._id] },
-  });
-
-  if (!myDepartment) {
-    console.log("User baru, tidak terdaftar di department manapun");
-  }
-
   const payload = {
     _id: userDB._id,
     username: userDB.username,
     org: OrgDB._id,
     role: userDB.role,
-    department: myDepartment?._id,
   };
 
   const accessToken = await generateTokenJWT(payload);
@@ -539,17 +508,12 @@ router.post("/refresh-token", async (req, res) => {
       });
     }
 
-    const myDepartment = await Department.findOne({
-      org: OrgDB._id,
-      members: { $in: [userDB._id] },
-    });
-
     const payload = {
       _id: userDB._id,
       username: userDB.username,
       org: OrgDB._id,
       role: userDB.role,
-      department: myDepartment?._id,
+      description: userDB?.description,
     };
 
     const accessToken = await generateTokenJWT(payload);
@@ -665,7 +629,6 @@ router.put(
 );
 
 //ini untuk memperbarui userInfo karena di authenticate payload cuma di decode
-//get user info ✅
 router.get(
   "/getUserInfo",
   authenticate,
@@ -677,16 +640,11 @@ router.get(
       });
     }
 
-    const myDepartment = await Department.findOne({
-      org: req.user.org,
-      members: { $in: [req.user._id] },
-    }).select("name _id");
-
     let userDB = await UserRefrensi.findOne({
       _id: req.user._id,
       org: req.user.org,
     })
-      .select("-password")
+      .select("-password -refreshToken")
       .lean();
 
     if (!userDB) {
@@ -698,7 +656,6 @@ router.get(
 
     userDB = {
       ...userDB,
-      department: myDepartment,
     };
 
     return res.json({
@@ -723,7 +680,8 @@ router.get(
     const userDB = await UserRefrensi.findOne({
       _id: req.userId,
       org: req.user.org,
-    }).select("-password");
+    }).select("-password -refreshToken");
+
     if (!userDB) {
       return res.status(404).json({
         success: false,

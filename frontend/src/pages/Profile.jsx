@@ -30,9 +30,9 @@ const ManagementButton = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex gap-y-2   flex-col justify-center">
+    <div className="flex gap-y-2 flex-col justify-center">
       {managementMenus.map((menu) => (
-        <div className="card bg-transparent shadow-xl">
+        <div className="card bg-transparent border rounded-lg">
           <div className="card-body">
             <h2 className="card-title">{menu.title}</h2>
             <p>{menu.description}</p>
@@ -59,7 +59,6 @@ const Profile = () => {
     queryKey: ["org"],
     queryFn: async () => {
       const res = await OrgApi.getMyOrg(userInfo?.org);
-      console.log(res);
       return res?.data;
     },
     enabled: !!userInfo?.org,
@@ -85,29 +84,6 @@ const Profile = () => {
     },
   });
 
-  const validateForm = () => {
-    if (!formData.password) return true; // Password optional for update
-
-    const password = formData.password;
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasNumber = /\d/.test(password);
-    const isLongEnough = password.length >= 6;
-
-    if (!isLongEnough) {
-      toast.error("Password harus lebih dari 6 karakter.");
-      return false;
-    }
-    if (!hasUpperCase) {
-      toast.error("Password harus memiliki huruf besar.");
-      return false;
-    }
-    if (!hasNumber) {
-      toast.error("Password harus memiliki angka.");
-      return false;
-    }
-    return true;
-  };
-
   const tabs = [
     { id: "profile", label: "Profile", icon: <User className="w-5 h-5" /> },
     {
@@ -121,7 +97,7 @@ const Profile = () => {
     <div className="min-h-screen flex flex-col dark:bg-gray-900 text-gray-900 dark:text-gray-100">
       {/* Header with Tab Navigation */}
       <div className="sticky  top-0 z-20  dark:bg-gray-800 shadow-md py-3 px-4 sm:px-6">
-        <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2">
+        <div className="max-w-6xl mx-auto flex flex-wrap justify-between items-center gap-2 ">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -165,8 +141,8 @@ const Profile = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w">
-        <div className=" dark:bg-gray-800  p-6 sm:p-8">
+      <div className="flex-1 p-4 mx-auto sm:p-6 lg:p-8 max-w-6xl w">
+        <div className="border">
           {activeTab === "profile" && (
             <div className="space-y-8">
               <h2 className="text-2xl sm:text-3xl text-center text-gray-800 dark:text-gray-200 border-b pb-4 font-light  mb-4">

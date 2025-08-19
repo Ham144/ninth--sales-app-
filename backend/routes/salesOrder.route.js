@@ -7,6 +7,11 @@ import { getCurrentDateForNAV } from "../utils/getCurrentDateTanggalBlnThn.js";
 import GetMyOrganizationAbbr from "../utils/getMyOrganizationAbbr.js";
 import SalesOrder from "../models/SalesOrder.model.js";
 import Org from "../models/Organization.model.js";
+import Customer from "../models/Customer.model.js";
+import Product from "../models/product.model.js";
+import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
+import mongoose from "mongoose";
+import { Mongoose } from "mongoose";
 
 const router = Router();
 
@@ -229,6 +234,89 @@ router.get("/getById/:id", async (req, res) => {
   try {
     const salesOrder = await SalesOrder.findById(id).lean();
     return res.status(200).json(salesOrder);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Kesalahan Server Internal" });
+  }
+});
+
+//terima productsNo
+router.put("/temp/create", async (req, res) => {
+  const { products, customerId, frontendSession, comment } = req.body;
+
+  try {
+    const existingTemporarySalesOrder = await TemporarySalesOrder.findOne({
+      createdBy: req.user._id,
+      org: req.user.org,
+      frontendSession,
+    });
+
+    if (existingTemporarySalesOrder) {
+      if (comment) {
+        existingTemporarySalesOrder.comment = comment;
+      }
+      if (products) {
+        console.log("updating products");
+        existingTemporarySalesOrder.products = products;
+        await existingTemporarySalesOrder.save();
+        return res.json({
+          success: true,
+          message: "Temporary Sales Order Berhasil diperbarui",
+          data: existingTemporarySalesOrder,
+        });
+      }
+    } else {
+      const customerDB = await Customer.findById(customerId);
+
+      if (!customerDB) {
+        return res.status(404).json({ message: "Customer Tidak Ditemukan" });
+      }
+
+      const currentDate = new Date();
+      const hour = currentDate.getHours();
+      const day = currentDate.getDate();
+      const month = currentDate.getMonth() + 1; // bulan dari 0
+      const year = currentDate.getFullYear();
+      const defaultComment = `${hour}-${day}-${month}-${year}-${customerDB.Name}`;
+
+      const newTemp = await TemporarySalesOrder.create({
+        customer: customerDB._id,
+        comment: comment ?? defaultComment,
+        org: req.user.org,
+        products,
+        frontendSession,
+        createdBy: req.user._id,
+      });
+
+      return res.json({
+        success: true,
+        message: "Temporary Sales Order Berhasil Dibuat",
+        data: newTemp,
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Kesalahan Server Internal" });
+  }
+});
+
+router.get("/temp/collect", async (req, res) => {
+  const { customerId } = req.query;
+
+  try {
+    const tempSO = await TemporarySalesOrder.find({
+      customer: new mongoose.Types.ObjectId(customerId),
+    });
+
+    if (!tempSO) {
+      return res
+        .status(204)
+        .json({ message: "Temporary Sales Order Tidak Ditemukan" });
+    }
+
+    return res.status(200).json({
+      data: tempSO,
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Kesalahan Server Internal" });

@@ -9,5 +9,7 @@
 [x] add: config page
 [x] modify: fitur show stock detail di sesuaikan dengan ambil customer.Location_Code
 [x] modify: quantity input bukan increment decrement
-[] add: filter bulan di processPage
+[x] add: filter bulan di processPage
+[x] add: halaman popup fitur pencarian
+[x] add: fitur temporary salesOrder di request page untuk orderan tidak selesai
 [] add: bisa tambah properti ke customer dan product

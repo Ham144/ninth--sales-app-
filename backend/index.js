@@ -10,7 +10,6 @@ import configRoutes from "./routes/config.route.js";
 import orgRoutes from "./routes/org.routes.js";
 import fileRoutes from "./routes/file.route.js";
 import authorize from "./middlewares/authorize.js";
-import departmentRoutes from "./routes/department.route.js";
 import bulkRoutes from "./routes/bulk.route.js";
 import productRoutes from "./routes/product.route.js";
 import customerRoutes from "./routes/customer.route.js";
@@ -52,7 +51,6 @@ app.use("/api/auth", auhtRoutes);
 app.use("/api/config", authenticate, authorize, configRoutes);
 app.use("/api/org", orgRoutes);
 app.use("/api/file", authenticate, fileRoutes);
-app.use("/api/department", authenticate, departmentRoutes);
 app.use("/api/bulk", authenticate, authorize, bulkRoutes);
 
 //routes project utama

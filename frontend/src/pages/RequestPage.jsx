@@ -2,7 +2,7 @@ import CustomerApi from "@/api/customerApi";
 import SalesOrderApi from "@/api/SalesOrderApi";
 import ProductApi from "@/api/productApi";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import ModalShowStock from "@/components/ModalShowStock";
 import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { v4 as uuidv4 } from "uuid";
+import ModalTempOption from "@/components/ModalTempOption";
 
 const initialSalesOrder = {
   customer: {},
@@ -31,14 +33,74 @@ const RequestPage = () => {
     enabled: customerSearch.length > 1,
   });
 
-  //get By No
+  const { mutate: handleCreateTempSo } = useMutation({
+    mutationKey: ["tempSO"],
+    mutationFn: async () =>
+      await SalesOrderApi.createTempSO({
+        products: salesOrder.products,
+        customerId: salesOrder.customer._id,
+        frontendSession,
+        comment: `${new Date().toLocaleTimeString()} - ${
+          salesOrder.customer.Name
+        }`,
+      }),
+    onSuccess: (res) => {
+      console.log("Berhasil buat temp SO");
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message) ||
+        "Terjadi kesalahan buat temp SO";
+    },
+  });
+
+  //states untuk Temp Sales order modal
+  const [frontendSession, setFrontendSession] = useState();
+  const debounceTimerRef = useRef(null);
+  const [tempSalesOrderOption, setTempSalesOrderOption] = useState([]);
+
+  // Function untuk temporary save dengan debounce
+  const debouncedTempSave = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      if (
+        salesOrder.products?.length > 0 &&
+        salesOrder.customer?.No &&
+        frontendSession
+      ) {
+        handleCreateTempSo();
+      }
+    }, 1000); // 1 detik delay
+  }, [
+    salesOrder.products?.length,
+    salesOrder.customer?.No,
+    frontendSession,
+    handleCreateTempSo,
+  ]);
+
+  //customer get By No
   const { mutateAsync: selectCustomer } = useMutation({
     mutationKey: ["customer"],
     mutationFn: async (no) => await CustomerApi.getByNo(no),
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setCustomerSearch("");
       setSalesOrder((prev) => ({ ...prev, customer: data?.data?.customer }));
       setPembayaranTertunda(data?.data?.pembayaranTertunda);
+      //sekalian panggil temp so
+      const tempSO = await SalesOrderApi.getTempSO(data?.data?.customer?._id);
+      if (tempSO?.data?.data?.length > 0) {
+        document.getElementById("modal-temp-so").showModal();
+        setTempSalesOrderOption(tempSO?.data?.data);
+      }
+
+      const newFronendSession = uuidv4();
+      setFrontendSession(newFronendSession);
+      // Jika sudah ada products, trigger temporary save dengan customer baru
+      if (salesOrder.products?.length > 0) {
+        debouncedTempSave();
+      }
     },
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Terjadi kesalahan");
@@ -50,6 +112,26 @@ const RequestPage = () => {
     queryFn: async () => await ProductApi.getAllProducts(productSearch),
     enabled: productSearch.length > 1,
   });
+
+  // Effect untuk auto-save temporary setiap kali ada perubahan
+  useEffect(() => {
+    if (
+      salesOrder.products?.length > 0 &&
+      salesOrder.customer?.No &&
+      frontendSession
+    ) {
+      debouncedTempSave();
+    }
+  }, [salesOrder?.products?.length, salesOrder.customer?.No, frontendSession]);
+
+  // Cleanup timer saat component unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const navigate = useNavigate();
   const {
@@ -68,7 +150,7 @@ const RequestPage = () => {
 
   const addProduct = (prod) => {
     setSalesOrder((prev) => {
-      const exists = prev.products.find((p) => p.No === prod.No);
+      const exists = prev.products?.find((p) => p.No === prod.No);
       if (exists) return prev;
 
       const selectedCustomer = prev.customer;
@@ -102,7 +184,7 @@ const RequestPage = () => {
       return {
         ...prev,
         products: [
-          ...prev.products,
+          ...(prev.products || []),
           {
             ...prod,
             qty: 1,
@@ -113,43 +195,66 @@ const RequestPage = () => {
       };
     });
 
+    // Set frontendSession setelah state berhasil diupdate
+    if (!frontendSession) {
+      const uuid = uuidv4();
+      setFrontendSession(uuid);
+    }
+
     setProductSearch("");
   };
 
   const updateProductQty = (sku, delta) => {
     setSalesOrder((prev) => ({
       ...prev,
-      products: prev.products.map((p) =>
+      products: (prev.products || []).map((p) =>
         p.No === sku ? { ...p, qty: Math.max(1, p.qty + delta) } : p
       ),
     }));
+
+    // Trigger temporary save setelah update quantity
+    debouncedTempSave();
   };
 
   const setManualQty = (productNo, newQty) => {
     setSalesOrder((prev) => ({
       ...prev,
-      products: prev.products.map((p) =>
+      products: (prev.products || []).map((p) =>
         p.No === productNo ? { ...p, qty: newQty } : p
       ),
     }));
+
+    // Trigger temporary save setelah set manual quantity
+    debouncedTempSave();
   };
 
   const removeProduct = (sku) => {
     setSalesOrder((prev) => ({
       ...prev,
-      products: prev.products.filter((p) => p.No !== sku),
+      products: (prev.products || []).filter((p) => p.No !== sku),
     }));
+
+    // Trigger temporary save setelah remove product
+    if ((salesOrder.products || []).length > 1) {
+      debouncedTempSave();
+    }
   };
 
   return (
-    <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg">
+    <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">
       {/* 🔍 Search Customer */}
       <h3 className="text-2xl font-light text-center">Sales Order Request</h3>
+      <h3 className="text-2xl font-light text-center">
+        test: {frontendSession}
+      </h3>
       <div className="space-y-2">
         <Input
           placeholder="Cari Customer (min 2 huruf)"
           value={customerSearch}
-          onChange={(e) => setCustomerSearch(e.target.value)}
+          onChange={(e) => {
+            setSalesOrder(initialSalesOrder);
+            setCustomerSearch(e.target.value);
+          }}
         />
         {customerList?.data?.length > 0 && (
           <ul className="bg-muted rounded-md divide-y border">
@@ -285,13 +390,14 @@ const RequestPage = () => {
           </ul>
         )}
       </div>
+
       {/* 🛒 Daftar Produk */}
-      {salesOrder.products.length > 0 && (
+      {salesOrder?.products?.length > 0 && (
         <Card>
           <CardContent className="p-4 space-y-4 ">
             <h2 className="font-bold text-lg">Daftar Produk</h2>
             <ScrollArea className="max-h-80 overflow-y-auto space-y-2 pr-2">
-              {salesOrder.products.map((prod) => (
+              {salesOrder?.products?.map((prod) => (
                 <div
                   key={prod.No}
                   className="border rounded-lg mb-3 p-3 flex justify-between items-center"
@@ -366,7 +472,7 @@ const RequestPage = () => {
         onClick={handleRequestSalesOrder}
         disabled={
           !salesOrder.customer?.No ||
-          salesOrder.products.length === 0 ||
+          salesOrder?.products?.length === 0 ||
           isPendingProcessing
         }
         className="w-full px-8 py-2 rounded-full relative bg-slate-700 text-white text-sm hover:shadow-2xl hover:shadow-white/[0.1] transition duration-200 border border-slate-600"
@@ -380,7 +486,27 @@ const RequestPage = () => {
           Kirim Sales Order
         </span>
       </button>
-      {/** per-product dialogs are rendered inline above */}
+      <ModalTempOption
+        setFrontendSession={setFrontendSession}
+        setSalesOrder={setSalesOrder}
+        tempSalesOrderOption={tempSalesOrderOption}
+        setTempSalesOrderOption={setTempSalesOrderOption}
+        key={"modal-temp-so"}
+      />
+
+      <dialog id="modal-product-browsing" className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Hello!</h3>
+          <p className="py-4">
+            Press ESC key or click the button below to close
+          </p>
+          <div className="modal-action">
+            <form method="dialog">
+              <button className="btn">Close</button>
+            </form>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 };

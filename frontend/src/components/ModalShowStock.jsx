@@ -10,12 +10,15 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/api/productApi";
+import { useUserInfo } from "@/store";
 const ModalShowStock = ({ No, customer }) => {
   const { data, isPending } = useQuery({
     queryKey: ["showStock", No],
     queryFn: () => ProductApi.getStockByNo(No),
     enabled: !!No,
   });
+
+  const userInfo = useUserInfo();
 
   const stockData = data?.data?.[0]
     ? Object.entries(data.data[0])
@@ -29,7 +32,6 @@ const ModalShowStock = ({ No, customer }) => {
   const specificQuantityByLocationCode = stockData.find(
     (item) => item.name === customer._x003C_Area_x003E_
   );
-
   return (
     <AlertDialogContent className="max-w-lg backdrop-blur-lg">
       <AlertDialogHeader>
@@ -46,14 +48,14 @@ const ModalShowStock = ({ No, customer }) => {
               <p className="text-gray-600">Tidak ada data stok.</p>
             ) : (
               <div className="grid text-white grid-cols-2 gap-y-1 mt-4 text-sm">
-                <React.Fragment key={specificQuantityByLocationCode.name}>
+                <React.Fragment key={specificQuantityByLocationCode?.name}>
                   <div
                     className={`px-2 py-1text-gray-800 font-semibold rounded-l`}
                   >
-                    {specificQuantityByLocationCode.name}
+                    {specificQuantityByLocationCode?.name}
                   </div>
                   <div className={`px-2 py-1 text-right font-mono  rounded-r`}>
-                    {specificQuantityByLocationCode.value}
+                    {specificQuantityByLocationCode?.value}
                   </div>
                 </React.Fragment>
               </div>
