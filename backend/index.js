@@ -16,6 +16,8 @@ import customerRoutes from "./routes/customer.route.js";
 import startCronCustomer from "./utils/cron-customer.js";
 import startCronProduct from "./utils/cron-product.js";
 import salesOrderRoutes from "./routes/salesOrder.route.js";
+import startCronOverdue from "./utils/cron-overdue.js";
+import overdueRoutes from "./routes/overdue.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
@@ -57,10 +59,12 @@ app.use("/api/bulk", authenticate, authorize, bulkRoutes);
 app.use("/api/v1/product", authenticate, productRoutes);
 app.use("/api/v1/customer", authenticate, customerRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
+app.use("/api/v1/overdue", authenticate, overdueRoutes);
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();
   startCronProduct();
+  startCronOverdue();
 }
 
 const port = process.env.PORT;

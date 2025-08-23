@@ -52,3 +52,7 @@ body {
 .backdrop {
   @apply backdrop-blur-lg bg-white/50;
 }
+
+.title {
+  @apply font-semibold bg-clip-text text-transparent bg-gradient-to-r from-purple-500 via-violet-500 to-pink-500;
+}

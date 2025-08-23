@@ -306,7 +306,7 @@ export default function SuperTenantPage() {
           </form>
           <h3 className="font-bold text-xl mb-4">Create New Organization</h3>
           <div className="py-4">
-            <Toaster />
+            <Toaster position="top-center" />
             <>
               <label className="block text-sm text-gray-600 dark:text-gray-300 mt-2 mb-1">
                 Nama Organisasi

@@ -4,6 +4,7 @@ import authorizeSupertenant from "../middlewares/authoririzeSupertenant.js";
 import authenticate from "../middlewares/authenticate.js";
 
 const router = Router();
+
 router.post(
   "/createOrg",
   authenticate,

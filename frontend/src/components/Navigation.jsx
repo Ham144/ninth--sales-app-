@@ -10,6 +10,8 @@ import {
 const SideDrawer = ({ children }) => {
   const navigate = useNavigate();
 
+  const path = useLocation();
+
   const menuItem = [
     {
       name: "Home",
@@ -43,47 +45,52 @@ const SideDrawer = ({ children }) => {
 
         {/* Layer blob dekorasi */}
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
+
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
+
         <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
 
         {/* Konten utama */}
-        <div className="h-screen">{children}</div>
+        <div className="h-screen z-20">{children}</div>
       </div>
 
       {/* <main className="flex-1 overflow-y-auto w-full min-w-0 pb-16">
         {children}
       </main> */}
-
-      <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-20">
-        <div
-          className="flex justify-around items-center h-16 px-4 rounded-xl
-                backdrop-blur-lg bg-gradient-to-l from-pink-200 to-indigo-200"
-        >
-          {menuItem.map((item) => {
-            const isActive = location.pathname === item.path;
-            return (
-              <button
-                key={item.name}
-                onClick={() => navigate(item.path)}
-                className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${
-                  isActive
-                    ? "text-indigo-600 scale-105"
-                    : "text-gray-600 hover:text-indigo-500"
-                }`}
-              >
-                <div
-                  className={`p-1.5 rounded-full ${
-                    isActive ? "bg-indigo-100/80" : ""
+      {path.pathname !== "/login" && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-20">
+          <div
+            className="flex justify-around items-center h-16 px-4 rounded-xl
+                   backdrop-blur-lg bg-gradient-to-l from-pink-200 to-indigo-200"
+          >
+            {menuItem.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <button
+                  key={item.name}
+                  onClick={() => navigate(item.path)}
+                  className={`flex flex-col items-center justify-center w-full h-full transition-all duration-300 ${
+                    isActive
+                      ? "text-indigo-600 scale-105"
+                      : "text-gray-600 hover:text-indigo-500"
                   }`}
                 >
-                  {item.icon}
-                </div>
-                <span className="text-xs mt-0.5 font-medium">{item.name}</span>
-              </button>
-            );
-          })}
+                  <div
+                    className={`p-1.5 rounded-full ${
+                      isActive ? "bg-indigo-100/80" : ""
+                    }`}
+                  >
+                    {item.icon}
+                  </div>
+                  <span className="text-xs mt-0.5 font-medium">
+                    {item.name}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

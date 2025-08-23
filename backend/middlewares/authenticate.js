@@ -7,7 +7,7 @@ const authenticate = (req, res, next) => {
   if (!token) {
     console.log("authentication failed : ", req.originalUrl);
     return res.status(401).json({
-      message: "Session Anda telah habis, refresh token",
+      message: "session renewal",
     });
   }
 

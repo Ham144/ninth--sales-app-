@@ -123,3 +123,20 @@ export const cekPembayaranTertundaXml = ({ customerNo }) => {
 </Body>
 </Envelope>`;
 };
+
+export const pembayaranTertundaFullXml = () => {
+  return `
+  <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+<Body>
+<ReadMultiple xmlns="urn:microsoft-dynamics-schemas/page/remainingsi">
+<filter>
+<Field>Customer_No</Field>
+<Criteria>*</Criteria>
+</filter>
+<bookmarkKey></bookmarkKey>
+<setSize></setSize>
+</ReadMultiple>
+</Body>
+</Envelope>
+  `;
+};

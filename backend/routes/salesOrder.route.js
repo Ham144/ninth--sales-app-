@@ -8,10 +8,8 @@ import GetMyOrganizationAbbr from "../utils/getMyOrganizationAbbr.js";
 import SalesOrder from "../models/SalesOrder.model.js";
 import Org from "../models/Organization.model.js";
 import Customer from "../models/Customer.model.js";
-import Product from "../models/product.model.js";
 import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
 import mongoose from "mongoose";
-import { Mongoose } from "mongoose";
 
 const router = Router();
 
@@ -118,7 +116,13 @@ export const requestSalesOrder = async ({
 };
 
 router.post("/new", async (req, res) => {
-  const { customer, products } = req.body;
+  const {
+    customer,
+    products,
+    tempToDeleteId,
+    requestDeliveryDate,
+    frontendSession,
+  } = req.body;
 
   try {
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
@@ -144,7 +148,7 @@ router.post("/new", async (req, res) => {
       DocumentNo: globalIndex,
       ExtDoc: globalIndex,
       SellToCustNo: customer.No,
-      RequestDeliveryDate: getCurrentDateForNAV(),
+      RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
       Keterangan: req.user.username,
       SalesLine,
       req,
@@ -175,13 +179,18 @@ router.post("/new", async (req, res) => {
       SalespersonCode: customer.Salesperson_Code || "",
       NoSeries: await GetMyOrganizationAbbr({ req }),
       ExtDoc: req.user.username, //nama si user
-      RequestDeliveryDate: new Date(
-        convertToISOConvertableDate(getCurrentDateForNAV())
-      ),
+      RequestDeliveryDate: requestDeliveryDate
+        ? new Date(convertToISOConvertableDate(requestDeliveryDate))
+        : new Date(convertToISOConvertableDate(getCurrentDateForNAV())),
       SalesLine: SalesLine,
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,
       createdBy: req.user._id,
+    });
+
+    await TemporarySalesOrder.findByIdAndDelete(tempToDeleteId);
+    await TemporarySalesOrder.findOneAndDelete({
+      frontendSession: frontendSession,
     });
 
     return res.status(200).json(generatedSalesOrder);
@@ -294,6 +303,18 @@ router.put("/temp/create", async (req, res) => {
         data: newTemp,
       });
     }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Kesalahan Server Internal" });
+  }
+});
+
+router.delete("/temp/delete/:id", async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    await TemporarySalesOrder.findByIdAndDelete(id);
+    return res.json({ message: "Temporary Sales Order Berhasil Dihapus" });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Kesalahan Server Internal" });

@@ -18,6 +18,7 @@ import RequestPage from "./pages/RequestPage";
 import ProcessPage from "./pages/ProcessPage";
 import AccountManagement from "./pages/AccountManagement";
 import CustomerManagement from "./pages/CustomerManagement";
+import OverduePage from "./pages/OverduePage";
 // import RegisterPage from "./pages/RegisterPage";
 
 const router = createBrowserRouter(
@@ -30,6 +31,7 @@ const router = createBrowserRouter(
         <Route path="/profile" element={<Profile />} />
         <Route path="/request" element={<RequestPage />} />
         <Route path="/process" element={<ProcessPage />} />
+        <Route path="/overdue" element={<OverduePage />} />
 
         {/* menu IT and admin */}
         <Route path="/management/product" element={<ProductManagement />} />

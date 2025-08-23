@@ -30,6 +30,12 @@ const SalesOrderApi = {
     );
     return response;
   },
+  tempDeleteById: async (id) => {
+    const response = await axiosInstance.delete(
+      `/api/v1/salesOrder/temp/delete/${id}`
+    );
+    return response;
+  },
 };
 
 export default SalesOrderApi;

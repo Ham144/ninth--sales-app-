@@ -15,7 +15,7 @@ function hashCustomerData(data) {
 
 export const fetchingSoap = async () => {
   try {
-    const org = await Org.findById(req.user.org).select(
+    const org = await Org.findOne().select(
       "SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_PASSWORD SOAP_CUSTOMER_SOAPACTION"
     );
     const {
@@ -23,7 +23,7 @@ export const fetchingSoap = async () => {
       SOAP_CUSTOMER_USERNAME,
       SOAP_CUSTOMER_PASSWORD,
       SOAP_CUSTOMER_SOAPACTION,
-    } = org;
+    } = org[0];
 
     if (
       !SOAP_CUSTOMER_URL ||

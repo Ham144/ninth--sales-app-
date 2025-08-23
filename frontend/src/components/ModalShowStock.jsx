@@ -10,15 +10,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useQuery } from "@tanstack/react-query";
 import ProductApi from "@/api/productApi";
-import { useUserInfo } from "@/store";
+
 const ModalShowStock = ({ No, customer }) => {
   const { data, isPending } = useQuery({
     queryKey: ["showStock", No],
     queryFn: () => ProductApi.getStockByNo(No),
     enabled: !!No,
   });
-
-  const userInfo = useUserInfo();
 
   const stockData = data?.data?.[0]
     ? Object.entries(data.data[0])
@@ -33,7 +31,7 @@ const ModalShowStock = ({ No, customer }) => {
     (item) => item.name === customer._x003C_Area_x003E_
   );
   return (
-    <AlertDialogContent className="max-w-lg backdrop-blur-lg">
+    <AlertDialogContent className="max-w-lg backdrop rounded-lg">
       <AlertDialogHeader>
         <AlertDialogTitle className="text-lg font-bold text-white">
           {No}

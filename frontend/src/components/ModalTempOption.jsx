@@ -1,3 +1,4 @@
+import SalesOrderApi from "@/api/SalesOrderApi";
 import React from "react";
 
 const ModalTempOption = ({
@@ -26,23 +27,21 @@ const ModalTempOption = ({
                     </p>
                   </div>
                   <button
-                    className="btn btn-sm bg-orange-400 text-white rounded-lg"
-                    onClick={() => {
-                      setFrontendSession(order.frontendSession);
-                      setSalesOrder((prev) => ({
-                        ...prev,
-                        products: order.products,
-                      }));
-                      setTempSalesOrderOption([]);
-                      document.getElementById("modal-temp-so").close();
+                    className="btn btn-sm bg-red-500 text-white rounded-lg hover:bg-red-600"
+                    onClick={async () => {
+                      await SalesOrderApi.tempDeleteById(order._id);
+                      setTempSalesOrderOption((prev) =>
+                        prev.filter((o) => o._id !== order._id)
+                      );
+                      if (tempSalesOrderOption.length === 1) {
+                        document.getElementById("modal-temp-so").close();
+                      }
                     }}
                   >
-                    Pilih
-                  </button>
+                    Hapus
+                  </button>{" "}
                 </div>
-
                 <div className="divider my-2"></div>
-
                 <div className="overflow-x-auto">
                   <table className="table table-zebra table-sm">
                     <thead>
@@ -105,6 +104,22 @@ const ModalTempOption = ({
                     </tfoot>
                   </table>
                 </div>
+
+                <button
+                  className="btn btn-sm bg-orange-400 text-white rounded-lg"
+                  onClick={() => {
+                    setFrontendSession(order.frontendSession);
+                    setSalesOrder((prev) => ({
+                      ...prev,
+                      products: order.products,
+                      tempToDeleteId: order._id,
+                    }));
+                    setTempSalesOrderOption([]);
+                    document.getElementById("modal-temp-so").close();
+                  }}
+                >
+                  Pilih
+                </button>
               </div>
             </div>
           ))}
@@ -112,7 +127,10 @@ const ModalTempOption = ({
 
         <div className="modal-action">
           <form method="dialog">
-            <button className="btn" onClick={() => setTempSalesOrderOption([])}>
+            <button
+              className="btn btn-ghost"
+              onClick={() => setTempSalesOrderOption([])}
+            >
               Tutup
             </button>
           </form>

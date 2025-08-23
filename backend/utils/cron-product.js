@@ -73,7 +73,7 @@ export const fetchingSoapToGetStock = async (No, req) => {
 
 export const fetchingSoap = async () => {
   try {
-    const org = await Org.findById(req.user.org).select(
+    const org = await Org.findOne().select(
       "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION"
     );
 
@@ -82,7 +82,7 @@ export const fetchingSoap = async () => {
       SOAP_PRODUCT_USERNAME,
       SOAP_PRODUCT_PASSWORD,
       SOAP_PRODUCT_SOAPACTION,
-    } = org;
+    } = org[0];
 
     if (
       !SOAP_PRODUCT_URL ||
@@ -229,7 +229,7 @@ function startCronProduct() {
     return;
   }
   reinitilizeProductFromSoap();
-  cron.schedule("0 1 * * *", async () => {
+  cron.schedule("0 2 * * *", async () => {
     try {
       console.log("🔃reinitilize Product From soap..");
       await reinitilizeProductFromSoap();

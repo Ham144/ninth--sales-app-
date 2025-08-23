@@ -12,4 +12,5 @@
 [x] add: filter bulan di processPage
 [x] add: halaman popup fitur pencarian
 [x] add: fitur temporary salesOrder di request page untuk orderan tidak selesai
-[] add: bisa tambah properti ke customer dan product
+[x] modify: fitur pengecekan barang
+[] modify: perbaiki organization bukan hanya melakukan cron untuk 1 organization

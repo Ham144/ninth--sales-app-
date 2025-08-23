@@ -13,10 +13,13 @@ import ModalShowStock from "@/components/ModalShowStock";
 import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from "uuid";
 import ModalTempOption from "@/components/ModalTempOption";
+import OnlyAsk from "@/components/OnlyAsk";
 
 const initialSalesOrder = {
   customer: {},
   products: [], // will include: { ...product, qty: 1 }
+  requestDeliveryDate: "",
+  frontendSession: "",
 };
 
 const RequestPage = () => {
@@ -25,6 +28,10 @@ const RequestPage = () => {
   const [salesOrder, setSalesOrder] = useState(initialSalesOrder);
   const [pembayaranTertunda, setPembayaranTertunda] = useState();
   // state for stock modal is no longer needed; each product has its own dialog
+
+  //interactivity UI
+  const [activeCustomerOptionIdx, setActiveCustomerOptionIdx] = useState(-1); // -1 artinya tidak ada yg dipilih
+  const [isFocusedCustomer, setIsFocusedCustomer] = useState(false);
 
   //search result
   const { data: customerList } = useQuery({
@@ -86,7 +93,10 @@ const RequestPage = () => {
     mutationFn: async (no) => await CustomerApi.getByNo(no),
     onSuccess: async (data) => {
       setCustomerSearch("");
-      setSalesOrder((prev) => ({ ...prev, customer: data?.data?.customer }));
+      setSalesOrder((prev) => ({
+        ...prev,
+        customer: data?.data?.customer,
+      }));
       setPembayaranTertunda(data?.data?.pembayaranTertunda);
       //sekalian panggil temp so
       const tempSO = await SalesOrderApi.getTempSO(data?.data?.customer?._id);
@@ -97,6 +107,10 @@ const RequestPage = () => {
 
       const newFronendSession = uuidv4();
       setFrontendSession(newFronendSession);
+      setSalesOrder((prev) => ({
+        ...prev,
+        frontendSession: newFronendSession,
+      }));
       // Jika sudah ada products, trigger temporary save dengan customer baru
       if (salesOrder.products?.length > 0) {
         debouncedTempSave();
@@ -107,11 +121,51 @@ const RequestPage = () => {
     },
   });
 
+  //query product
   const { data: productList } = useQuery({
     queryKey: ["products", productSearch],
     queryFn: async () => await ProductApi.getAllProducts(productSearch),
     enabled: productSearch.length > 1,
   });
+
+  const handleKeyDown = (e) => {
+    if (!customerList?.data || customerList.data.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveCustomerOptionIdx((prev) =>
+        prev < customerList.data.length - 1 ? prev + 1 : 0
+      );
+    }
+
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveCustomerOptionIdx((prev) =>
+        prev > 0 ? prev - 1 : customerList.data.length - 1
+      );
+    }
+
+    if (e.key === "Enter" || e.key === "Tab") {
+      if (activeCustomerOptionIdx >= 0) {
+        e.preventDefault();
+        selectCustomer(customerList.data[activeCustomerOptionIdx].No);
+      }
+    }
+  };
+
+  useEffect(() => {
+    setActiveCustomerOptionIdx(-1); // Reset highlight when list changes
+  }, [customerList]);
+
+  useEffect(() => {
+    if (!isFocusedCustomer) {
+      // Delay sedikit agar klik list tidak langsung hilang
+      const timeout = setTimeout(() => {
+        setCustomerSearch("");
+      }, 150);
+      return () => clearTimeout(timeout);
+    }
+  }, [isFocusedCustomer]);
 
   // Effect untuk auto-save temporary setiap kali ada perubahan
   useEffect(() => {
@@ -134,6 +188,8 @@ const RequestPage = () => {
   }, []);
 
   const navigate = useNavigate();
+
+  //main
   const {
     mutateAsync: handleRequestSalesOrder,
     isPending: isPendingProcessing,
@@ -151,7 +207,14 @@ const RequestPage = () => {
   const addProduct = (prod) => {
     setSalesOrder((prev) => {
       const exists = prev.products?.find((p) => p.No === prod.No);
-      if (exists) return prev;
+      if (exists)
+        return {
+          //jika anda tambahi quantity nya
+          ...prev,
+          products: prev.products?.map((p) =>
+            p.No === prod.No ? { ...p, qty: p.qty + 1 } : p
+          ),
+        };
 
       const selectedCustomer = prev.customer;
 
@@ -244,9 +307,6 @@ const RequestPage = () => {
     <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">
       {/* 🔍 Search Customer */}
       <h3 className="text-2xl font-light text-center">Sales Order Request</h3>
-      <h3 className="text-2xl font-light text-center">
-        test: {frontendSession}
-      </h3>
       <div className="space-y-2">
         <Input
           placeholder="Cari Customer (min 2 huruf)"
@@ -255,14 +315,23 @@ const RequestPage = () => {
             setSalesOrder(initialSalesOrder);
             setCustomerSearch(e.target.value);
           }}
+          onFocus={() => setIsFocusedCustomer(true)}
+          onBlur={() => setIsFocusedCustomer(false)}
+          onKeyDown={handleKeyDown}
+          className="input input-bordered w-full"
         />
+
         {customerList?.data?.length > 0 && (
-          <ul className="bg-muted rounded-md divide-y border">
-            {customerList.data.map((cust) => (
+          <ul className="bg-muted backdrop rounded-md divide-y border">
+            {customerList.data.map((cust, index) => (
               <li key={cust._id}>
                 <button
-                  className="w-full text-left px-4 py-2 hover:bg-accent"
-                  onClick={() => selectCustomer(cust?.No)}
+                  className={`w-full text-left px-4 py-2 ${
+                    index === activeCustomerOptionIdx
+                      ? "bg-accent"
+                      : "hover:bg-accent"
+                  }`}
+                  onClick={() => selectCustomer(cust.No)}
                 >
                   {cust.Name} ({cust.No})
                 </button>
@@ -367,28 +436,39 @@ const RequestPage = () => {
           </CardContent>
         </Card>
       )}
+
       {/* 📦 Search Produk */}
-      <div className="space-y-2">
-        <Input
-          disabled={salesOrder.customer?.No ? false : true}
-          placeholder="Cari Produk (min 2 huruf)"
-          value={productSearch}
-          onChange={(e) => setProductSearch(e.target.value)}
-        />
-        {productList?.data?.length > 0 && (
-          <ul className="bg-muted rounded-md divide-y border">
-            {productList.data.map((prod) => (
-              <li key={prod._id}>
-                <button
-                  className="w-full text-left px-4 py-2 hover:bg-accent"
-                  onClick={() => addProduct(prod)}
-                >
-                  {prod.Description} ({prod.No})
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="space-y-2 flex items-center gap-x-3">
+        <div className="flex flex-col w-full ">
+          <Input
+            disabled={salesOrder.customer?.No ? false : true}
+            placeholder="Cari Produk (min 2 huruf)"
+            value={productSearch}
+            onChange={(e) => setProductSearch(e.target.value)}
+            className="rounded-md"
+          />
+          {productList?.data?.length > 0 && (
+            <ul className="bg-muted rounded-md divide-y border backdrop mt-2">
+              {productList.data.map((prod) => (
+                <li key={prod._id}>
+                  <button
+                    className="w-full text-left px-4 py-2 hover:bg-accent"
+                    onClick={() => addProduct(prod)}
+                  >
+                    {prod.Description} ({prod.No})
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <Button
+          disabled={salesOrder?.customer?.No ? false : true}
+          className="translate-y-[-4px] text-white py-3 bg-orange-400 hover:bg-orange-300"
+          onClick={() => document.getElementById("only-ask").showModal()}
+        >
+          Diskusi Produk
+        </Button>
       </div>
 
       {/* 🛒 Daftar Produk */}
@@ -468,24 +548,84 @@ const RequestPage = () => {
           </CardContent>
         </Card>
       )}
-      <button
-        onClick={handleRequestSalesOrder}
-        disabled={
-          !salesOrder.customer?.No ||
-          salesOrder?.products?.length === 0 ||
-          isPendingProcessing
-        }
-        className="w-full px-8 py-2 rounded-full relative bg-slate-700 text-white text-sm hover:shadow-2xl hover:shadow-white/[0.1] transition duration-200 border border-slate-600"
-      >
-        <div className="absolute inset-x-0 h-px w-1/2 mx-auto -top-px shadow-2xl  bg-gradient-to-r from-transparent via-teal-500 to-transparent" />
-        <span className="relative z-20">
-          {" "}
-          {isPendingProcessing && (
-            <span className="loading loading-ring loading-lg"></span>
-          )}{" "}
-          Kirim Sales Order
-        </span>
-      </button>
+      <div className="flex flex-wrap gap-3 items-center">
+        {/* Input + Tombol Shortcut */}
+        <div className="flex w-full md:w-96 relative">
+          <input
+            type="text"
+            placeholder="Request Delivery Date"
+            value={salesOrder.requestDeliveryDate}
+            onChange={(e) =>
+              setSalesOrder((prev) => ({
+                ...prev,
+                requestDeliveryDate: e.target.value,
+              }))
+            }
+            className="input bg-slate-100 h-10 rounded-lg input-bordered w-full pr-32"
+          />
+          {/* Tombol Hari ini */}
+          {/* Tombol Hari ini */}
+          <button
+            type="button"
+            onClick={() => {
+              const today = new Date();
+              const day = String(today.getDate()).padStart(2, "0");
+              const month = String(today.getMonth() + 1).padStart(2, "0"); // month is 0-based
+              const year = today.getFullYear();
+              const formatted = `${day}/${month}/${year}`;
+
+              setSalesOrder((prev) => ({
+                ...prev,
+                requestDeliveryDate: formatted,
+              }));
+            }}
+            className="absolute right-20 top-1/2 -translate-y-1/2 bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-md text-sm transition"
+          >
+            Hari ini
+          </button>
+
+          {/* Tombol Besok */}
+          <button
+            type="button"
+            onClick={() => {
+              const tomorrow = new Date();
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              const day = String(tomorrow.getDate()).padStart(2, "0");
+              const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+              const year = tomorrow.getFullYear();
+              const formatted = `${day}/${month}/${year}`;
+
+              setSalesOrder((prev) => ({
+                ...prev,
+                requestDeliveryDate: formatted,
+              }));
+            }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm transition"
+          >
+            Besok
+          </button>
+        </div>
+
+        {/* Tombol Kirim Sales Order */}
+        <button
+          onClick={handleRequestSalesOrder}
+          disabled={
+            !salesOrder.customer?.No ||
+            salesOrder?.products?.length === 0 ||
+            isPendingProcessing
+          }
+          className="w-full flex-1  md:w-auto disabled:cursor-not-allowed px-8 py-2 rounded-full relative bg-slate-700 text-white text-sm hover:shadow-2xl hover:shadow-white/[0.1] transition duration-200 border border-slate-600 flex items-center justify-center"
+        >
+          <div className="absolute inset-x-0 h-px w-1/2 mx-auto -top-px shadow-2xl bg-gradient-to-r from-transparent via-teal-500 to-transparent" />
+          <span className="relative z-20">
+            {isPendingProcessing && (
+              <span className="loading loading-ring loading-lg mr-2"></span>
+            )}
+            <span>Kirim Sales Order</span>
+          </span>
+        </button>
+      </div>
+
       <ModalTempOption
         setFrontendSession={setFrontendSession}
         setSalesOrder={setSalesOrder}
@@ -493,20 +633,11 @@ const RequestPage = () => {
         setTempSalesOrderOption={setTempSalesOrderOption}
         key={"modal-temp-so"}
       />
-
-      <dialog id="modal-product-browsing" className="modal">
-        <div className="modal-box">
-          <h3 className="font-bold text-lg">Hello!</h3>
-          <p className="py-4">
-            Press ESC key or click the button below to close
-          </p>
-          <div className="modal-action">
-            <form method="dialog">
-              <button className="btn">Close</button>
-            </form>
-          </div>
-        </div>
-      </dialog>
+      <OnlyAsk
+        key={"only-ask"}
+        salesOrder={salesOrder}
+        setSalesOrder={setSalesOrder}
+      />
     </div>
   );
 };

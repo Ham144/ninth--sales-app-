@@ -39,7 +39,7 @@ export function ProcessPage() {
   };
 
   return (
-    <div className="flex items-center flex-col mx-auto container min-h-screen justify-center">
+    <div className="flex items-center flex-col mx-auto container min-h-screen justify-center ">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -124,12 +124,6 @@ export function ProcessPage() {
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
-                      <strong className="font-semibold">Customer No:</strong>
-                      <span className="text-lg">
-                        {salesOrderDetail.data.SellToCustNo}
-                      </span>
-                    </p>
-                    <p className="flex items-center space-x-2">
                       <strong className="font-semibold">Order Date:</strong>
                       <span className="text-lg">
                         {new Date(
@@ -204,7 +198,7 @@ export function ProcessPage() {
       </AnimatePresence>
 
       {/* Sales Order List */}
-      <ul className="max-w-2xl md:h-[50vh] overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
+      <ul className="max-w-2xl md:h-[70vh] max-md:h-[80vh]  overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
         {isLoadingList ? (
           <div className="flex justify-center items-center">
             <span className="loading loading-ring loading-lg"></span>

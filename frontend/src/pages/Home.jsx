@@ -1,7 +1,6 @@
 import React from "react";
-import { APP_DESC, APP_NAME } from "@/api/constant";
+import { APP_NAME } from "@/api/constant";
 import { useUserInfo } from "@/store";
-import { useQuery } from "@tanstack/react-query";
 import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision";
 import { useNavigate } from "react-router-dom";
 import {
@@ -11,6 +10,7 @@ import {
   User2,
   ShieldCheck,
   Building2,
+  Logs,
 } from "lucide-react";
 import GridItem from "@/components/ui/GridItem";
 
@@ -19,9 +19,11 @@ const Home = () => {
   const { userInfo } = useUserInfo();
 
   return (
-    <BackgroundBeamsWithCollision className={"flex flex-col py-20 "}>
+    <BackgroundBeamsWithCollision
+      className={"flex flex-col py-20 overflow-y-hidden"}
+    >
       <h2 className="text-2xl relative z-20 md:text-4xl lg:text-7xl font-bold text-center text-black dark:text-white font-sans tracking-tight">
-        <div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))]">
+        <div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))] ">
           <div className="absolute left-0 top-[1px] bg-clip-text bg-no-repeat text-transparent bg-gradient-to-r py-4 from-purple-500 via-violet-500 to-pink-500 [text-shadow:0_0_rgba(0,0,0,0.1)]">
             <span className="">{APP_NAME}.</span>
           </div>
@@ -31,50 +33,54 @@ const Home = () => {
         </div>
       </h2>
 
-      <div className="relative h-full">
-        <ul className="md:grid grid-cols-1 grid-rows-none gap-4 md:grid-cols-12 md:grid-rows-3 lg:gap-4 xl:max-h-[34rem] xl:grid-rows-2 overflow-y-auto pb-32 max-md:pb-20 h-[calc(100vh-8rem)]">
+      <div className="relative h-full ">
+        <ul className="grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 h-[calc(100vh-8rem)] overflow-y-auto pb-32">
           {/* Profile Card */}
           {userInfo && (
             <GridItem
-              area="md:[grid-area:1/1/2/5]"
-              icon={
-                <User2 className="h-4 w-4 text-black dark:text-neutral-400" />
-              }
+              icon={<User2 className="h-5 w-5 text-primary" />}
               title={userInfo.displayName || userInfo.username}
               description={`${userInfo?.description || "APP User"} · ${
                 userInfo.role
               }`}
-              path={`/profile`}
+              path="/profile"
             />
           )}
 
-          {/* Quick Action 2 */}
+          {/* Quick Actions */}
           <GridItem
-            area="md:[grid-area:1/9/2/13]"
-            icon={<Package className="h-4 w-4 text-yellow-600" />}
+            icon={<Package className="h-5 w-5 text-yellow-600" />}
             title="New Transaction"
             description="Buat Transaksi Baru"
-            path={"/request"}
+            path="/request"
           />
 
-          {/* Quick Action 3 */}
           <GridItem
-            area="md:[grid-area:2/1/3/7]"
-            icon={<History className="h-4 w-4 text-green-600" />}
+            icon={<History className="h-5 w-5 text-green-600" />}
             title="My Process"
             description="Melihat Sales Order yang dibuat oleh saya"
-            path={"/process"}
+            path="/process"
           />
 
-          {/* Static card 1 */}
+          {/* Static Card */}
           <GridItem
-            area="md:[grid-area:2/7/3/10]"
-            icon={
-              <ShieldCheck className="h-4 w-4 text-black dark:text-neutral-400" />
-            }
+            icon={<ShieldCheck className="h-5 w-5 text-neutral-500" />}
             title="Supertenant Menu"
             description="Konfigurasi Organisasi dan SMTP"
-            path={"/super/organization"}
+            path="/super/organization"
+          />
+
+          <GridItem
+            icon={<Logs className="h-5 w-5 text-neutral-500" />}
+            title="Overdue Page"
+            description="Lihat daftar Overdue"
+            path="/overdue"
+          />
+          <GridItem
+            icon={<ShieldCheck className="h-5 w-5 text-neutral-500" />}
+            title="IT Menu"
+            description="Mengatur Konfigurasi dan Data Master"
+            path="/management/customer"
           />
         </ul>
       </div>
