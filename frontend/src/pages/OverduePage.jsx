@@ -1,9 +1,11 @@
 import OverdueApi from "@/api/OverdueApi";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import Calendar22 from "@/components/ui/DatePicker";
+import { useUserInfo } from "@/store";
+import { useNavigate } from "react-router";
 
 const OverduePage = () => {
   const [search, setSearch] = useState("");
@@ -11,6 +13,16 @@ const OverduePage = () => {
   const [page, setPage] = useState(1);
   const [startDate, setStartDate] = useState(); // 30 hari sebelum hari ini
   const [endDate, setEndDate] = useState();
+
+  const navigate = useNavigate();
+
+  const { userInfo } = useUserInfo();
+
+  useEffect(() => {
+    if (userInfo?.description == "SALES") {
+      navigate("/not-found");
+    }
+  }, [userInfo]);
 
   const skip = (page - 1) * limit;
 

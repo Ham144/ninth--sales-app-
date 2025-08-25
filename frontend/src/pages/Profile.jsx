@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query"; // Asumsi Anda pakai TanStack Query
-import { User, Settings, LogOut, KeyRound, Info, Group } from "lucide-react"; // Impor ikon Lucide React yang lebih relevan
+import {
+  User,
+  Settings,
+  LogOut,
+  KeyRound,
+  Info,
+  Group,
+  QrCode,
+} from "lucide-react"; // Impor ikon Lucide React yang lebih relevan
 import { useUserInfo } from "@/store";
-import { logout } from "@/api/authApi";
+import { deactivate2Fa, getStatus2Fa, logout } from "@/api/authApi";
 import OrgApi from "@/api/orgApi";
 import { toast } from "sonner";
+import Modal2FA from "@/components/Modal2FA";
 
 const ManagementButton = () => {
   const managementMenus = [
@@ -62,6 +71,25 @@ const Profile = () => {
       return res?.data;
     },
     enabled: !!userInfo?.org,
+  });
+
+  //to check /2fa/status
+  const { data: _2faIsVerified } = useQuery({
+    queryKey: ["2faStatus"],
+    queryFn: async () => await getStatus2Fa(),
+    enabled: !!userInfo,
+  });
+
+  const { mutateAsync: handleDeactivate2fa } = useMutation({
+    mutationKey: ["2faStatus", "2faDeactivate"],
+    mutationFn: async () => await deactivate2Fa(),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries(["2faStatus"]);
+      window.location.reload();
+    },
+    onError: (err) => {
+      toast.error(err?.response?.data?.message || "2fa deactivation failed");
+    },
   });
 
   const [activeTab, setActiveTab] = useState("profile");
@@ -142,10 +170,10 @@ const Profile = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 p-4 mx-auto sm:p-6 lg:p-8 max-w-6xl w">
-        <div className="border">
+        <div className="">
           {activeTab === "profile" && (
             <div className="space-y-8">
-              <h2 className="text-2xl sm:text-3xl text-center text-gray-800 dark:text-gray-200 border-b pb-4 font-light  mb-4">
+              <h2 className="text-2xl sm:text-3xl text-center text-gray-800 dark:text-gray-200  pb-4 font-light  mb-4">
                 Informasi Profile
               </h2>
 
@@ -179,12 +207,43 @@ const Profile = () => {
                   <div className="flex items-center gap-3 mb-2">
                     <KeyRound className="w-6 h-6 text-purple-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                      Role
+                      AD Description
                     </h4>
                   </div>
                   <p className="text-xl font-bold text-gray-900 dark:text-gray-100 capitalize">
-                    {userInfo?.role || "N/A"}
+                    {userInfo?.description || "N/A"}
                   </p>
+                </div>
+                {/* Authenticator CARD */}
+                <div className=" dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
+                  <div className="flex items-center gap-3 mb-2">
+                    <QrCode className="w-6 h-6 text-indigo-500" />
+                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                      {_2faIsVerified?.success
+                        ? "2FA Activated"
+                        : "2FA is not activated yet"}
+                    </h4>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      if (_2faIsVerified?.success) {
+                        const confirm = window.confirm(
+                          "Are you sure to deactivate the 2fa authenticator"
+                        );
+                        if (confirm) {
+                          handleDeactivate2fa();
+                        }
+                      } else {
+                        document.getElementById("modal-2fa")?.showModal();
+                      }
+                    }}
+                    className={`btn  text-xl font-bold text-gray-900 dark:text-gray-100 capitalize rounded-lg ${
+                      _2faIsVerified?.success ? "bg-red-300" : "bg-green-300"
+                    }`}
+                  >
+                    {_2faIsVerified?.success ? "Deactivate" : "Activate"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -213,6 +272,14 @@ const Profile = () => {
           )}
         </div>
       </div>
+
+      <Modal2FA
+        key={"modal-2fa"}
+        onSuccess={() => {
+          document.getElementById("modal-2fa")?.close();
+        }}
+        _2faIsVerified={_2faIsVerified}
+      />
     </div>
   );
 };

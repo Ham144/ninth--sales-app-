@@ -31,6 +31,9 @@ const userSchema = new mongoose.Schema(
       ref: "Org",
     },
     refreshToken: String,
+    //2fa google authenticator
+    _2faSecret: String,
+    _2faIsVerified: Boolean,
   },
   { timestamps: true }
 );

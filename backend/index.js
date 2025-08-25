@@ -19,6 +19,8 @@ import salesOrderRoutes from "./routes/salesOrder.route.js";
 import startCronOverdue from "./utils/cron-overdue.js";
 import overdueRoutes from "./routes/overdue.route.js";
 
+const __dirname = path.resolve();
+
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
   ? ["http://192.168.169.22"]
@@ -43,11 +45,6 @@ app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 //database
 connectDB();
 
-//public seutuhnya || kalau sebagian, tambah ke noAuthOriginalUrl js
-app.get("/", async (req, res) => {
-  return res.send("BACKEND : 200");
-});
-
 //routes reusable (jangan dihapus)
 app.use("/api/auth", auhtRoutes);
 app.use("/api/config", authenticate, authorize, configRoutes);
@@ -61,6 +58,12 @@ app.use("/api/v1/customer", authenticate, customerRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
 app.use("/api/v1/overdue", authenticate, overdueRoutes);
 
+//frontend routes
+app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+});
+
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();
   startCronProduct();
@@ -68,4 +71,4 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const port = process.env.PORT;
-app.listen(port, () => console.log("Server Berjalan di port "));
+app.listen(port, () => console.log("Server running on port ", port + "✅"));

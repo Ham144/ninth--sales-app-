@@ -8,7 +8,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { loginApp, loginLdap } from "@/api/authApi";
 import { toast } from "sonner";
 import OrgApi from "@/api/orgApi";
-import { Building } from "lucide-react";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
 
@@ -37,23 +36,29 @@ export default function SignupFormDemo() {
           password: body.password,
           selectedOrg,
         });
-        return res.data;
+        return res;
       },
       retryDelay: 1000,
       mutationKey: ["userInfo"],
       onSuccess: async (res) => {
-        setUserInfo(res?.data);
-        //Invalidate query untuk memperbarui data
-        queryClient.invalidateQueries(["userInfo"]);
+        if (res?.twoFARequired && res?.pendingToken) {
+          sessionStorage.setItem("pending2faToken", res.pendingToken);
+          navigate("/2fa/verification");
+          return;
+        }
+
+        if (res?.data) {
+          setUserInfo(res.data);
+          queryClient.invalidateQueries(["userInfo"]);
+        }
 
         toast.success("Login berhasil!");
         navigate("/");
         setTimeout(() => {
-          navigate("/"); //emang sengaja ada 2 navigate karena sering gagal
+          navigate("/");
         }, 1000);
       },
       onError: (err) => {
-        console.log(err);
         toast.error(
           err?.response?.data?.message ||
             "Login gagal. Periksa username dan password Anda."
@@ -65,25 +70,30 @@ export default function SignupFormDemo() {
     useMutation({
       mutationFn: async () => {
         const res = await loginApp({
-          username,
-          password,
+          username: body.username,
+          password: body.password,
           selectedOrg,
-          captchaToken,
         });
-        return res.data;
+        return res;
       },
       retryDelay: 1000,
       mutationKey: ["userInfo"],
       onSuccess: async (res) => {
-        setUserInfo(res?.data);
+        if (res?.twoFARequired && res?.pendingToken) {
+          sessionStorage.setItem("pending2faToken", res.pendingToken);
+          navigate("/2fa/verification");
+          return;
+        }
 
-        //Invalidate query untuk memperbarui data
-        queryClient.invalidateQueries(["userInfo"]);
+        if (res?.data) {
+          setUserInfo(res.data);
+          queryClient.invalidateQueries(["userInfo"]);
+        }
 
         toast.success("Login berhasil!");
         navigate("/");
         setTimeout(() => {
-          navigate("/"); //emang sengaja ada 2 navigate karena sering gagal
+          navigate("/");
         }, 1000);
       },
       onError: (err) => {

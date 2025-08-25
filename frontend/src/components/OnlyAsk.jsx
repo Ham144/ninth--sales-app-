@@ -157,7 +157,6 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
       }
     }
   };
-  console.log(askedProduct);
 
   return (
     <dialog id="only-ask" className="modal">

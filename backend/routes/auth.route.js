@@ -8,6 +8,8 @@ import Org from "../models/Organization.model.js";
 import authorize from "../middlewares/authorize.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 import jwt from "jsonwebtoken";
+import speakEasy from "speakeasy";
+import qrcode from "qrcode";
 
 const router = Router();
 
@@ -267,7 +269,7 @@ router.post(
           error,
         });
       }
-      
+
       //cari apakah user demikian sudah ada
       let userDB = await UserRefrensi.findOne({
         username,
@@ -275,13 +277,15 @@ router.post(
         authMethod: "ldap",
       });
 
-      if ((userLDAP?.description || "").toUpperCase() !== "SALES") {
+      if (
+        (userLDAP?.description || "").toUpperCase() !== "SALES" &&
+        userLDAP.description !== "OVERDUE"
+      ) {
         return res.status(400).json({
           message: "User tidak diizinkan karena bukan SALES.",
         });
       }
 
-      
       const isFirstMember = OrgDB?.owners?.length < 2;
 
       if (!userDB) {
@@ -308,7 +312,7 @@ router.post(
 
         await Org.findByIdAndUpdate(selectedOrg, updateData);
       }
-     
+
       //jika user sebelumnya memiliki description yg berbeda dengan ldap :ganti
       if (userDB.email !== userLDAP["description"]) {
         await UserRefrensi.findOneAndUpdate(
@@ -330,6 +334,28 @@ router.post(
         );
       }
 
+      // 2FA pending flow: if user has 2FA enabled, do not issue cookies yet
+      if (userDB?._2faIsVerified) {
+        const pendingToken = jwt.sign(
+          {
+            _id: userDB._id,
+            org: OrgDB._id,
+            method: "ldap",
+            twoFA: true,
+            stage: "pending",
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: "5m" }
+        );
+
+        return res.json({
+          success: true,
+          twoFARequired: true,
+          pendingToken,
+          message: "2FA verification required",
+        });
+      }
+
       const payload = {
         _id: userDB._id,
         username: username,
@@ -342,17 +368,17 @@ router.post(
       const refresh_token = await generateRefreshToken(payload);
 
       res.cookie("refresh_token", refresh_token, {
-        httpOnly: true, // ✅ Aman
-        secure: false, // ✅ karena http
-        sameSite: "Lax", // ✅ Agar bisa cross-origin
-        maxAge: 7 * 24 * 60 * 60 * 1000, //7 hari
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       res.cookie("access_token", access_token, {
-        httpOnly: true, // ✅ Aman
-        secure: false, // ✅ karena http
-        sameSite: "Lax", // ✅ Agar bisa cross-origin
-        maxAge: 5 * 60 * 1000, //5 menit
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+        maxAge: 5 * 60 * 1000,
       });
 
       userDB.refreshToken = refresh_token;
@@ -364,6 +390,7 @@ router.post(
         data: payload,
         refresh_token: refresh_token,
         access_token: access_token,
+        _2faIsVerified: userDB._2faIsVerified,
       });
     } catch (error) {
       console.log(error);
@@ -437,6 +464,31 @@ router.post("/login/app", async (req, res) => {
     console.log("org terhubung ke supertenant telah berganti");
   }
 
+  // If 2FA is enabled for the user, return pending token and skip cookies
+  if (userDB?._2faIsVerified) {
+    const pendingToken = jwt.sign(
+      {
+        _id: userDB._id,
+        org: OrgDB._id,
+        method: "app",
+        twoFA: true,
+        stage: "pending",
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "5m" }
+    );
+
+    const { password: _pw, ...userWithoutPassword } = userDB.toObject();
+
+    return res.json({
+      success: true,
+      twoFARequired: true,
+      pendingToken,
+      data: userWithoutPassword,
+      message: "2FA verification required",
+    });
+  }
+
   const payload = {
     _id: userDB._id,
     username: userDB.username,
@@ -451,20 +503,19 @@ router.post("/login/app", async (req, res) => {
     httpOnly: true,
     secure: false,
     sameSite: "Lax",
-    maxAge: 1 * 60 * 1000, // 1 menit
+    maxAge: 1 * 60 * 1000,
   });
 
   res.cookie("refresh_token", refreshToken, {
     httpOnly: true,
     secure: false,
     sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 hari
+    maxAge: 7 * 24 * 60 * 60 * 1000,
   });
 
   userDB.refreshToken = refreshToken;
   await userDB?.save();
 
-  // Hilangkan password sebelum kirim response
   const { password: _pw, ...userWithoutPassword } = userDB.toObject();
 
   return res.json({
@@ -473,6 +524,7 @@ router.post("/login/app", async (req, res) => {
     data: userWithoutPassword,
     accessToken,
     refreshToken,
+    _2faIsVerified: userDB._2faIsVerified,
   });
 });
 
@@ -840,6 +892,300 @@ router.put("/takeOverUser", authenticate, authorize, async (req, res) => {
     });
   }
 });
+
+//----2fa authenticator endpoints START------
+
+//to generate the and activate the feature
+router.get("/2fa/activate", authenticate, async (req, res) => {
+  try {
+    const user = await UserRefrensi.findOne({
+      org: req.user.org,
+      _id: req.user._id,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    //check if the user is actually have enabled the feature
+    if (user?._2faIsVerified) {
+      return res.status(403).json({
+        success: false,
+        message:
+          "Your 2fa authenticator feature is enabled before, you can't enable it again otherwise the secret.base32 will be change",
+      });
+    }
+
+    //main
+    const secret = speakEasy.generateSecret({
+      name: "Sales Order App",
+      length: 20,
+    });
+
+    //add to userDB
+    user._2faIsVerified = false;
+    user._2faSecret = secret.base32;
+
+    //generate qr
+    qrcode.toDataURL(secret.otpauth_url, async (err, url) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err?.message,
+        });
+      } else {
+        await user.save();
+        return res.json({
+          success: true,
+          message: "2fa authenticator Qr code is generated",
+          data: {
+            qrCode: url,
+          },
+        });
+      }
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message,
+    });
+  }
+});
+
+//to disable the 2fa authenticator feature
+router.delete("/2fa/deactivate", authenticate, async (req, res) => {
+  try {
+    const user = await UserRefrensi.findOne({
+      org: req.user.org,
+      _id: req.user._id,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user?._2faIsVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "2fa is not enabled yet",
+      });
+    } else {
+      user._2faIsVerified = false;
+      user._2faSecret = "";
+
+      await user.save();
+      return res.json({
+        success: true,
+        message: "2fa authenticator is disabled successfully",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message,
+    });
+  }
+});
+
+//to check is user has 2fa ?
+router.get("/2fa/status", authenticate, async (req, res) => {
+  try {
+    const user = await UserRefrensi.findOne({
+      org: req.user.org,
+      _id: req.user._id,
+    });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    if (!user?._2faIsVerified) {
+      return res.status(400).json({
+        success: false,
+        message: "2fa is not verified yet",
+      });
+    } else {
+      return res.json({
+        success: true,
+        message: "2fa is already activated",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      success: false,
+      message: error?.message,
+    });
+  }
+});
+
+//confirmation of 2fa activation not for the login check
+router.post("/2fa/verify", authenticate, async (req, res) => {
+  const { otp: token } = req.body;
+
+  try {
+    const user = await UserRefrensi.findOne({
+      _id: req.user._id,
+      org: req.user.org,
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const _2faSecret = user?._2faSecret;
+    if (!_2faSecret) {
+      return res.status(400).json({
+        success: false,
+        message: "2fa authenticator app is not configured yet",
+      });
+    }
+
+    //main
+    const isMatched = speakEasy.totp.verify({
+      token,
+      window: 1,
+      secret: _2faSecret,
+      encoding: "base32",
+    });
+
+    if (isMatched) {
+      user._2faIsVerified = true;
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: "2fa Authenticator is configured and enabled successfully",
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "the token is not matched, please try again",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: error?.message,
+    });
+  }
+});
+
+// complete 2FA login: verify OTP against user's secret and then issue cookies
+router.post("/2fa/login-complete", async (req, res) => {
+  const { otp, pendingToken } = req.body;
+
+  if (!otp || !pendingToken) {
+    return res.status(400).json({
+      success: false,
+      message: "otp and pendingToken are required",
+    });
+  }
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res
+        .status(401)
+        .json({ message: "Invalid or expired pending token" });
+    }
+
+    if (!decoded?.twoFA || decoded?.stage !== "pending") {
+      return res.status(400).json({ message: "Invalid pending token stage" });
+    }
+
+    const user = await UserRefrensi.findOne({
+      _id: decoded._id,
+      org: decoded.org,
+    });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    if (!user?._2faIsVerified || !user?._2faSecret) {
+      return res
+        .status(400)
+        .json({ success: false, message: "2FA not configured" });
+    }
+
+    const isMatched = speakEasy.totp.verify({
+      token: otp,
+      window: 1,
+      secret: user._2faSecret,
+      encoding: "base32",
+    });
+
+    if (!isMatched) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    const OrgDB = await Org.findById(decoded.org);
+    if (!OrgDB) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Organization not found" });
+    }
+    if (OrgDB?.isDisabled) {
+      return res.status(400).json({
+        message:
+          "anda tidak bisa login, Organization terkait saat ini dibekukan",
+      });
+    }
+
+    const payload = {
+      _id: user._id,
+      username: user.username,
+      org: OrgDB._id,
+      role: user.role,
+      description: user?.description,
+    };
+
+    const accessToken = await generateTokenJWT(payload);
+    const refreshToken = await generateRefreshToken(payload);
+
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+      maxAge: 1 * 60 * 1000,
+    });
+
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    return res.json({ success: true, message: "Login completed with 2FA" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error?.message });
+  }
+});
+
+//----2fa authenticator endpoints END------
 
 router.delete(
   "/revokeSession/:id",

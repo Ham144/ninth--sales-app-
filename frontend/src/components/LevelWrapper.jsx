@@ -22,7 +22,13 @@ const LevelWrapper = () => {
     "/management/user",
   ];
   const currentPath = location.pathname;
-  const isPublicPath = publicPaths.includes(currentPath);
+  const isVerificationPath = currentPath === "/2fa/verification";
+  const hasPending2faToken =
+    typeof window !== "undefined" &&
+    !!sessionStorage.getItem("pending2faToken");
+  const isPublicPath =
+    publicPaths.includes(currentPath) ||
+    (isVerificationPath && hasPending2faToken);
   const isAdminOnlyPath = adminOnlyPaths.includes(currentPath);
 
   // useQuery untuk mengambil info pengguna

@@ -14,6 +14,7 @@ import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from "uuid";
 import ModalTempOption from "@/components/ModalTempOption";
 import OnlyAsk from "@/components/OnlyAsk";
+import { useUserInfo } from "@/store";
 
 const initialSalesOrder = {
   customer: {},
@@ -28,6 +29,9 @@ const RequestPage = () => {
   const [salesOrder, setSalesOrder] = useState(initialSalesOrder);
   const [pembayaranTertunda, setPembayaranTertunda] = useState();
   // state for stock modal is no longer needed; each product has its own dialog
+
+  //simple redirect
+  const { userInfo } = useUserInfo();
 
   //interactivity UI
   const [activeCustomerOptionIdx, setActiveCustomerOptionIdx] = useState(-1); // -1 artinya tidak ada yg dipilih
@@ -302,6 +306,12 @@ const RequestPage = () => {
       debouncedTempSave();
     }
   };
+
+  useEffect(() => {
+    if (userInfo?.description === "OVERDUE") {
+      navigate("/not-found");
+    }
+  }, [userInfo]);
 
   return (
     <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">

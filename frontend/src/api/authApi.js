@@ -23,6 +23,7 @@ export const createAppUser = async (body) => {
   const response = await axiosInstance.post("/api/auth/createAppUser", body);
   return response.data;
 };
+
 export const getUserInfo = async () => {
   try {
     const res = await axiosInstance.get("/api/auth/getUserInfo", {
@@ -78,6 +79,34 @@ export const deleteAppUser = async (id) => {
 
 export const refreshToken = async () => {
   const response = await axiosInstance.delete(`/api/auth/refresh-token`);
+  return response.data;
+};
+
+export const getStatus2Fa = async () => {
+  const response = await axiosInstance.get("/api/auth/2fa/status");
+  return response.data;
+};
+
+export const deactivate2Fa = async () => {
+  const response = await axiosInstance.delete("/api/auth/2fa/deactivate");
+  return response.data;
+};
+
+export const activate2Fa = async () => {
+  const response = await axiosInstance.get("/api/auth/2fa/activate");
+  return response.data;
+};
+
+export const verify2Fa = async ({ otp }) => {
+  const response = await axiosInstance.post("/api/auth/2fa/verify", { otp });
+  return response.data;
+};
+
+export const complete2faLogin = async ({ otp, pendingToken }) => {
+  const response = await axiosInstance.post("/api/auth/2fa/login-complete", {
+    otp,
+    pendingToken,
+  });
   return response.data;
 };
 

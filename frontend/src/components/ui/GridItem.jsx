@@ -1,13 +1,22 @@
 import { useNavigate } from "react-router";
 import { GlowingEffect } from "./glowing-effect";
 
-const GridItem = ({ area, icon, title, description, path }) => {
+const GridItem = ({
+  area,
+  icon,
+  title,
+  description,
+  path,
+  disabled = false,
+}) => {
   const navigate = useNavigate();
 
   return (
     <li
-      onClick={() => navigate(path)}
-      className={`min-h-[14rem] cursor-pointer list-none ${area}`}
+      onClick={() => !disabled && navigate(path)}
+      className={`min-h-[14rem] list-none ${area} ${
+        disabled ? "cursor-not-allowed" : "cursor-pointer"
+      }`}
     >
       <div className="relative h-full rounded-2xl backdrop-blur-sm border p-2 md:rounded-3xl md:p-3">
         <GlowingEffect

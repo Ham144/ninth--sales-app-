@@ -7,12 +7,17 @@ import SalesOrderApi from "@/api/SalesOrderApi";
 import { PlaceholdersAndVanishInput } from "@/components/ui/placeholders-and-vanish-input";
 import { placeHolderSearchSalesOrder } from "@/api/constant";
 import { toast } from "sonner";
+import { useUserInfo } from "@/store";
+import { useNavigate } from "react-router";
 
 export function ProcessPage() {
   const [active, setActive] = useState(null);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
   const ref = useRef(null);
   const id = useId();
+
+  const { userInfo } = useUserInfo();
+  const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
 
@@ -37,6 +42,12 @@ export function ProcessPage() {
     setSearch("");
     refetchSalesOrder(); // optional, karena queryKey sudah berubah
   };
+
+  useEffect(() => {
+    if (userInfo?.description === "OVERDUE") {
+      navigate("/not-found");
+    }
+  }, [userInfo?.description]);
 
   return (
     <div className="flex items-center flex-col mx-auto container min-h-screen justify-center ">
