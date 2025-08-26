@@ -73,16 +73,22 @@ export const fetchingSoapToGetStock = async (No, req) => {
 
 export const fetchingSoap = async () => {
   try {
-    const org = await Org.findOne().select(
-      "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION"
-    );
+    const org = await Org.findOne()
+      .select(
+        "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION"
+      )
+      .lean();
+
+    if (!org) {
+      return null;
+    }
 
     const {
       SOAP_PRODUCT_URL,
       SOAP_PRODUCT_USERNAME,
       SOAP_PRODUCT_PASSWORD,
       SOAP_PRODUCT_SOAPACTION,
-    } = org[0];
+    } = org;
 
     if (
       !SOAP_PRODUCT_URL ||

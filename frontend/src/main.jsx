@@ -20,6 +20,8 @@ import AccountManagement from "./pages/AccountManagement";
 import CustomerManagement from "./pages/CustomerManagement";
 import OverduePage from "./pages/OverduePage";
 import Verification2Fa from "./pages/Verification2Fa";
+import OverdueStatistics from "./pages/OverdueStatistics";
+import OverdueDownloader from "./pages/OverdueDownloader";
 // import RegisterPage from "./pages/RegisterPage";
 
 const router = createBrowserRouter(
@@ -32,8 +34,10 @@ const router = createBrowserRouter(
         <Route path="/profile" element={<Profile />} />
         <Route path="/request" element={<RequestPage />} />
         <Route path="/process" element={<ProcessPage />} />
-        <Route path="/overdue" element={<OverduePage />} />
+        <Route path="/overdue/list" element={<OverduePage />} />
         <Route path="/2fa/verification" element={<Verification2Fa />} />
+        <Route path="/overdue/statistics" element={<OverdueStatistics />} />
+        <Route path="/overdue/downloader" element={<OverdueDownloader />} />
 
         {/* menu IT and admin */}
         <Route path="/management/product" element={<ProductManagement />} />

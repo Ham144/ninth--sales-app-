@@ -31,3 +31,18 @@ export const placeHolderSearchSalesOrder = [
   "Cari berdasarkan SellToCustNo",
   "Cari berdasarkan CustomerName",
 ];
+
+export const months = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];

@@ -171,6 +171,12 @@ export function ProcessPage() {
                       <span className="text-lg">
                         {salesOrderDetail.data.SalespersonCode}
                       </span>
+                    </p>{" "}
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Keterangan:</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.Keterangan}
+                      </span>
                     </p>
                   </div>
 

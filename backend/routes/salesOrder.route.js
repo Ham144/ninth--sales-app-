@@ -182,6 +182,7 @@ router.post("/new", async (req, res) => {
       RequestDeliveryDate: requestDeliveryDate
         ? new Date(convertToISOConvertableDate(requestDeliveryDate))
         : new Date(convertToISOConvertableDate(getCurrentDateForNAV())),
+      Keterangan: req.user.username,
       SalesLine: SalesLine,
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,

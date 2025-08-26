@@ -54,7 +54,7 @@ const SideDrawer = ({ children }) => {
         <div className="h-screen z-20">{children}</div>
       </div>
 
-      {(path.pathname !== "/login" || "/2fa/verification") && (
+      {path.pathname !== "/login" && path.pathname !== "/2fa/verification" && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-[calc(100%-2rem)] max-w-md z-20">
           <div
             className="flex justify-around items-center h-16 px-4 rounded-xl

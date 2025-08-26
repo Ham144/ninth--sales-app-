@@ -299,7 +299,7 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
                     </div>
                     <input
                       type="checkbox"
-                      className="checkbox max-md:absolute max-md:right-3 max-md:bottom-2"
+                      className="checkbox  max-md:w-full rounded-lg"
                       checked={prod.selectedForSalesOrder}
                       onChange={(e) => {
                         const isChecked = e.target.checked;

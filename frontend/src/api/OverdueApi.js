@@ -23,6 +23,17 @@ const OverdueApi = {
     );
     return response;
   },
+  getAvailableMonths: async () => {
+    const response = await axiosInstance.get("/api/v1/overdue/availableMonths");
+    return response;
+  },
+  downloadCsv: async (body) => {
+    const response = await axiosInstance.post(
+      "/api/v1/overdue/downloadCsv",
+      body
+    );
+    return response.data;
+  },
 };
 
 export default OverdueApi;

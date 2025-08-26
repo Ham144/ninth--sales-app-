@@ -118,10 +118,10 @@ const Modal2FA = ({ onSuccess, _2faIsVerified }) => {
               How to: Download Google Authenticator on PS/APPstore and scan the
               code and input its number!
             </span>
+            <form method="dialog" className="w-full">
+              <button className="btn w-full">Close</button>
+            </form>
           </div>
-          <form method="dialog">
-            <button className="btn w-full">Close</button>
-          </form>
         </div>
       </div>
     </dialog>
