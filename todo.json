@@ -1,4 +1,4 @@
-#sales Order APP
+// sales Order APP
 [x] add : customer and product search api
 [x] add : aktivkan cronjob manggil cron-customer dan cron-product tiap 1 jam
 [x] add: revoke login user
@@ -13,4 +13,10 @@
 [x] add: halaman popup fitur pencarian
 [x] add: fitur temporary salesOrder di request page untuk orderan tidak selesai
 [x] modify: fitur pengecekan barang
+[x] add: extDoc untuk menulis keterangan tambahan
+[x] add: ekstrak Location_Code dari customer dan jadikan opsi untuk LocationCode dan potong _ untuk mengisi Dim1
+[x] fix: sales order diskusi produk saat tambah produk terpilih malah masukin semua
+[x] modify: fitur download csv overdue (note: hapus angka dibelakang koma)
+[x] add: fitur integrasi sebagai third party generate x-api-key (hanya tersedia untuk supertenant)
+[] modify:  extDoc: req.user.username &  keterangan : keterangan
 [] modify: perbaiki organization bukan hanya melakukan cron untuk 1 organization

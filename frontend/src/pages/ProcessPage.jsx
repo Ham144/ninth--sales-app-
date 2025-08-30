@@ -143,7 +143,9 @@ export function ProcessPage() {
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
-                      <strong className="font-semibold">Ext doc:</strong>
+                      <strong className="font-semibold">
+                        Ext doc (username):
+                      </strong>
                       <span className="text-lg">
                         {salesOrderDetail?.data?.ExtDoc}
                       </span>
@@ -176,6 +178,12 @@ export function ProcessPage() {
                       <strong className="font-semibold">Keterangan:</strong>
                       <span className="text-lg">
                         {salesOrderDetail.data.Keterangan}
+                      </span>
+                    </p>
+                    <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Dim1 (Area):</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data.Dim1}
                       </span>
                     </p>
                   </div>

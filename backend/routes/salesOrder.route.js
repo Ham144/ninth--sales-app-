@@ -10,6 +10,7 @@ import Org from "../models/Organization.model.js";
 import Customer from "../models/Customer.model.js";
 import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
 import mongoose from "mongoose";
+import Location from "../models/Location.model.js";
 
 const router = Router();
 
@@ -20,11 +21,13 @@ export const requestSalesOrder = async ({
   RequestDeliveryDate,
   Keterangan,
   SalesLine,
+  LocationCode,
+  AreaCode,
   req,
 }) => {
   try {
     const org = await Org.findById(req.user.org).select(
-      "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION"
+      "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
     );
 
     const {
@@ -32,6 +35,7 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_USERNAME,
       SOAP_TRANSACTION_PASSWORD,
       SOAP_TRANSACTION_SOAPACTION,
+      SOAP_TRANSACTION_XMLNS,
     } = org;
 
     if (
@@ -51,6 +55,9 @@ export const requestSalesOrder = async ({
       RequestDeliveryDate,
       SalesLine,
       Keterangan,
+      LocationCode,
+      AreaCode,
+      SOAP_TRANSACTION_XMLNS,
     });
 
     const rawXmlResponse = await fetchData({
@@ -122,6 +129,8 @@ router.post("/new", async (req, res) => {
     tempToDeleteId,
     requestDeliveryDate,
     frontendSession,
+    keterangan,
+    locationCode,
   } = req.body;
 
   try {
@@ -143,14 +152,34 @@ router.post("/new", async (req, res) => {
       });
     }
 
+    //area and location code matching
+    let location;
+    if (locationCode) {
+      location = await Location.findOne({
+        name: locationCode,
+      }).select("name");
+    } else {
+      location = customer.Location_Code;
+    }
+    const before = location.name.split("_")[0];
+
+    let after = location.name.split("_");
+
+    if (after.length > 2) after = before.split("_").slice(0, 2).join("_");
+    else if (after.length === 2)
+      after = before.split("_").slice(0, 1).join("_");
+    else after = location.name;
+
     const orderDate = new Date().toISOString().split("T")[0];
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: globalIndex,
-      ExtDoc: globalIndex,
+      ExtDoc: req.user.username,
       SellToCustNo: customer.No,
       RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
-      Keterangan: req.user.username,
-      SalesLine,
+      Keterangan: keterangan,
+      LocationCode: location.name,
+      AreaCode: after,
+      SalesLine: SalesLine,
       req,
     });
 
@@ -173,8 +202,8 @@ router.post("/new", async (req, res) => {
       customer: customer._id,
       ShiptToCode: customer.ShiptToCode || "",
       OrderDate: orderDate,
-      LocationCode: customer.Location_Code || "",
-      Dim1: customer.Dim1 || "",
+      LocationCode: location?.name || "",
+      Dim1: after || "",
       CustomerPriceGrp: customer.Customer_Price_Group,
       SalespersonCode: customer.Salesperson_Code || "",
       NoSeries: await GetMyOrganizationAbbr({ req }),
@@ -182,7 +211,7 @@ router.post("/new", async (req, res) => {
       RequestDeliveryDate: requestDeliveryDate
         ? new Date(convertToISOConvertableDate(requestDeliveryDate))
         : new Date(convertToISOConvertableDate(getCurrentDateForNAV())),
-      Keterangan: req.user.username,
+      Keterangan: keterangan, //note tambahan dari frontend
       SalesLine: SalesLine,
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,

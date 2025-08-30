@@ -11,7 +11,7 @@ import Overdue from "../models/OverDue.model.js";
 export const fetchingSoap = async () => {
   try {
     const org = await Org.find().select(
-      "SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION"
+      "SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_XMLNS"
     );
 
     const {
@@ -19,13 +19,15 @@ export const fetchingSoap = async () => {
       SOAP_PEMBAYARANTERTUNDA_USERNAME,
       SOAP_PEMBAYARANTERTUNDA_PASSWORD,
       SOAP_PEMBAYARANTERTUNDA_SOAPACTION,
+      SOAP_PEMBAYARANTERTUNDA_XMLNS,
     } = org[0];
 
     if (
       !SOAP_PEMBAYARANTERTUNDA_URL ||
       !SOAP_PEMBAYARANTERTUNDA_PASSWORD ||
       !SOAP_PEMBAYARANTERTUNDA_SOAPACTION ||
-      !SOAP_PEMBAYARANTERTUNDA_USERNAME
+      !SOAP_PEMBAYARANTERTUNDA_USERNAME ||
+      !SOAP_PEMBAYARANTERTUNDA_XMLNS
     ) {
       console.log("konfigurasi soap overdue/pembayaran tertunda tidak lengkap");
       return null;
@@ -89,6 +91,8 @@ export const reinitilizingOverdueList = async () => {
       documentNo: item.Document_No,
       salespersonCode: item.Salesperson_Code,
       remainingAmount: Number(item.Remaining_Amount),
+      AR: item?.AR,
+      blocked: item.blocked ? 1 : 0,
     }));
 
     // Hapus semua data lama lalu insert yang baru

@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 const OverdueDownloader = () => {
   const [selectedMonth, setSelectedMonth] = useState();
-  const [includeCustomerDetail, setIncludeCustomerDetail] = useState(false);
+  const [includeCustomerDetail, setIncludeCustomerDetail] = useState(true);
 
   // Get available months
   const { data: availableMonths, isLoading: isLoadingMonths } = useQuery({

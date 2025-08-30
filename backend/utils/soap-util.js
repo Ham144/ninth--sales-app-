@@ -16,6 +16,7 @@ export async function fetchData({ xml, username, password, url, SOAPAction }) {
         },
       },
       (err, res) => {
+        console.log(res, err);
         if (err) return reject(err);
 
         resolve(res.body);

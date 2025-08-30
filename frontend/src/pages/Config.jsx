@@ -77,15 +77,15 @@ export default function Config() {
         ...form,
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries(["config"]);
       toast.success("Config berhasil diperbarui");
+      setTimeout(() => {
+        // window.location.reload();
+      }, 2000);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Gagal memperbarui config");
     },
   });
-
-  const queryClient = useQueryClient();
 
   // helper mapping
   const prefixes = [
@@ -96,13 +96,12 @@ export default function Config() {
     "SOAP_PEMBAYARANTERTUNDA_",
   ];
 
-  console.log(form);
-
   const suffixMap = {
     URL: "URL",
     Username: "USERNAME",
     Password: "PASSWORD",
     SOAPAction: "SOAPACTION",
+    XMLNS: "XMLNS",
   };
 
   function buildKey(name, index) {
@@ -132,6 +131,7 @@ export default function Config() {
     { label: "Username", type: "text", name: "Username" },
     { label: "Password", type: "password", name: "Password" },
     { label: "SOAP Action", type: "text", name: "SOAPAction" },
+    { label: "XMLNS", type: "text", name: "XMLNS" },
   ];
 
   useEffect(() => {

@@ -29,7 +29,7 @@ const OverduePage = () => {
 
   // Fetch overdue list
   const { data: overdueList, isPending: overduePending } = useQuery({
-    queryKey: ["overdue", skip, page, search, startDate, endDate],
+    queryKey: ["overdue", skip, page, search, startDate, endDate, limit],
     queryFn: async () =>
       await OverdueApi.list({ search, limit, skip, page, startDate, endDate }),
   });
@@ -84,6 +84,8 @@ const OverduePage = () => {
                 <th>Status</th>
                 <th>Salesperson</th>
                 <th>Contact</th>
+                <th>AR</th>
+                <th>Block</th>
               </tr>
             </thead>
             <tbody>
@@ -131,6 +133,8 @@ const OverduePage = () => {
                       <div className="text-sm">{item.Phone_No}</div>
                       <div className="text-xs text-gray-500">{item.Email}</div>
                     </td>
+                    <td>{item?.AR}</td>
+                    <td>{item?.blocked}</td>
                   </tr>
                 ))
               ) : (

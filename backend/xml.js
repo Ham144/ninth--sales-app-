@@ -1,7 +1,7 @@
-export const productXml = () => {
+export const productXml = ({ SOAP_PRODUCT_XMLNS }) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
-        <ReadMultiple xmlns="urn:microsoft-dynamics-schemas/page/midapi">
+        <ReadMultiple xmlns="${SOAP_PRODUCT_XMLNS}">
             <filter>
                 <Field>No</Field>
                 <Criteria>*</Criteria>
@@ -13,10 +13,10 @@ export const productXml = () => {
 </Envelope>`;
 };
 
-export const customerXml = () => {
+export const customerXml = ({ SOAP_CUSTOMER_XMLNS }) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
       <Body>
-        <ReadMultiple xmlns="urn:microsoft-dynamics-schemas/page/api_cust_app">
+        <ReadMultiple xmlns="${SOAP_CUSTOMER_XMLNS}">
           <filter>
             <Field></Field>
             <Criteria></Criteria>
@@ -28,10 +28,10 @@ export const customerXml = () => {
     </Envelope>`;
 };
 
-export const checkStockXML = (No) => {
+export const checkStockXML = (No, SOAP_STOCK_XMLNS) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
-        <Read xmlns="urn:microsoft-dynamics-schemas/page/itemprice">
+        <Read xmlns="${SOAP_STOCK_XMLNS}">
             <No>${No}</No>
         </Read>
     </Body>
@@ -45,19 +45,22 @@ export const requestSalesOrderXml = ({
   RequestDeliveryDate,
   SalesLine,
   Keterangan,
+  LocationCode,
+  AreaCode,
+  SOAP_TRANSACTION_XMLNS,
 }) => {
   return `
 <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
   <Body>
     <SalesMobileInsertCSI xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
       <xML_Sales>
-        <SalesHeader xmlns="urn:microsoft-dynamics-nav/xmlports/x50023">
+        <SalesHeader xmlns="${SOAP_TRANSACTION_XMLNS}">
           <DocumentNo>${DocumentNo}</DocumentNo>
           <SellToCustNo>${SellToCustNo}</SellToCustNo>
           <ShiptToCode></ShiptToCode>
           <OrderDate></OrderDate>
-          <LocationCode></LocationCode>
-          <Dim1></Dim1>
+          <LocationCode>${LocationCode}</LocationCode>
+          <Dim1>${AreaCode}</Dim1>
           <CustomerPriceGrp></CustomerPriceGrp>
           <SalespersonCode></SalespersonCode>
           <SellToContact></SellToContact>
@@ -109,10 +112,13 @@ export const requestSalesOrderXml = ({
                     </SalesLine>
 */
 
-export const cekPembayaranTertundaXml = ({ customerNo }) => {
+export const cekPembayaranTertundaXml = ({
+  customerNo,
+  SOAP_PEMBAYARANTERTUNDA_XMLNS,
+}) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
 <Body>
-<ReadMultiple xmlns="urn:microsoft-dynamics-schemas/page/remainingsi">
+<ReadMultiple xmlns="${SOAP_PEMBAYARANTERTUNDA_XMLNS}">
 <filter>
 <Field>Customer_No</Field>
 <Criteria>${customerNo}</Criteria>

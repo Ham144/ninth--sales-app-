@@ -22,6 +22,8 @@ import OverduePage from "./pages/OverduePage";
 import Verification2Fa from "./pages/Verification2Fa";
 import OverdueStatistics from "./pages/OverdueStatistics";
 import OverdueDownloader from "./pages/OverdueDownloader";
+import CapthaGeneration from "./pages/CapthaGeneration.jsx";
+import DeveloperPage from "./pages/DeveloperPage";
 // import RegisterPage from "./pages/RegisterPage";
 
 const router = createBrowserRouter(
@@ -46,7 +48,11 @@ const router = createBrowserRouter(
         <Route path="/management/config" element={<Config />} />
         <Route path="/supertenant/management" element={<SuperTenantPage />} />
         <Route path="/all_account" element={<AllAccounts />} />
+        <Route path="/developer.integration" element={<DeveloperPage />} />
       </Route>
+
+      {/* Public routes that don't require authentication */}
+      <Route path="/captchaGeneration" element={<CapthaGeneration />} />
       <Route index={true} path="/login" element={<Login />} />
       {/* <Route index={true} path="/register" element={<RegisterPage />} /> */}
 

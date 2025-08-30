@@ -8,6 +8,7 @@ import "dotenv/config";
 import xml2js from "xml2js";
 import crypto from "crypto";
 import Org from "../models/Organization.model.js";
+import Location from "../models/Location.model.js";
 
 function hashCustomerData(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
@@ -17,7 +18,7 @@ export const fetchingSoap = async () => {
   try {
     const org = await Org.findOne()
       .select(
-        "SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_PASSWORD SOAP_CUSTOMER_SOAPACTION"
+        "SOAP_CUSTOMER_URL SOAP_CUSTOMER_USERNAME SOAP_CUSTOMER_PASSWORD SOAP_CUSTOMER_SOAPACTION SOAP_CUSTOMER_XMLNS"
       )
       .lean();
 
@@ -30,20 +31,22 @@ export const fetchingSoap = async () => {
       SOAP_CUSTOMER_USERNAME,
       SOAP_CUSTOMER_PASSWORD,
       SOAP_CUSTOMER_SOAPACTION,
+      SOAP_CUSTOMER_XMLNS,
     } = org;
 
     if (
       !SOAP_CUSTOMER_URL ||
       !SOAP_CUSTOMER_USERNAME ||
       !SOAP_CUSTOMER_PASSWORD ||
-      !SOAP_CUSTOMER_SOAPACTION
+      !SOAP_CUSTOMER_SOAPACTION ||
+      !SOAP_CUSTOMER_XMLNS
     ) {
       console.log("konfigurasi soap customer tidak lengkap");
       return null;
     }
 
     const rawXmlResponse = await fetchData({
-      xml: customerXml(),
+      xml: customerXml({ SOAP_CUSTOMER_XMLNS }),
       username: SOAP_CUSTOMER_USERNAME,
       password: SOAP_CUSTOMER_PASSWORD,
       url: SOAP_CUSTOMER_URL,
@@ -98,6 +101,38 @@ const reinitilizeCustomerFromSoap = async () => {
       { No: { $in: customersJSON.map((c) => c.No) } },
       { No: 1, hash: 1 }
     ).lean();
+
+    //Location section
+    const uniqueLocation = [
+      ...new Set(
+        customersJSON.map((customer) => customer.Location_Code).filter(Boolean)
+      ), // filter out null/empty
+    ];
+
+    // Prepare bulk operations
+    const bulkLocation = uniqueLocation.map((locationName) => ({
+      updateOne: {
+        filter: { name: locationName },
+        update: { $setOnInsert: { name: locationName } },
+        upsert: true, // Insert if not exists
+      },
+    }));
+
+    if (bulkLocation.length > 0) {
+      await Location.bulkWrite(bulkLocation, { ordered: false });
+      console.log(
+        `✅ Location sync complete: ${bulkLocation.length} processed`
+      );
+    }
+
+    // Execute bulkWrite
+    try {
+      await Location.bulkWrite(bulkLocation, { ordered: false }); // `ordered: false` skips errors and continues
+    } catch (err) {
+      console.error("Duplicate keys ignored");
+    }
+
+    //customer section
 
     const existingMap = new Map();
     for (let c of existingCustomers) {

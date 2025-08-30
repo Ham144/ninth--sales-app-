@@ -32,9 +32,18 @@ router.get("/list", async (req, res) => {
     }
 
     if (startDate && endDate) {
-      query.createdAt = {
-        $gte: new Date(startDate),
-        $lte: new Date(endDate),
+      const startDatePoint = new Date(startDate).setHours(0, 0, 0, 0);
+      const endDatePoint = new Date(endDate).setHours(23, 59, 59, 999);
+
+      if (startDatePoint > endDatePoint) {
+        return res.status(400).json({
+          message: "Tanggal awal harus lebih kecil dari tanggal akhir",
+        });
+      }
+
+      query.dueDate = {
+        $gte: new Date(startDatePoint),
+        $lte: new Date(endDatePoint),
       };
     }
 
@@ -232,6 +241,8 @@ router.post("/downloadCsv", async (req, res) => {
       "documentNo",
       "salespersonCode",
       "remainingAmount",
+      "AR",
+      "blocked",
     ];
 
     // Tambahkan header customer detail jika diperlukan
@@ -259,6 +270,8 @@ router.post("/downloadCsv", async (req, res) => {
         item.documentNo,
         item.salespersonCode,
         item.remainingAmount,
+        item.AR,
+        item.blocked,
       ];
 
       // Tambahkan customer detail jika diperlukan

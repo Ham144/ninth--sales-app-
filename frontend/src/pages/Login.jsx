@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { cn } from "@/lib/utils";
-import { APP_NAME } from "@/api/constant";
+import { APP_NAME, NODE_ENV, siteKeyCloudflare } from "@/api/constant";
 import { DotBackgroundDemo } from "@/components/ui/DotBackgroundDemo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { loginApp, loginLdap } from "@/api/authApi";
@@ -10,13 +10,18 @@ import { toast } from "sonner";
 import OrgApi from "@/api/orgApi";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
+import TurnstileCaptcha from "@/components/TurnstileCaptcha";
 
 export default function SignupFormDemo() {
   const [body, setBody] = useState({
     username: "",
     password: "",
   });
-  const [selectedOrg, setSelectedOrg] = useState("");
+  const [selectedOrg, setSelectedOrg] = useState({
+    organizationName: "CATUR SUKSES INTERNASIONAL",
+    _id: "688828ded953f48ff0fa7cba",
+  });
+  const [captchaToken, setCaptchaToken] = useState("");
 
   const { setUserInfo } = useUserInfo();
   const queryClient = useQueryClient();
@@ -31,10 +36,15 @@ export default function SignupFormDemo() {
   const { mutateAsync: handleLoginLdap, isPending: isLoginLdapPending } =
     useMutation({
       mutationFn: async () => {
+        if (!captchaToken && NODE_ENV === "production") {
+          toast.error("Harap pecahkan CAPTCHA terlebih dahulu.");
+          return;
+        }
         const res = await loginLdap({
           username: body.username,
           password: body.password,
           selectedOrg,
+          captchaToken,
         });
         return res;
       },
@@ -59,6 +69,12 @@ export default function SignupFormDemo() {
         }, 1000);
       },
       onError: (err) => {
+        if (err.response.status === 403) {
+          //gagal turnstile
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
         toast.error(
           err?.response?.data?.message ||
             "Login gagal. Periksa username dan password Anda."
@@ -69,10 +85,15 @@ export default function SignupFormDemo() {
   const { mutateAsync: handleLoginApp, isPending: isLoginAppPending } =
     useMutation({
       mutationFn: async () => {
+        if (!captchaToken && NODE_ENV === "production") {
+          toast.error("Harap pecahkan CAPTCHA terlebih dahulu.");
+          return;
+        }
         const res = await loginApp({
           username: body.username,
           password: body.password,
           selectedOrg,
+          captchaToken,
         });
         return res;
       },
@@ -97,6 +118,12 @@ export default function SignupFormDemo() {
         }, 1000);
       },
       onError: (err) => {
+        if (err.response.status === 403) {
+          //gagal turnstile
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
         toast.error(
           err?.response?.data?.message ||
             "Login gagal. Periksa username dan password Anda."
@@ -121,7 +148,7 @@ export default function SignupFormDemo() {
               <Input
                 onChange={(e) => setBody({ ...body, username: e.target.value })}
                 id="firstname"
-                placeholder="Tyler"
+                placeholder="ham"
                 type="text"
               />
             </LabelInputContainer>
@@ -168,6 +195,21 @@ export default function SignupFormDemo() {
               )
             )}
           </div>
+
+          {/* verify captcha  */}
+          {NODE_ENV == "production" && (
+            <div className="my-4 mx-auto justify-center items-center flex">
+              <TurnstileCaptcha
+                onVerify={(token) => {
+                  if (!token) {
+                    window.location.reload();
+                  }
+                  setCaptchaToken(token);
+                }}
+                siteKey={siteKeyCloudflare}
+              />
+            </div>
+          )}
 
           <div className="my-8 h-[1px] w-full bg-gradient-to-r from-transparent via-neutral-300 to-transparent dark:via-neutral-700" />
           <div className="flex gap-x-3 items-center">

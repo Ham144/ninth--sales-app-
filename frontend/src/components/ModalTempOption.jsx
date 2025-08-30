@@ -128,10 +128,10 @@ const ModalTempOption = ({
         <div className="modal-action">
           <form method="dialog">
             <button
-              className="btn btn-ghost"
+              className="btn bg-orange-200 rounded-lg w-full btn-ghost"
               onClick={() => setTempSalesOrderOption([])}
             >
-              Tutup
+              Tutup dan lanjutkan membuat yang baru
             </button>
           </form>
         </div>

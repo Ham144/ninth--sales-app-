@@ -3,6 +3,7 @@ import OverdueApi from "@/api/OverdueApi";
 import OverdueSideBarMenu from "@/components/OverdueSideBarMenu";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
+import { toast } from "sonner";
 
 const OverdueStatistics = () => {
   // Get available months
@@ -87,6 +88,9 @@ const OverdueStatistics = () => {
                         const count = grouped[year][idx + 1];
                         return (
                           <td
+                            onClick={() =>
+                              toast.warning("Fitur sedang dilengkapi")
+                            }
                             key={idx}
                             className={`w-14 h-14 text-center cursor-pointer transition-all duration-200 transform hover:scale-110 rounded-lg border border-gray-100 ${getColor(
                               count

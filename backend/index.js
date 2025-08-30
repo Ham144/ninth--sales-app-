@@ -18,6 +18,9 @@ import startCronProduct from "./utils/cron-product.js";
 import salesOrderRoutes from "./routes/salesOrder.route.js";
 import startCronOverdue from "./utils/cron-overdue.js";
 import overdueRoutes from "./routes/overdue.route.js";
+import locationRoutes from "./routes/Location.route.js";
+import authorizeSupertenant from "./middlewares/authoririzeSupertenant.js";
+import integrationRoutes from "./routes/integration.route.js";
 
 const __dirname = path.resolve();
 
@@ -51,12 +54,19 @@ app.use("/api/config", authenticate, authorize, configRoutes);
 app.use("/api/org", orgRoutes);
 app.use("/api/file", authenticate, fileRoutes);
 app.use("/api/bulk", authenticate, authorize, bulkRoutes);
+app.use(
+  "/api/asThirdParty",
+  authenticate,
+  authorizeSupertenant,
+  integrationRoutes
+);
 
 //routes project utama
 app.use("/api/v1/product", authenticate, productRoutes);
 app.use("/api/v1/customer", authenticate, customerRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
 app.use("/api/v1/overdue", authenticate, overdueRoutes);
+app.use("/api/v1/location", authenticate, locationRoutes);
 
 //frontend routes
 app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));

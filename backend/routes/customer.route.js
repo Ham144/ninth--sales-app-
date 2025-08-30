@@ -55,8 +55,6 @@ router.get("/list", async (req, res) => {
 });
 
 //ini untuk getByNo lebih detail serta mengecek pembayaran tertunda
-
-//ini untuk getByNo lebih detail serta mengecek pembayaran tertunda
 router.post("/getByNo/:no", async (req, res) => {
   const no = req.params.no;
 
@@ -69,11 +67,15 @@ router.post("/getByNo/:no", async (req, res) => {
     }
 
     const myOrganization = await Org.findById(req.user.org).select(
-      "SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL"
+      "SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_XMLNS"
     );
 
     //cek pembayaran tertunda
-    const xml = cekPembayaranTertundaXml({ customerNo: customer?.No });
+    const xml = cekPembayaranTertundaXml({
+      customerNo: customer?.No,
+      SOAP_PEMBAYARANTERTUNDA_XMLNS:
+        myOrganization.SOAP_PEMBAYARANTERTUNDA_XMLNS,
+    });
     const username = myOrganization.SOAP_PEMBAYARANTERTUNDA_USERNAME;
     const password = myOrganization.SOAP_PEMBAYARANTERTUNDA_PASSWORD;
     const soap_action = myOrganization.SOAP_PEMBAYARANTERTUNDA_SOAPACTION;

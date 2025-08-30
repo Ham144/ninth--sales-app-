@@ -7,6 +7,8 @@ const overdueSchema = new mongoose.Schema({
   documentNo: { type: String },
   salespersonCode: { type: String },
   remainingAmount: { type: Number },
+  AR: { type: String },
+  blocked: { type: Number },
 });
 
 const OverDue = mongoose.model("OverDue", overdueSchema);

@@ -16,27 +16,30 @@ function hashProductData(data) {
 export const fetchingSoapToGetStock = async (No, req) => {
   try {
     const org = await Org.findById(req.user.org).select(
-      "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION"
+      "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION SOAP_STOCK_XMLNS"
     );
+
     const {
       SOAP_STOCK_URL,
       SOAP_STOCK_USERNAME,
       SOAP_STOCK_PASSWORD,
       SOAP_STOCK_SOAPACTION,
+      SOAP_STOCK_XMLNS,
     } = org;
 
     if (
       !SOAP_STOCK_URL ||
       !SOAP_STOCK_USERNAME ||
       !SOAP_STOCK_PASSWORD ||
-      !SOAP_STOCK_SOAPACTION
+      !SOAP_STOCK_SOAPACTION ||
+      SOAP_STOCK_XMLNS
     ) {
       console.log("Konfigurasi soap stock tidak lengkap");
       return null;
     }
 
     const rawXmlResponse = await fetchData({
-      xml: checkStockXML(No), // <-- XML generator khusus produk
+      xml: checkStockXML(No, SOAP_STOCK_XMLNS), // <-- XML generator khusus produk
       username: SOAP_STOCK_USERNAME,
       password: SOAP_STOCK_PASSWORD,
       url: SOAP_STOCK_URL,
@@ -75,7 +78,7 @@ export const fetchingSoap = async () => {
   try {
     const org = await Org.findOne()
       .select(
-        "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION"
+        "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION SOAP_PRODUCT_XMLNS"
       )
       .lean();
 
@@ -88,20 +91,22 @@ export const fetchingSoap = async () => {
       SOAP_PRODUCT_USERNAME,
       SOAP_PRODUCT_PASSWORD,
       SOAP_PRODUCT_SOAPACTION,
+      SOAP_PRODUCT_XMLNS,
     } = org;
 
     if (
       !SOAP_PRODUCT_URL ||
       !SOAP_PRODUCT_USERNAME ||
       !SOAP_PRODUCT_PASSWORD ||
-      !SOAP_PRODUCT_SOAPACTION
+      !SOAP_PRODUCT_SOAPACTION ||
+      !SOAP_PRODUCT_XMLNS
     ) {
       console.log("Konfigurasi soap product tidak lengkap");
       return null;
     }
 
     const rawXmlResponse = await fetchData({
-      xml: productXml(), // <-- XML generator khusus produk
+      xml: productXml({ SOAP_PRODUCT_XMLNS }), // <-- XML generator khusus produk
       username: SOAP_PRODUCT_USERNAME,
       password: SOAP_PRODUCT_PASSWORD,
       url: SOAP_PRODUCT_URL,

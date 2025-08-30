@@ -5,13 +5,12 @@ if (import.meta.env.VITE_BACKEND_URL) {
   PROD_URL = import.meta.env.VITE_BACKEND_URL;
 }
 
-// export let NODE_ENV = "development";
-export let NODE_ENV = "production";
+export let NODE_ENV = "development";
+// export let NODE_ENV = "production";
 
 export const BASE_URL = NODE_ENV == "production" ? PROD_URL : DEV_URL;
 
-export let siteKeyCloudflare =
-  import.meta.env.VITE_TURNSTILE_SITE_KEY ?? "0x4AAAAAABm0ajGlobtbdIIR";
+export let siteKeyCloudflare = "0x4AAAAAABm0ajGlobtbdIIR";
 
 export const APP_NAME = "Sales Order CSI";
 export const APP_DESC = "Sistem Pembuat Sales Order Untuk Sales";

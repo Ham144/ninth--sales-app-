@@ -25,6 +25,7 @@ const customerSchema = new mongoose.Schema(
     Home_Page: String,
     Customer_Disc_Group: String,
     CRM_ID: String,
+    Remaining_AR_Amount: String,
     hash: String, //ini untuk optimasi super, mencegah update data yg sama
   },
   { timestamps: true }

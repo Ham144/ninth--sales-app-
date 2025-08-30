@@ -15,12 +15,14 @@ import { v4 as uuidv4 } from "uuid";
 import ModalTempOption from "@/components/ModalTempOption";
 import OnlyAsk from "@/components/OnlyAsk";
 import { useUserInfo } from "@/store";
+import locationApi from "@/api/LocationApi";
 
 const initialSalesOrder = {
   customer: {},
   products: [], // will include: { ...product, qty: 1 }
   requestDeliveryDate: "",
   frontendSession: "",
+  keterangan: "",
 };
 
 const RequestPage = () => {
@@ -123,6 +125,12 @@ const RequestPage = () => {
     onError: (err) => {
       toast.error(err?.response?.data?.message || "Terjadi kesalahan");
     },
+  });
+
+  //get  all location to fill dim1 and  location code
+  const { data: locationList } = useQuery({
+    queryKey: ["location"],
+    queryFn: async () => await locationApi.getAllLocation(),
   });
 
   //query product
@@ -314,7 +322,7 @@ const RequestPage = () => {
   }, [userInfo]);
 
   return (
-    <div className="p-4 py-20 overflow-y-auto h-screen  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">
+    <div className="p-4 py-20  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">
       {/* 🔍 Search Customer */}
       <h3 className="text-2xl font-light text-center">Sales Order Request</h3>
       <div className="space-y-2">
@@ -413,6 +421,7 @@ const RequestPage = () => {
                   <tr className="bg-gray-100 text-gray-700">
                     <th className="p-2 font-semibold">No. Dokumen</th>
                     <th className="p-2 font-semibold">Jatuh Tempo</th>
+                    <th className="p-2 font-semibold">AR</th>
                     <th className="p-2 font-semibold text-right">
                       Sisa Pembayaran
                     </th>
@@ -432,6 +441,7 @@ const RequestPage = () => {
                       <tr key={i}>
                         <td className="p-2">{item.Document_No}</td>
                         <td className="p-2">{formattedDate}</td>
+                        <td className="p-2">{item?.AR}</td>
                         <td className="p-2 text-right font-bold text-red-500">
                           {new Intl.NumberFormat("id-ID").format(
                             parseInt(item.Remaining_Amount)
@@ -558,12 +568,52 @@ const RequestPage = () => {
           </CardContent>
         </Card>
       )}
+
+      <select
+        onChange={(e) => {
+          setSalesOrder((prev) => ({
+            ...prev,
+            locationCode: e.target.value,
+          }));
+        }}
+        value={salesOrder?.locationCode}
+        className="select bg-slate-50 rounded-lg w-full "
+      >
+        <option disabled selected>
+          Pilih Location Manual atau kosongkan untuk disesuaikan dengan
+          Location_Code customer
+        </option>
+        {locationList?.data?.length ? (
+          locationList.data.map((loc) => (
+            <option key={loc.name} value={loc.name}>
+              {loc.name}
+            </option>
+          ))
+        ) : (
+          <option disabled hidden>
+            Tidak Ada Data
+          </option>
+        )}
+      </select>
+
       <div className="flex flex-wrap gap-3 items-center">
+        <textarea
+          placeholder="Masukkan Keterangan yang ingin anda tambahkan"
+          value={salesOrder.keterangan}
+          onChange={(e) =>
+            setSalesOrder((prev) => ({
+              ...prev,
+              keterangan: e.target.value,
+            }))
+          }
+          className="textarea font-light bg-slate-50  rounded-lg textarea-bordered w-full pr-32"
+          rows={2}
+        />
         {/* Input + Tombol Shortcut */}
         <div className="flex w-full md:w-96 relative">
           <input
             type="text"
-            placeholder="Request Delivery Date"
+            placeholder="(dd/mm/yyyy) RDD "
             value={salesOrder.requestDeliveryDate}
             onChange={(e) =>
               setSalesOrder((prev) => ({
@@ -571,7 +621,7 @@ const RequestPage = () => {
                 requestDeliveryDate: e.target.value,
               }))
             }
-            className="input bg-slate-100 h-10 rounded-lg input-bordered w-full pr-32"
+            className="input  font-light  h-10 rounded-lg input-bordered w-full pr-32"
           />
           {/* Tombol Hari ini */}
           {/* Tombol Hari ini */}

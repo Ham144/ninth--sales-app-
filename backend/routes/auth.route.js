@@ -9,6 +9,7 @@ import authorize from "../middlewares/authorize.js";
 import generateRefreshToken from "../utils/generateRefreshToken.js";
 import jwt from "jsonwebtoken";
 import speakEasy from "speakeasy";
+import axios from "axios";
 import qrcode from "qrcode";
 
 const router = Router();
@@ -209,7 +210,12 @@ const asyncHandler = (fn) => (req, res, next) => {
 router.post(
   "/login/ldap",
   asyncHandler(async (req, res) => {
-    const { username: usernameRaw, password, selectedOrg } = req.body;
+    const {
+      username: usernameRaw,
+      password,
+      selectedOrg,
+      captchaToken,
+    } = req.body;
     if (!usernameRaw || !password || !selectedOrg) {
       return res.status(400).json({
         success: false,
@@ -224,6 +230,37 @@ router.post(
         success: false,
         message: "tidak boleh nama demikian karena termasuk role spesial",
       });
+    }
+
+    //turnstile
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const result = await axios.post(
+          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+          new URLSearchParams({
+            secret: process.env.TURNSTILE_SECRET_KEY,
+            response: captchaToken,
+            remoteip: req.ip,
+          }),
+          {
+            headers: {
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+          }
+        );
+
+        if (!result.data.success) {
+          return res
+            .status(403)
+            .json({ success: false, message: "Verifikasi CAPTCHA gagal." });
+        }
+        console.log("berhasil verifikasi turnstile");
+      } catch (error) {
+        console.error("Turnstile error:", error.message);
+        return res
+          .status(500)
+          .json({ success: false, message: "Gagal memverifikasi CAPTCHA." });
+      }
     }
 
     const OrgDB = await Org.findById(selectedOrg);
@@ -279,7 +316,8 @@ router.post(
 
       if (
         (userLDAP?.description || "").toUpperCase() !== "SALES" &&
-        userLDAP.description !== "OVERDUE"
+        userLDAP.description !== "OVERDUE" &&
+        userLDAP.description !== "IT"
       ) {
         return res.status(400).json({
           message: "User tidak diizinkan karena bukan SALES.",
@@ -404,13 +442,43 @@ router.post(
 
 // login app ✅
 router.post("/login/app", async (req, res) => {
-  const { username, password, selectedOrg } = req.body;
+  const { username, password, selectedOrg, captchaToken } = req.body;
 
   if (!username || !password || !selectedOrg) {
     return res.status(400).json({
       success: false,
       message: "Perlu melengkapi semua credentials",
     });
+  }
+
+  if (process.env.NODE_ENV == "production") {
+    try {
+      const result = await axios.post(
+        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+        new URLSearchParams({
+          secret: process.env.TURNSTILE_SECRET_KEY,
+          response: captchaToken,
+          remoteip: req.ip,
+        }),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        }
+      );
+
+      if (!result.data.success) {
+        return res
+          .status(403)
+          .json({ success: false, message: "Verifikasi CAPTCHA gagal." });
+      }
+      console.log("berhasil verifikasi turnstile");
+    } catch (error) {
+      console.error("Turnstile error:", error.message);
+      return res
+        .status(500)
+        .json({ success: false, message: "Gagal memverifikasi CAPTCHA." });
+    }
   }
 
   const OrgDB = await Org.findById(selectedOrg);
@@ -449,7 +517,8 @@ router.post("/login/app", async (req, res) => {
   }
 
   const isPasswordMatch = await bcrypt.compare(password, userDB.password);
-  if (!isPasswordMatch) {
+  console.log("isPasswordMatch", isPasswordMatch);
+  if (!isPasswordMatch) { 
     return res.status(400).json({
       success: false,
       message: "Password salah.",

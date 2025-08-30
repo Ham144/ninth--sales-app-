@@ -64,21 +64,19 @@ const Home = () => {
             disabled={userInfo?.description === "OVERDUE"}
           />
 
-          {/* Static Card */}
-          <GridItem
-            icon={<ShieldCheck className="h-5 w-5 text-neutral-500" />}
-            title="Supertenant Menu"
-            description="Konfigurasi Organisasi dan SMTP"
-            path="/super/organization"
-            disabled={userInfo?.description === "OVERDUE" || "SALES"}
-          />
-
           <GridItem
             icon={<Logs className="h-5 w-5 text-neutral-500" />}
             title="Overdue Page"
             description="Lihat daftar Overdue hanya untuk description OVERDUE"
             path="/overdue/list"
             disabled={userInfo?.description === "SALES"}
+          />
+          <GridItem
+            icon={<Logs className="h-5 w-5 text-neutral-500" />}
+            title="Hutang-Piutang Page"
+            description="Manage dan lihat Hutang Piutang"
+            path="/utang-piutang"
+            disabled={true}
           />
           <GridItem
             icon={<ShieldCheck className="h-5 w-5 text-neutral-500" />}

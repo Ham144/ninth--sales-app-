@@ -11,6 +11,7 @@ import {
   Hotel,
   ShoppingBag,
   Package,
+  Link,
 } from "lucide-react";
 import { useUserInfo } from "@/store";
 import { IconHome } from "@tabler/icons-react";
@@ -26,6 +27,11 @@ export default function PengelolaSideBarMenu({ children }) {
     { name: "Account", path: "/management/account", icon: Users2 },
     { name: "Configuration", path: "/management/config", icon: Cog },
     { name: "supertenant", path: "/supertenant/management", icon: Crown },
+    {
+      name: "developer.integration",
+      path: "/developer.integration",
+      icon: Link,
+    },
   ];
 
   const { userInfo } = useUserInfo();

@@ -93,13 +93,17 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
 
   // note: product yang duplikat akan ditimpa
   const handleAddToSalesOrder = () => {
+    const askedProductOn = askedProduct.filter(
+      (p) => p.selectedForSalesOrder === true
+    );
+
     const remainingUniqueSalesOrderProd = salesOrder.products.filter(
-      (p) => !askedProduct.some((ap) => ap.No === p.No)
+      (p) => !askedProductOn.some((ap) => ap.No === p.No)
     );
 
     setSalesOrder((prev) => ({
       ...prev,
-      products: [...remainingUniqueSalesOrderProd, ...askedProduct],
+      products: [...remainingUniqueSalesOrderProd, ...askedProductOn],
     }));
 
     setAskedProduct([]);
