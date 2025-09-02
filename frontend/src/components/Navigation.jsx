@@ -5,6 +5,7 @@ import {
   UserCheck,
   ShoppingCartIcon,
   ArrowDownUp,
+  Package2,
 } from "lucide-react";
 
 const SideDrawer = ({ children }) => {
@@ -19,12 +20,17 @@ const SideDrawer = ({ children }) => {
       path: "/",
     },
     {
-      name: "New Request",
+      name: "Stock",
+      icon: <Package2 className="w-6 h-6" />,
+      path: "/stockCheck",
+    },
+    {
+      name: "New",
       icon: <ShoppingCartIcon className="w-6 h-6" />,
       path: "/request",
     },
     {
-      name: "process",
+      name: "Process",
       icon: <ArrowDownUp className="w-6 h-6" />,
       path: "/process",
     },

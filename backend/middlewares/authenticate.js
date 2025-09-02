@@ -1,12 +1,17 @@
 import jwt from "jsonwebtoken";
 import IntegrationKeyModel from "../models/IntegrationKey.model.js";
 
-const authenticate = (req, res, next) => {
+const authenticate = async (req, res, next) => {
   //check for the api key first if its backend to backend
   const xapiKey = req.headers["x-api-key"];
   if (xapiKey) {
-    const apiKey = IntegrationKeyModel.findOne({ apiKey: xapiKey });
-    if (!apiKey) {
+    const apiKey = await IntegrationKeyModel.findOne({ apiKey: xapiKey });
+
+    if (
+      !apiKey ||
+      apiKey.status === "revoked" ||
+      apiKey.expiredAt < Date.now()
+    ) {
       return res.status(401).json({ message: "Api key sudah tidak valid" });
     }
     next();

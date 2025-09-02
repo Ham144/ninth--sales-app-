@@ -18,5 +18,7 @@
 [x] fix: sales order diskusi produk saat tambah produk terpilih malah masukin semua
 [x] modify: fitur download csv overdue (note: hapus angka dibelakang koma)
 [x] add: fitur integrasi sebagai third party generate x-api-key (hanya tersedia untuk supertenant)
-[] modify:  extDoc: req.user.username &  keterangan : keterangan
+[x] modify: extDoc: req.user.username &  keterangan : keterangan
+[x] getInventoryByLocation soap sebagai cek stock
+[x] add: table list menampilkan stock
 [] modify: perbaiki organization bukan hanya melakukan cron untuk 1 organization

@@ -50,7 +50,7 @@ export function ProcessPage() {
   }, [userInfo?.description]);
 
   return (
-    <div className="flex items-center flex-col mx-auto container min-h-screen justify-center ">
+    <div className="flex items-center flex-col mx-auto container min-h-screen justify-center  ">
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -98,7 +98,7 @@ export function ProcessPage() {
       {/* Popup Detail */}
       <AnimatePresence>
         {active && (
-          <div className="fixed inset-0 grid place-items-center z-[100]">
+          <div className="fixed  inset-0 grid place-items-center z-[100]">
             <motion.div
               ref={ref}
               layoutId={`card-${active._id}-${id}`}
@@ -223,7 +223,7 @@ export function ProcessPage() {
       </AnimatePresence>
 
       {/* Sales Order List */}
-      <ul className="max-w-2xl md:h-[70vh] max-md:h-[80vh]  overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
+      <ul className="max-w-2xl  md:h-[70vh] max-md:h-[80vh]  overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
         {isLoadingList ? (
           <div className="flex justify-center items-center">
             <span className="loading loading-ring loading-lg"></span>

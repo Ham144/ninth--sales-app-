@@ -12,8 +12,13 @@ const ProductApi = {
     );
     return res.data;
   },
-  getStockByNo: async (No) => {
-    const res = await axiosInstance.get(`/api/v1/product/getStock?No=${No}`);
+  getStockByNo: async ({ No, locationCode }) => {
+    const params = new URLSearchParams();
+    if (No) params.set("No", No);
+    if (locationCode) params.set("locationCode", locationCode);
+
+    const query = params.toString() ? `?${params.toString()}` : "";
+    const res = await axiosInstance.get(`/api/v1/product/getStock${query}`);
     return res.data;
   },
 };

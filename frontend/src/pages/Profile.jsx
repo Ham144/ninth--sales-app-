@@ -9,6 +9,7 @@ import {
   Info,
   Group,
   QrCode,
+  Lock,
 } from "lucide-react"; // Impor ikon Lucide React yang lebih relevan
 import { useUserInfo } from "@/store";
 import { deactivate2Fa, getStatus2Fa, logout } from "@/api/authApi";
@@ -17,40 +18,61 @@ import { toast } from "sonner";
 import Modal2FA from "@/components/Modal2FA";
 
 const ManagementButton = () => {
+  const { userInfo } = useUserInfo();
+
   const managementMenus = [
     {
-      title: "Source Data Options",
+      title: "Customer Management",
+      description: "Melihat list dari customer yang terdaftar di organisasi",
+      url: "/management/customer",
+    },
+    {
+      title: "Product Management",
+      description: "Management untuk melihat daftar product",
+      url: "/management/product",
+    },
+    {
+      title: "My Organization Configuration",
       description:
-        "mangement untuk tiap source data select/options ytang telah dibuat",
-      url: "/management/sourceData/options",
+        "Page untuk mengatur ulang konfigurasi pengambilan sumber data ",
+      url: "/management/config",
+    },
+    {
+      title: "Pengaturan Organisasi",
+      description: "Pengaturan untuk melihat/ mengedit informasi organisasi",
+      url: "/supertenant/management",
     },
     {
       title: "User Management",
-      description: "Melihat list dari user aplikasi ini",
-      url: "/management/user",
+      description: "Pengaturan untuk melihat/ mengedit account App dan ldap",
+      url: "/management/account",
     },
     {
-      title: "Management Flow Template",
-      description:
-        "Management untuk melihat/ mengedit flow design yang telah dibuat",
-      url: "/management/flow",
+      title: "developer.integration",
+      description: "Menu Integrasi Developer untuk mendapatkan Api Key",
+      url: "/developer.integration",
     },
   ];
   const navigate = useNavigate();
 
   return (
-    <div className="flex gap-y-2 flex-col justify-center">
+    <div className="flex pb-20 gap-y-2 flex-col justify-center">
       {managementMenus.map((menu) => (
-        <div className="card bg-transparent border rounded-lg">
+        <div className="card backdrop border rounded-lg">
           <div className="card-body">
             <h2 className="card-title">{menu.title}</h2>
             <p>{menu.description}</p>
             <div className="card-actions justify-end">
               <button
+                disabled={userInfo.description != "IT"}
                 onClick={() => navigate(menu.url)}
-                className="btn btn-primary text-white rounded-md"
+                className="btn btn-secondary text-white rounded-md"
               >
-                Kunjungi
+                {userInfo.description == "IT" ? (
+                  "Buka"
+                ) : (
+                  <Lock className="w-4 h-4 " />
+                )}
               </button>
             </div>
           </div>
@@ -163,7 +185,7 @@ const Profile = () => {
             aria-label="Logout"
           >
             <LogOut className="w-5 h-5" />
-            <span className="hidden sm:inline">Logout</span>
+            <span className="sm:inline">Logout</span>
           </button>
         </div>
       </div>
@@ -177,10 +199,10 @@ const Profile = () => {
                 Informasi Profile
               </h2>
 
-              <div className="grid  grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid   grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Username Card */}
-                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center gap-3 mb-2">
+                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700 backdrop">
+                  <div className="flex  items-center gap-3 mb-2">
                     <User className="w-6 h-6 text-blue-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
                       Username
@@ -190,7 +212,7 @@ const Profile = () => {
                     {userInfo?.username || "N/A"}
                   </p>
                 </div>
-                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                <div className=" rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700 backdrop">
                   <div className="flex items-center gap-3 mb-2">
                     <Group className="w-6 h-6 text-blue-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -203,7 +225,7 @@ const Profile = () => {
                 </div>
 
                 {/* Role Card */}
-                <div className=" dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
+                <div className="backdrop dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-2">
                     <KeyRound className="w-6 h-6 text-purple-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -215,7 +237,7 @@ const Profile = () => {
                   </p>
                 </div>
                 {/* Authenticator CARD */}
-                <div className=" dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
+                <div className="backdrop dark:bg-gray-700 rounded-lg p-5 shadow-sm border  dark:border-gray-700">
                   <div className="flex items-center gap-3 mb-2">
                     <QrCode className="w-6 h-6 text-indigo-500" />
                     <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
@@ -249,23 +271,31 @@ const Profile = () => {
             </div>
           )}
           {activeTab === "settings" && (
-            <div className="space-y-8">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-800 dark:text-gray-200 border-b pb-4 mb-4">
-                Pengaturan Lainnya
-              </h2>
+            <div className="space-y-8 px-4 py-6 max-w-4xl mx-auto">
               {userInfo?.role !== "owner" ? (
                 <ManagementButton />
               ) : (
-                <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-5 shadow-sm border border-gray-200 dark:border-gray-700  mx-auto flex justify-center flex-col  ">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Info className="w-6 h-6 text-gray-500" />
-                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                      Pengaturan
-                    </h4>
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700 transition-all duration-200 hover:shadow-md">
+                  <div className="flex items-start gap-4 mb-4">
+                    <div className="bg-blue-100 dark:bg-blue-900/30 p-2 rounded-lg flex-shrink-0">
+                      <Info className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                        Pengaturan Khusus
+                      </h4>
+                      <p className="mt-2 text-gray-600 dark:text-gray-300 leading-relaxed">
+                        Belum ada fitur pengaturan khusus tersedia untuk peran
+                        Anda saat ini. Fitur tambahan akan tersedia dalam
+                        pembaruan mendatang.
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-base text-gray-900 dark:text-gray-100">
-                    Belum ada fitur pengaturan khusus tersedia untuk peran Anda.
-                  </p>
+                  <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+                    <button className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                      Pelajari lebih lanjut
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

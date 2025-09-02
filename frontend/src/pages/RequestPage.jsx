@@ -9,13 +9,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
-import ModalShowStock from "@/components/ModalShowStock";
-import { AlertDialog, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { v4 as uuidv4 } from "uuid";
 import ModalTempOption from "@/components/ModalTempOption";
 import OnlyAsk from "@/components/OnlyAsk";
 import { useUserInfo } from "@/store";
 import locationApi from "@/api/LocationApi";
+import Item from "@/components/Item";
 
 const initialSalesOrder = {
   customer: {},
@@ -23,6 +22,7 @@ const initialSalesOrder = {
   requestDeliveryDate: "",
   frontendSession: "",
   keterangan: "",
+  locationCode: "", // Initialize locationCode
 };
 
 const RequestPage = () => {
@@ -102,6 +102,8 @@ const RequestPage = () => {
       setSalesOrder((prev) => ({
         ...prev,
         customer: data?.data?.customer,
+        // Auto-set locationCode from customer's Location_Code if available
+        locationCode: data?.data?.customer?.Location_Code || prev.locationCode,
       }));
       setPembayaranTertunda(data?.data?.pembayaranTertunda);
       //sekalian panggil temp so
@@ -320,82 +322,125 @@ const RequestPage = () => {
       navigate("/not-found");
     }
   }, [userInfo]);
-
   return (
-    <div className="p-4 py-20  backdrop-blur-sm  w-full mx-auto space-y-6 container bg ">
-      {/* 🔍 Search Customer */}
-      <h3 className="text-2xl font-light text-center">Sales Order Request</h3>
-      <div className="space-y-2">
-        <Input
-          placeholder="Cari Customer (min 2 huruf)"
-          value={customerSearch}
-          onChange={(e) => {
-            setSalesOrder(initialSalesOrder);
-            setCustomerSearch(e.target.value);
-          }}
-          onFocus={() => setIsFocusedCustomer(true)}
-          onBlur={() => setIsFocusedCustomer(false)}
-          onKeyDown={handleKeyDown}
-          className="input input-bordered w-full"
-        />
+    <div className="min-h-screen   relative overflow-hidden">
+      {/* Background layers */}
+      <div className="absolute " />
+      <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
+      <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000" />
+      <div className="absolute top-1/2 left-1/2 w-96 h-96 bg-pink-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
 
-        {customerList?.data?.length > 0 && (
-          <ul className="bg-muted backdrop rounded-md divide-y border">
-            {customerList.data.map((cust, index) => (
-              <li key={cust._id}>
-                <button
-                  className={`w-full text-left px-4 py-2 ${
-                    index === activeCustomerOptionIdx
-                      ? "bg-accent"
-                      : "hover:bg-accent"
-                  }`}
-                  onClick={() => selectCustomer(cust.No)}
-                >
-                  {cust.Name} ({cust.No})
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      {salesOrder.customer?.No && (
-        <Card>
-          <CardContent className="p-4 space-y-3">
-            <h2 className="font-bold text-lg text-center">Customer</h2>
-            <div className="flex justify-between items-center ">
+      <div className="relative p-4 py-12 backdrop-blur-sm w-full max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h3 className="text-3xl font-light text-indigo-900 mb-2">
+            Sales Order Request
+          </h3>
+          <p className="text-indigo-600">
+            Buat permintaan sales order untuk customer
+          </p>
+        </div>
+
+        {/* 🔍 Search Customer */}
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-indigo-700 mb-1">
+            Cari Customer
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5 text-indigo-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+            </div>
+            <input
+              placeholder="Cari Customer (min 2 huruf)"
+              value={customerSearch}
+              onChange={(e) => {
+                setSalesOrder(initialSalesOrder);
+                setCustomerSearch(e.target.value);
+              }}
+              onFocus={() => setIsFocusedCustomer(true)}
+              onBlur={() => setIsFocusedCustomer(false)}
+              onKeyDown={handleKeyDown}
+              className="pl-10 w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+
+          {customerList?.data?.length > 0 && (
+            <div className="bg-white border border-indigo-200 rounded-xl shadow-md overflow-hidden mt-1">
+              <ul className="divide-y divide-indigo-100">
+                {customerList.data.map((cust, index) => (
+                  <li key={cust._id}>
+                    <button
+                      className={`w-full text-left px-4 py-3 transition-colors ${
+                        index === activeCustomerOptionIdx
+                          ? "bg-indigo-100 text-indigo-800"
+                          : "hover:bg-indigo-50 text-indigo-700"
+                      }`}
+                      onClick={() => selectCustomer(cust.No)}
+                    >
+                      <div className="font-medium">{cust.Name}</div>
+                      <div className="text-sm text-indigo-500">({cust.No})</div>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        {/* Customer Card */}
+        {salesOrder.customer?.No && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl p-6 shadow-md border border-indigo-100">
+            <h2 className="font-bold text-lg text-center text-indigo-800 mb-4">
+              Customer Selected
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-sm font-medium">
+                <p className="text-lg font-semibold text-indigo-900">
                   {salesOrder.customer.Name}
                 </p>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-indigo-600 mt-1">
                   {salesOrder.customer.Address}
                 </p>
-                <p className="text-sm">
-                  Salesperson: {salesOrder.customer.Salesperson_Code}
+                <p className="text-sm text-indigo-700 mt-3">
+                  <span className="font-medium">Salesperson:</span>{" "}
+                  {salesOrder.customer.Salesperson_Code}
                 </p>
               </div>
-              <div>
-                <div>
-                  <p className="text-muted-foreground">Balance</p>
-                  <p className="font-medium">
+              <div className="space-y-3">
+                <div className="bg-white p-3 rounded-lg border border-indigo-100">
+                  <p className="text-xs text-indigo-500">Balance</p>
+                  <p className="font-semibold text-indigo-900">
                     Rp{" "}
                     {new Intl.NumberFormat("id-ID").format(
                       parseInt(salesOrder.customer.Balance || "0")
                     )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Balance Due</p>
-                  <p className="font-medium">
+                <div className="bg-white p-3 rounded-lg border border-indigo-100">
+                  <p className="text-xs text-indigo-500">Balance Due</p>
+                  <p className="font-semibold text-indigo-900">
                     Rp{" "}
                     {new Intl.NumberFormat("id-ID").format(
                       parseInt(salesOrder.customer.Balance_Due || "0")
                     )}
                   </p>
                 </div>
-                <div>
-                  <p className="text-muted-foreground">Credit Limit</p>
-                  <p className="font-medium">
+                <div className="bg-white p-3 rounded-lg border border-indigo-100">
+                  <p className="text-xs text-indigo-500">Credit Limit</p>
+                  <p className="font-semibold text-indigo-900">
                     Rp{" "}
                     {new Intl.NumberFormat("id-ID").format(
                       parseInt(salesOrder.customer.Credit_Limit_LCY || "0")
@@ -404,30 +449,30 @@ const RequestPage = () => {
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
-      {/* 💸 SECTION: Pembayaran Tertunda */}
-      {pembayaranTertunda?.length > 0 && (
-        <Card>
-          <CardContent className="p-4">
-            <h2 className="font-bold text-lg text-center mb-4">
+          </div>
+        )}
+
+        {/* 💸 SECTION: Pembayaran Tertunda */}
+        {pembayaranTertunda?.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-md border border-indigo-100">
+            <h2 className="font-bold text-lg text-center text-indigo-800 mb-4">
               Pembayaran Tertunda
             </h2>
-
             <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left border-collapse">
+              <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-100 text-gray-700">
-                    <th className="p-2 font-semibold">No. Dokumen</th>
-                    <th className="p-2 font-semibold">Jatuh Tempo</th>
-                    <th className="p-2 font-semibold">AR</th>
-                    <th className="p-2 font-semibold text-right">
+                  <tr className="bg-indigo-100 text-indigo-800">
+                    <th className="p-3 font-semibold text-left rounded-l-xl">
+                      No. Dokumen
+                    </th>
+                    <th className="p-3 font-semibold text-left">Jatuh Tempo</th>
+                    <th className="p-3 font-semibold text-left">AR</th>
+                    <th className="p-3 font-semibold text-right rounded-r-xl">
                       Sisa Pembayaran
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-indigo-100">
                   {pembayaranTertunda.map((item, i) => {
                     const formattedDate = new Date(
                       item.Due_Date
@@ -438,11 +483,11 @@ const RequestPage = () => {
                     });
 
                     return (
-                      <tr key={i}>
-                        <td className="p-2">{item.Document_No}</td>
-                        <td className="p-2">{formattedDate}</td>
-                        <td className="p-2">{item?.AR}</td>
-                        <td className="p-2 text-right font-bold text-red-500">
+                      <tr key={i} className="hover:bg-indigo-50">
+                        <td className="p-3">{item.Document_No}</td>
+                        <td className="p-3">{formattedDate}</td>
+                        <td className="p-3">{item?.AR}</td>
+                        <td className="p-3 text-right font-semibold text-red-500">
                           {new Intl.NumberFormat("id-ID").format(
                             parseInt(item.Remaining_Amount)
                           )}
@@ -453,251 +498,275 @@ const RequestPage = () => {
                 </tbody>
               </table>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* 📦 Search Produk */}
-      <div className="space-y-2 flex items-center gap-x-3">
-        <div className="flex flex-col w-full ">
-          <Input
-            disabled={salesOrder.customer?.No ? false : true}
-            placeholder="Cari Produk (min 2 huruf)"
-            value={productSearch}
-            onChange={(e) => setProductSearch(e.target.value)}
-            className="rounded-md"
-          />
-          {productList?.data?.length > 0 && (
-            <ul className="bg-muted rounded-md divide-y border backdrop mt-2">
-              {productList.data.map((prod) => (
-                <li key={prod._id}>
-                  <button
-                    className="w-full text-left px-4 py-2 hover:bg-accent"
-                    onClick={() => addProduct(prod)}
-                  >
-                    {prod.Description} ({prod.No})
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <Button
-          disabled={salesOrder?.customer?.No ? false : true}
-          className="translate-y-[-4px] text-white py-3 bg-orange-400 hover:bg-orange-300"
-          onClick={() => document.getElementById("only-ask").showModal()}
-        >
-          Diskusi Produk
-        </Button>
-      </div>
-
-      {/* 🛒 Daftar Produk */}
-      {salesOrder?.products?.length > 0 && (
-        <Card>
-          <CardContent className="p-4 space-y-4 ">
-            <h2 className="font-bold text-lg">Daftar Produk</h2>
-            <ScrollArea className="max-h-80 overflow-y-auto space-y-2 pr-2">
-              {salesOrder?.products?.map((prod) => (
-                <div
-                  key={prod.No}
-                  className="border rounded-lg mb-3 p-3 flex justify-between items-center"
-                >
-                  <div className="text-sm space-y-1">
-                    <AlertDialog>
-                      <div className="text-sm mb-3 space-y-1">
-                        <p className="font-medium">{prod.Description}</p>
-                        <p className="text-muted-foreground">SKU: {prod.No}</p>
-                        <p>
-                          Harga: {Intl.NumberFormat("id-ID").format(prod.price)}
-                        </p>
-                      </div>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline">Show Stock Detail</Button>
-                      </AlertDialogTrigger>
-                      <ModalShowStock
-                        No={prod.No}
-                        customer={salesOrder.customer}
-                      />
-                    </AlertDialog>
-                  </div>
-                  <div
-                    key={prod.No}
-                    className="border h-full rounded-lg p-3 flex flex-col md:flex-row md:justify-between md:items-center gap-2"
-                  >
-                    {/* Tombol-tombol qty */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateProductQty(prod.No, -1)}
-                      >
-                        -
-                      </Button>
-
-                      {/* Input manual qty */}
-                      <input
-                        type="number"
-                        className="w-16 border rounded text-center"
-                        value={prod.qty}
-                        min="0"
-                        onChange={(e) => {
-                          const newQty = parseInt(e.target.value, 10) || 0;
-                          setManualQty(prod.No, newQty);
-                        }}
-                      />
-
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateProductQty(prod.No, 1)}
-                      >
-                        +
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => removeProduct(prod.No)}
-                      >
-                        x
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </ScrollArea>
-          </CardContent>
-        </Card>
-      )}
-
-      <select
-        onChange={(e) => {
-          setSalesOrder((prev) => ({
-            ...prev,
-            locationCode: e.target.value,
-          }));
-        }}
-        value={salesOrder?.locationCode}
-        className="select bg-slate-50 rounded-lg w-full "
-      >
-        <option disabled selected>
-          Pilih Location Manual atau kosongkan untuk disesuaikan dengan
-          Location_Code customer
-        </option>
-        {locationList?.data?.length ? (
-          locationList.data.map((loc) => (
-            <option key={loc.name} value={loc.name}>
-              {loc.name}
-            </option>
-          ))
-        ) : (
-          <option disabled hidden>
-            Tidak Ada Data
-          </option>
+          </div>
         )}
-      </select>
 
-      <div className="flex flex-wrap gap-3 items-center">
-        <textarea
-          placeholder="Masukkan Keterangan yang ingin anda tambahkan"
-          value={salesOrder.keterangan}
-          onChange={(e) =>
-            setSalesOrder((prev) => ({
-              ...prev,
-              keterangan: e.target.value,
-            }))
-          }
-          className="textarea font-light bg-slate-50  rounded-lg textarea-bordered w-full pr-32"
-          rows={2}
-        />
-        {/* Input + Tombol Shortcut */}
-        <div className="flex w-full md:w-96 relative">
-          <input
-            type="text"
-            placeholder="(dd/mm/yyyy) RDD "
-            value={salesOrder.requestDeliveryDate}
-            onChange={(e) =>
-              setSalesOrder((prev) => ({
-                ...prev,
-                requestDeliveryDate: e.target.value,
-              }))
-            }
-            className="input  font-light  h-10 rounded-lg input-bordered w-full pr-32"
-          />
-          {/* Tombol Hari ini */}
-          {/* Tombol Hari ini */}
-          <button
-            type="button"
-            onClick={() => {
-              const today = new Date();
-              const day = String(today.getDate()).padStart(2, "0");
-              const month = String(today.getMonth() + 1).padStart(2, "0"); // month is 0-based
-              const year = today.getFullYear();
-              const formatted = `${day}/${month}/${year}`;
+        {/* 📦 Search Produk */}
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start">
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-indigo-700 mb-1">
+                Cari Produk
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-indigo-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <input
+                  disabled={!salesOrder.customer?.No}
+                  placeholder="Cari Produk (min 2 huruf)"
+                  value={productSearch}
+                  onChange={(e) => setProductSearch(e.target.value)}
+                  className="pl-10 w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl disabled:bg-indigo-50 disabled:text-indigo-400 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                />
+              </div>
+              {productList?.data?.length > 0 && (
+                <div className="bg-white border border-indigo-200 rounded-xl shadow-md overflow-hidden mt-1">
+                  <ul className="divide-y divide-indigo-100 max-h-60 overflow-y-auto">
+                    {productList.data.map((prod) => (
+                      <li key={prod._id}>
+                        <button
+                          className="w-full text-left px-4 py-3 hover:bg-indigo-50 transition-colors"
+                          onClick={() => addProduct(prod)}
+                        >
+                          <div className="font-medium text-indigo-900">
+                            {prod.Description}
+                          </div>
+                          <div className="text-sm text-indigo-500">
+                            ({prod.No})
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
 
-              setSalesOrder((prev) => ({
-                ...prev,
-                requestDeliveryDate: formatted,
-              }));
-            }}
-            className="absolute right-20 top-1/2 -translate-y-1/2 bg-teal-500 hover:bg-teal-600 text-white px-3 py-1 rounded-md text-sm transition"
-          >
-            Hari ini
-          </button>
-
-          {/* Tombol Besok */}
-          <button
-            type="button"
-            onClick={() => {
-              const tomorrow = new Date();
-              tomorrow.setDate(tomorrow.getDate() + 1);
-              const day = String(tomorrow.getDate()).padStart(2, "0");
-              const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
-              const year = tomorrow.getFullYear();
-              const formatted = `${day}/${month}/${year}`;
-
-              setSalesOrder((prev) => ({
-                ...prev,
-                requestDeliveryDate: formatted,
-              }));
-            }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-sm transition"
-          >
-            Besok
-          </button>
+            <button
+              disabled={!salesOrder?.customer?.No}
+              className="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-xl hover:from-purple-600 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center gap-2 mt-6"
+              onClick={() => document.getElementById("only-ask").showModal()}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
+                />
+              </svg>
+              Diskusi Produk
+            </button>
+          </div>
         </div>
 
-        {/* Tombol Kirim Sales Order */}
-        <button
-          onClick={handleRequestSalesOrder}
-          disabled={
-            !salesOrder.customer?.No ||
-            salesOrder?.products?.length === 0 ||
-            isPendingProcessing
-          }
-          className="w-full flex-1  md:w-auto disabled:cursor-not-allowed px-8 py-2 rounded-full relative bg-slate-700 text-white text-sm hover:shadow-2xl hover:shadow-white/[0.1] transition duration-200 border border-slate-600 flex items-center justify-center"
-        >
-          <div className="absolute inset-x-0 h-px w-1/2 mx-auto -top-px shadow-2xl bg-gradient-to-r from-transparent via-teal-500 to-transparent" />
-          <span className="relative z-20">
-            {isPendingProcessing && (
-              <span className="loading loading-ring loading-lg mr-2"></span>
-            )}
-            <span>Kirim Sales Order</span>
-          </span>
-        </button>
-      </div>
+        {/* Pilih location */}
+        <div>
+          <label className="block text-sm font-medium text-indigo-700 mb-1">
+            Pilih Lokasi
+          </label>
+          <div className="relative">
+            <select
+              onChange={(e) => {
+                setSalesOrder((prev) => ({
+                  ...prev,
+                  locationCode: e.target.value,
+                }));
+              }}
+              value={salesOrder?.locationCode}
+              className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none"
+            >
+              <option disabled selected>
+                Pilih Location Manual atau kosongkan untuk disesuaikan dengan
+                Location_Code customer
+              </option>
+              {locationList?.data?.length ? (
+                locationList.data.map((loc) => (
+                  <option key={loc.name} value={loc.name}>
+                    {loc.name}
+                  </option>
+                ))
+              ) : (
+                <option disabled hidden>
+                  Tidak Ada Data
+                </option>
+              )}
+            </select>
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-600">
+              <svg
+                className="h-5 w-5"
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
 
-      <ModalTempOption
-        setFrontendSession={setFrontendSession}
-        setSalesOrder={setSalesOrder}
-        tempSalesOrderOption={tempSalesOrderOption}
-        setTempSalesOrderOption={setTempSalesOrderOption}
-        key={"modal-temp-so"}
-      />
-      <OnlyAsk
-        key={"only-ask"}
-        salesOrder={salesOrder}
-        setSalesOrder={setSalesOrder}
-      />
+        {/* 🛒 Daftar Produk */}
+        {salesOrder?.products?.length > 0 && (
+          <div className="bg-white rounded-2xl p-6 shadow-md border border-indigo-100">
+            <h2 className="font-bold text-lg text-indigo-800 mb-4">
+              Daftar Produk
+            </h2>
+            <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
+              {salesOrder?.products?.map((prod) => (
+                <Item
+                  updateProductQty={updateProductQty}
+                  setManualQty={setManualQty}
+                  removeProduct={removeProduct}
+                  prod={prod}
+                  key={prod.No}
+                  selectedLocationCode={salesOrder?.locationCode}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Form Actions */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-indigo-700 mb-1">
+              Keterangan Tambahan
+            </label>
+            <textarea
+              placeholder="Masukkan Keterangan yang ingin anda tambahkan"
+              value={salesOrder.keterangan}
+              onChange={(e) =>
+                setSalesOrder((prev) => ({
+                  ...prev,
+                  keterangan: e.target.value,
+                }))
+              }
+              className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-indigo-700 mb-1">
+              Request Delivery Date (dd/mm/yyyy)
+            </label>
+            <div className="flex flex-col md:flex-row gap-3">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="(dd/mm/yyyy) RDD"
+                  value={salesOrder.requestDeliveryDate}
+                  onChange={(e) =>
+                    setSalesOrder((prev) => ({
+                      ...prev,
+                      requestDeliveryDate: e.target.value,
+                    }))
+                  }
+                  className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-28"
+                />
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const today = new Date();
+                      const day = String(today.getDate()).padStart(2, "0");
+                      const month = String(today.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      );
+                      const year = today.getFullYear();
+                      const formatted = `${day}/${month}/${year}`;
+
+                      setSalesOrder((prev) => ({
+                        ...prev,
+                        requestDeliveryDate: formatted,
+                      }));
+                    }}
+                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs transition"
+                  >
+                    Hari ini
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const tomorrow = new Date();
+                      tomorrow.setDate(tomorrow.getDate() + 1);
+                      const day = String(tomorrow.getDate()).padStart(2, "0");
+                      const month = String(tomorrow.getMonth() + 1).padStart(
+                        2,
+                        "0"
+                      );
+                      const year = tomorrow.getFullYear();
+                      const formatted = `${day}/${month}/${year}`;
+
+                      setSalesOrder((prev) => ({
+                        ...prev,
+                        requestDeliveryDate: formatted,
+                      }));
+                    }}
+                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs transition"
+                  >
+                    Besok
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={handleRequestSalesOrder}
+                disabled={
+                  !salesOrder.customer?.No ||
+                  salesOrder?.products?.length === 0 ||
+                  isPendingProcessing
+                }
+                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+              >
+                {isPendingProcessing && (
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                )}
+                <span>Kirim Sales Order</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ModalTempOption
+          setFrontendSession={setFrontendSession}
+          setSalesOrder={setSalesOrder}
+          tempSalesOrderOption={tempSalesOrderOption}
+          setTempSalesOrderOption={setTempSalesOrderOption}
+          key={"modal-temp-so"}
+        />
+        <OnlyAsk
+          key={"only-ask"}
+          salesOrder={salesOrder}
+          setSalesOrder={setSalesOrder}
+          locationCode={salesOrder.locationCode}
+        />
+      </div>
     </div>
   );
 };

@@ -7,8 +7,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "./ui/scroll-area";
 import { AlertDialog } from "./ui/alert-dialog";
 import { Trash2 } from "lucide-react";
+import Item from "./Item";
 
-const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
+const OnlyAsk = ({ setSalesOrder, salesOrder, locationCode }) => {
   const [askedProduct, setAskedProduct] = useState([]);
 
   const [productSearch, setProductSearch] = useState("");
@@ -54,7 +55,10 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
     }
 
     // ✅ Ambil stok terbaru
-    const stockResponse = await ProductApi.getStockByNo(prod.No);
+    const stockResponse = await ProductApi.getStockByNo({
+      locationCode,
+      No: prod.No,
+    });
     const stockDataRaw = stockResponse?.data?.[0] || {};
 
     // ✅ Cari stok sesuai lokasi customer
@@ -67,10 +71,10 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
 
     // ✅ Update state
     setAskedProduct((prev) => {
-      const exists = prev.find((p) => p.No === prod.No);
+      const exists = prev?.find((p) => p.No === prod.No);
 
       if (exists) {
-        return prev.map((p) =>
+        return prev?.map((p) =>
           p.No === prod.No ? { ...p, qty: p.qty + 1 } : p
         );
       }
@@ -183,7 +187,7 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
             />
             {productList?.data?.length > 0 && (
               <ul className="backdrop ">
-                {productList.data.map((prod, index) => (
+                {productList.data?.map((prod, index) => (
                   <li key={prod._id}>
                     <button
                       className={`w-full  text-left px-4 py-2 ${
@@ -203,130 +207,77 @@ const OnlyAsk = ({ setSalesOrder, salesOrder }) => {
         </div>
         {/* 🛒 Daftar Produk */}
         {askedProduct?.length > 0 && (
-          <Card className="mt-4 ">
-            <CardContent className="p-4 space-y-4 ">
-              <ScrollArea className="max-h-80  overflow-y-auto space-y-2 pr-2">
-                {askedProduct?.map((prod) => (
-                  <div
-                    key={prod.No}
-                    className=" rounded-lg mb-3 p-3 flex justify-between items-center  max-md:flex-col"
-                  >
-                    <div className="text-sm space-y-1">
-                      <AlertDialog>
-                        <div className="text-sm mb-3 space-y-1 ">
-                          <p className="font-medium">{prod.Description}</p>
-                          <p className="text-muted-foreground">
-                            SKU: {prod.No}
-                          </p>
-                          <p>
-                            Harga:{" "}
-                            {Intl.NumberFormat("id-ID").format(prod.price)}
-                          </p>
-                          <p className="font-semibold underline  rounded-lg">
-                            Matching stockAvailable: {prod?.stockAvailable}
-                          </p>
-                        </div>
-                      </AlertDialog>
-                    </div>
+          <Card className="mt-4">
+            <CardContent className="p-4  space-y-4">
+              <h3 className="text-lg  font-semibold mb-2">🛒 Daftar Produk</h3>
+              <ScrollArea className="max-h-80 overflow-y-auto pr-2">
+                <div className="space-y-3">
+                  {askedProduct?.map((prod) => (
                     <div
                       key={prod.No}
-                      className=" h-full rounded-lg p-3 flex  md:flex-row md:justify-between md:items-center gap-2 "
+                      className="bg-white border-t-4 border-black border-dashed dark:bg-gray-800 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 p-5 mb-4 flex flex-col md:flex-row justify-between gap-5 dark:border-gray-700"
                     >
-                      {/* Tombol-tombol qty */}
-                      <div className="flex items-center gap-2 ">
-                        {/* Tombol Decrement */}
-                        <button
-                          type="button"
-                          className="px-3 py-1 bg-red-500 text-white rounded-md hover:bg-red-600 transition disabled:opacity-40 disabled:cursor-not-allowed w-full"
-                          onClick={() => {
-                            setAskedProduct((prev) => {
-                              const updated = prev
-                                .map((p) =>
-                                  p.No === prod.No
-                                    ? { ...p, qty: p.qty - 1 }
-                                    : p
-                                )
-                                .filter((p) => p.qty > 0); // Hapus jika qty <= 0
-                              return updated;
-                            });
-                          }}
-                          disabled={prod.qty <= 1}
-                        >
-                          -
-                        </button>
+                      {/* Product Item */}
+                      <Item
+                        prod={prod}
+                        updateProductQty={(qty) => {
+                          setAskedProduct((prev) =>
+                            prev.map((p) =>
+                              p.No === prod.No ? { ...p, qty } : p
+                            )
+                          );
+                        }}
+                        setManualQty={(qty) => {
+                          setAskedProduct((prev) =>
+                            prev.map((p) =>
+                              p.No === prod.No ? { ...p, qty } : p
+                            )
+                          );
+                        }}
+                        removeProduct={() => {
+                          setAskedProduct((prev) =>
+                            prev.filter((p) => p.No !== prod.No)
+                          );
+                        }}
+                        selectedLocationCode={locationCode}
+                      />
 
-                        {/* Input Qty */}
+                      {/* Checkbox */}
+                      <label className="flex items-center gap-2">
                         <input
-                          type="number"
-                          min="1"
-                          value={prod.qty}
-                          className="w-16 border border-gray-300 rounded-md text-center py-1 focus:outline-none focus:ring-2 focus:ring-blue-400 max-md:w-full"
-                          onChange={(e) => {
-                            const newQty = parseInt(e.target.value, 10) || 0;
-                            setAskedProduct((prev) => {
-                              const updated = prev
-                                .map((p) =>
-                                  p.No === prod.No ? { ...p, qty: newQty } : p
-                                )
-                                .filter((p) => p.qty > 0); // Hapus jika qty <= 0
-                              return updated;
-                            });
-                          }}
-                        />
-
-                        {/* Tombol Increment */}
-                        <button
-                          type="button"
-                          className="px-3 py-1 bg-green-500 text-white rounded-md hover:bg-green-600 transition w-full"
-                          onClick={() => {
+                          type="checkbox"
+                          className="checkbox checkbox-accent"
+                          checked={prod.selectedForSalesOrder}
+                          onChange={() => {
                             setAskedProduct((prev) =>
                               prev.map((p) =>
-                                p.No === prod.No ? { ...p, qty: p.qty + 1 } : p
+                                p.No === prod.No
+                                  ? {
+                                      ...p,
+                                      selectedForSalesOrder:
+                                        !p.selectedForSalesOrder,
+                                    }
+                                  : p
                               )
                             );
                           }}
-                        >
-                          +
-                        </button>
-
-                        <button
-                          className="p-2 rounded-lg hover:bg-red-500  hover:text-white "
-                          onClick={() =>
-                            setAskedProduct((prev) =>
-                              prev.filter((p) => p.No !== prod.No)
-                            )
-                          }
-                        >
-                          <Trash2 />
-                        </button>
-                      </div>
+                        />
+                        <span className="text-sm">Pilih</span>
+                      </label>
                     </div>
-                    <input
-                      type="checkbox"
-                      className="checkbox  max-md:w-full rounded-lg"
-                      checked={prod.selectedForSalesOrder}
-                      onChange={(e) => {
-                        const isChecked = e.target.checked;
-                        setAskedProduct((prev) =>
-                          prev.map((p) =>
-                            p.No === prod.No
-                              ? { ...p, selectedForSalesOrder: isChecked }
-                              : p
-                          )
-                        );
-                      }}
-                    />
-                  </div>
-                ))}
+                  ))}
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
         )}
+
         <div className="modal-action">
           <button
             disabled={
               salesOrder?.customer?.No &&
-              askedProduct?.some((p) => p?.selectedForSalesOrder)
+              Array.isArray(askedProduct) &&
+              askedProduct.some((p) => p?.selectedForSalesOrder)
                 ? false
                 : true
             }

@@ -26,8 +26,8 @@ const __dirname = path.resolve();
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
-  ? ["http://midcsi.muara.co.id:7047"]
-  : ["http://192.168.169.12:5173"];
+  ? ["http://midcsi.muara.co.id:7047", "http://192.168.169.12:5173"]
+  : ["http://192.168.169.12:5173", "http://midcsi.muara.co.id:7047"];
 
 const app = express();
 

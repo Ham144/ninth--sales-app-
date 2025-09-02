@@ -79,7 +79,7 @@ export default function Config() {
     onSuccess: () => {
       toast.success("Config berhasil diperbarui");
       setTimeout(() => {
-        // window.location.reload();
+        window.location.reload();
       }, 2000);
     },
     onError: (error) => {

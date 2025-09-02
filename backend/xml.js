@@ -28,12 +28,14 @@ export const customerXml = ({ SOAP_CUSTOMER_XMLNS }) => {
     </Envelope>`;
 };
 
-export const checkStockXML = (No, SOAP_STOCK_XMLNS) => {
+export const checkStockXML = (No, locationCode, SOAP_STOCK_XMLNS) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
-        <Read xmlns="${SOAP_STOCK_XMLNS}">
-            <No>${No}</No>
-        </Read>
+        <GetInventoryByLocation xmlns="${SOAP_STOCK_XMLNS}">
+            <itemNo>${No}</itemNo>
+            <locationCode>${locationCode}</locationCode>
+            <inventory>0</inventory>
+        </GetInventoryByLocation>
     </Body>
 </Envelope>`;
 };

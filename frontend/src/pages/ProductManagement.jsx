@@ -371,7 +371,10 @@ const ProductManagement = () => {
                 )}
 
                 <div className="modal-action mt-6">
-                  <button onClick={closeModal} className="btn btn-primary">
+                  <button
+                    onClick={closeModal}
+                    className="btn btn-primary rounded-md text-white"
+                  >
                     Close
                   </button>
                 </div>

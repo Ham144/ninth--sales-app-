@@ -285,8 +285,6 @@ router.put("/temp/create", async (req, res) => {
 
   try {
     const existingTemporarySalesOrder = await TemporarySalesOrder.findOne({
-      createdBy: req.user._id,
-      org: req.user.org,
       frontendSession,
     });
 
@@ -295,7 +293,7 @@ router.put("/temp/create", async (req, res) => {
         existingTemporarySalesOrder.comment = comment;
       }
       if (products) {
-        console.log("updating products");
+        console.log("updating temp");
         existingTemporarySalesOrder.products = products;
         await existingTemporarySalesOrder.save();
         return res.json({

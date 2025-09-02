@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import speakEasy from "speakeasy";
 import axios from "axios";
 import qrcode from "qrcode";
+import mongoose, { Mongoose } from "mongoose";
 
 const router = Router();
 
@@ -207,6 +208,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 // );
 
 //login LDAP ✅
+
 router.post(
   "/login/ldap",
   asyncHandler(async (req, res) => {
@@ -231,9 +233,21 @@ router.post(
         message: "tidak boleh nama demikian karena termasuk role spesial",
       });
     }
+    const userAgent = req.headers["user-agent"] || "";
+    const clientPlatform = req.headers["x-client-platform"] || "";
 
+    // Cek apakah dari Flutter (Dart) atau header custom
+    const isMobileClient =
+      clientPlatform.toLowerCase() === "mobile" ||
+      userAgent.includes("dart:io");
+
+    if (isMobileClient) {
+      console.log("Login dari mobile (Flutter)");
+    } else {
+      console.log("Login dari web atau lainnya");
+    }
     //turnstile
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV === "production" && !isMobileClient) {
       try {
         const result = await axios.post(
           "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -450,8 +464,19 @@ router.post("/login/app", async (req, res) => {
       message: "Perlu melengkapi semua credentials",
     });
   }
+  const userAgent = req.headers["user-agent"] || "";
+  const clientPlatform = req.headers["x-client-platform"] || "";
 
-  if (process.env.NODE_ENV == "production") {
+  // Cek apakah dari Flutter (Dart) atau header custom
+  const isMobileClient =
+    clientPlatform.toLowerCase() === "mobile" || userAgent.includes("dart:io");
+
+  if (isMobileClient) {
+    console.log("Login dari mobile (Flutter)");
+  } else {
+    console.log("Login dari web atau lainnya");
+  }
+  if (process.env.NODE_ENV == "production" && !isMobileClient) {
     try {
       const result = await axios.post(
         "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -518,7 +543,7 @@ router.post("/login/app", async (req, res) => {
 
   const isPasswordMatch = await bcrypt.compare(password, userDB.password);
   console.log("isPasswordMatch", isPasswordMatch);
-  if (!isPasswordMatch) { 
+  if (!isPasswordMatch) {
     return res.status(400).json({
       success: false,
       message: "Password salah.",

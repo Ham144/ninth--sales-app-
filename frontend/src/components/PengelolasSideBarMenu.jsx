@@ -113,14 +113,14 @@ export default function PengelolaSideBarMenu({ children }) {
           )}
         </div>
 
-        <nav className="flex-1 overflow-y-auto">
-          <ul className="space-y-1">
+        <nav className="flex-1 overflow-y-auto flex flex-col ">
+          <ul className="space-y-1 flex flex-col pb-20">
             {menuItems.map(({ name, icon: Icon, path }, i) => (
               <li key={name}>
                 <NavLink
                   to={path}
                   className={({ isActive }) =>
-                    `flex items-center p-2 rounded-lg transition-all duration-200 ${
+                    `flex  items-center p-2 rounded-lg transition-all duration-200 ${
                       userInfo.role != "supertenant" &&
                       name == "supertenant" &&
                       "hidden"

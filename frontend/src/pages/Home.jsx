@@ -2,27 +2,17 @@ import React from "react";
 import { APP_NAME } from "@/api/constant";
 import { useUserInfo } from "@/store";
 import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision";
-import { useNavigate } from "react-router-dom";
-import {
-  Crown,
-  History,
-  Package,
-  User2,
-  ShieldCheck,
-  Building2,
-  Logs,
-} from "lucide-react";
+import { History, Package, User2, ShieldCheck, Logs } from "lucide-react";
 import GridItem from "@/components/ui/GridItem";
 
 const Home = () => {
-  const navigate = useNavigate();
   const { userInfo } = useUserInfo();
 
   return (
     <BackgroundBeamsWithCollision
       className={"flex flex-col py-20 overflow-y-hidden"}
     >
-      <h2 className="text-2xl relative z-20 md:text-4xl lg:text-7xl font-bold text-center text-black dark:text-white font-sans tracking-tight">
+      <h2 className="text-4xl relative z-20 md:text-4xl lg:text-7xl font-bold text-center text-black dark:text-white font-sans tracking-tight">
         <div className="relative mx-auto inline-block w-max [filter:drop-shadow(0px_1px_3px_rgba(27,_37,_80,_0.14))] ">
           <div className="absolute left-0 top-[1px] bg-clip-text bg-no-repeat text-transparent bg-gradient-to-r py-4 from-purple-500 via-violet-500 to-pink-500 [text-shadow:0_0_rgba(0,0,0,0.1)]">
             <span className="">{APP_NAME}.</span>

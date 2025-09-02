@@ -16,7 +16,7 @@ router.get("/list", async (req, res) => {
 
   let query = {};
   if (searchKey) {
-    const escaped = escapeRegex(searchKey);
+    const escaped = escapeRegex(searchKey?.trim());
     query = {
       $or: [
         { No: { $regex: "^" + escaped, $options: "i" } },

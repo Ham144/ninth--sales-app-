@@ -13,9 +13,9 @@ function hashProductData(data) {
   return crypto.createHash("sha256").update(JSON.stringify(data)).digest("hex");
 }
 
-export const fetchingSoapToGetStock = async (No, req) => {
+export const fetchingSoapToGetStock = async (No, locationCode, req) => {
   try {
-    const org = await Org.findById(req.user.org).select(
+    const org = await Org.findOne().select(
       "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION SOAP_STOCK_XMLNS"
     );
 
@@ -32,14 +32,14 @@ export const fetchingSoapToGetStock = async (No, req) => {
       !SOAP_STOCK_USERNAME ||
       !SOAP_STOCK_PASSWORD ||
       !SOAP_STOCK_SOAPACTION ||
-      SOAP_STOCK_XMLNS
+      !SOAP_STOCK_XMLNS
     ) {
       console.log("Konfigurasi soap stock tidak lengkap");
       return null;
     }
 
     const rawXmlResponse = await fetchData({
-      xml: checkStockXML(No, SOAP_STOCK_XMLNS), // <-- XML generator khusus produk
+      xml: checkStockXML(No, locationCode, SOAP_STOCK_XMLNS), // <-- XML generator khusus produk
       username: SOAP_STOCK_USERNAME,
       password: SOAP_STOCK_PASSWORD,
       url: SOAP_STOCK_URL,
@@ -50,24 +50,25 @@ export const fetchingSoapToGetStock = async (No, req) => {
       console.log("Response kosong");
       return null;
     }
-
     const parsed = await xml2js.parseStringPromise(rawXmlResponse, {
       explicitArray: false,
       trim: true,
     });
 
     const result =
-      parsed?.["Soap:Envelope"]?.["Soap:Body"]?.["Read_Result"]?.["ItemPrice"];
+      parsed?.["Soap:Envelope"]?.["Soap:Body"]?.[
+        "GetInventoryByLocation_Result"
+      ];
 
     if (!result) {
       console.log("Tidak bisa menemukan data hasil");
       return null;
     }
 
-    // Jika hanya 1 item, bungkus jadi array
-    const products = Array.isArray(result) ? result : [result];
+    // Ambil nilai inventory
+    const inventoryValue = result?.inventory;
 
-    return products;
+    return inventoryValue !== undefined ? Number(inventoryValue) : null;
   } catch (error) {
     console.log("Terjadi error:", error);
     return null;
