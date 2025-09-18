@@ -323,7 +323,7 @@ const RequestPage = () => {
     }
   }, [userInfo]);
   return (
-    <div className="min-h-screen   relative overflow-hidden">
+    <div className="min-h-screen pb-28  relative overflow-hidden">
       {/* Background layers */}
       <div className="absolute " />
       <div className="absolute -top-40 -left-40 w-96 h-96 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob" />
@@ -502,8 +502,8 @@ const RequestPage = () => {
         )}
 
         {/* 📦 Search Produk */}
-        <div className="space-y-4">
-          <div className="flex flex-col md:flex-row gap-4 items-start">
+        <div className="space-y-4 flex w-full">
+          <div className="flex flex-1 md:flex-row gap-4 items-start">
             <div className="flex-1">
               <label className="block text-sm font-medium text-indigo-700 mb-1">
                 Cari Produk
@@ -575,7 +575,7 @@ const RequestPage = () => {
                   d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"
                 />
               </svg>
-              Diskusi Produk
+              Diskusi <span className="max-md:hidden">Produk</span>
             </button>
           </div>
         </div>

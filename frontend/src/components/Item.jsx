@@ -158,10 +158,6 @@ const Item = ({
 
                 updateProductQty(prod.No, 1);
               }}
-              disabled={
-                stockData?.stockResult !== undefined &&
-                prod.qty >= stockData.stockResult
-              }
               className="w-9 h-9 flex items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <svg

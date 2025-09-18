@@ -4,7 +4,7 @@ import ProductApi from "@/api/productApi";
 import { Toaster } from "sonner";
 import locationApi from "@/api/LocationApi";
 import ProductItem from "@/components/ProductItem";
-import { Search, SearchCheckIcon } from "lucide-react";
+import { SearchCheckIcon } from "lucide-react";
 
 const StockCheckPage = () => {
   const [locationCode, setLocationCode] = useState("");
@@ -186,7 +186,7 @@ const StockCheckPage = () => {
               <table className="w-full">
                 <thead className="bg-indigo-100">
                   <tr>
-                    <th className="py-3 px-4 text-left text-xs font-medium text-indigo-800 uppercase tracking-wider">
+                    <th className="py-3 col-span- px-4 text-left text-xs font-medium text-indigo-800 uppercase tracking-wider">
                       No
                     </th>
                     <th className="py-3 px-4 text-left text-xs font-medium text-indigo-800 uppercase tracking-wider">

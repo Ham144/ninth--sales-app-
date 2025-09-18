@@ -251,5 +251,6 @@ function startCronProduct() {
     }
   });
 }
+startCronProduct();
 
 export default startCronProduct;

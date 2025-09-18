@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { cn } from "@/lib/utils";
 import { APP_NAME, NODE_ENV, siteKeyCloudflare } from "@/api/constant";
 import { DotBackgroundDemo } from "@/components/ui/DotBackgroundDemo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { loginApp, loginLdap } from "@/api/authApi";
+import { refreshToken, loginApp, loginLdap, getUserInfo } from "@/api/authApi";
 import { toast } from "sonner";
 import OrgApi from "@/api/orgApi";
 import { useUserInfo } from "@/store";
@@ -31,6 +31,11 @@ export default function SignupFormDemo() {
   const { data: orgList } = useQuery({
     queryKey: ["org", search],
     queryFn: () => OrgApi.getAllOrg(search),
+  });
+
+  const { data: userInfo } = useQuery({
+    queryKey: ["userInfo"],
+    queryFn: async () => await getUserInfo(),
   });
 
   const { mutateAsync: handleLoginLdap, isPending: isLoginLdapPending } =
@@ -130,6 +135,15 @@ export default function SignupFormDemo() {
         );
       },
     });
+
+  useEffect(() => {
+    if (userInfo?.success) {
+      navigate("/");
+      setTimeout(() => {
+        navigate("/");
+      }, 1000);
+    }
+  }, [userInfo]);
 
   return (
     <DotBackgroundDemo>

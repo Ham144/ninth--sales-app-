@@ -47,7 +47,7 @@ const ProductItem = ({ product, handleProductClick, locationCode }) => {
       </td>
       <td>
         <span className="badge max-md:hidden badge-outline badge-primary">
-          {product._x003C_Brand_x003E_ || product.Manufacturer_Code || "-"}
+          {product.Brand || product.Manufacturer_Code || "-"}
         </span>
       </td>
       <td>

@@ -259,7 +259,8 @@ router.get("/list", async (req, res) => {
       .select(
         "_id return_value DocumentNo RequestDeliveryDate customer SalesLineTotal"
       )
-      .lean();
+      .lean()
+      .sort({createdAt: -1})
 
     return res.status(200).json(salesOrders);
   } catch (error) {

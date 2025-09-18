@@ -14,6 +14,8 @@ router.get("/list", async (req, res) => {
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
 
+  console.log("test");
+
   let query = {};
   if (searchKey) {
     const escaped = escapeRegex(searchKey?.trim());

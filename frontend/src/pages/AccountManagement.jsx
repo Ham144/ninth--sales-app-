@@ -36,7 +36,7 @@ export default function AccountManagement() {
   const queryClient = useQueryClient();
 
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [currentUser, setCurrentUser] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -46,31 +46,30 @@ export default function AccountManagement() {
   });
 
   const { mutate: handleUpdateUser, isPending: isUpdating } = useMutation({
-    mutationFn: updateUser,
+    mutationFn: () => updateUser(formData),
     onSuccess: () => {
       queryClient.invalidateQueries(["users"]);
       toast.success("User berhasil diperbarui");
       handleCloseDialog();
-      setCurrentUser(null);
+      setSelectedUserId(null);
     },
     onError: (error) => {
       toast.error(error?.response?.data?.message || "Gagal memperbarui user");
     },
   });
-  const { mutate: handleDelete, isPending: isDeleting } = useMutation({
-    mutationFn: async () => deleteAppUser(currentUser._id),
+  const { mutate: handleDelete } = useMutation({
+    mutationFn: async () => deleteAppUser(selectedUserId),
     onSuccess: () => {
       queryClient.invalidateQueries(["users"]);
       toast.success("User berhasil dihapus");
       document.getElementById("confirm-delete")?.close();
     },
     onError: (error) => {
-      console.log(error);
       toast.error(error?.response?.data?.message || "Gagal memperbarui user");
     },
   });
 
-  const { mutate: handleCreateAppUser, isPending: isCreating } = useMutation({
+  const { mutate: handleCreateAppUser } = useMutation({
     mutationFn: createAppUser,
     onSuccess: () => {
       queryClient.invalidateQueries(["users"]);
@@ -95,6 +94,7 @@ export default function AccountManagement() {
       authMethod: "app",
     });
     setErrors({});
+    setSelectedUserId(null);
   };
 
   const handleEdit = (user) => {
@@ -107,6 +107,7 @@ export default function AccountManagement() {
       role: user.role,
       isDisabled: user.isDisabled,
       authMethod: user.authMethod,
+      _2faIsVerified: user._2faIsVerified || false,
     });
     setIsOpen(true);
   };
@@ -146,7 +147,7 @@ export default function AccountManagement() {
     const updateData = { ...formData };
     if (validateForm()) {
       if (isEditMode) {
-        if (currentUser?.authMethod === "ldap") {
+        if (formData?.authMethod === "ldap") {
           if (!updateData.password) delete updateData.password;
           handleUpdateUser(updateData);
         } else {
@@ -307,7 +308,7 @@ export default function AccountManagement() {
                   )}
                 </div>
                 {/* Password Field (only for new app auth) */}
-                {!isEditMode && formData.authMethod === "app" && (
+                {isEditMode && formData.authMethod === "app" && (
                   <div className="form-control">
                     <label className="label">
                       <span className="label-text">Password</span>
@@ -351,7 +352,7 @@ export default function AccountManagement() {
                     <option disabled value="supertenant">
                       supertenant
                     </option>
-                    {currentUser?.role === "supertenant" && (
+                    {formData?.role === "supertenant" && (
                       <option value="supertenant">Supertenant</option>
                     )}
                   </select>
@@ -365,6 +366,24 @@ export default function AccountManagement() {
                     </span>
                   </label>
                 </div>
+                {isEditMode && (
+                  <div className="form-control ">
+                    <label className="label">
+                      <span className="label-text">Fitur 2FA</span>
+                    </label>
+                    <input
+                      type="checkbox"
+                      checked={formData?._2faIsVerified || false}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          _2faIsVerified: e.target.checked,
+                        })
+                      }
+                      className="checkbox"
+                    />
+                  </div>
+                )}
                 <div className="flex justify-end gap-2 mt-6">
                   <button
                     type="button"
@@ -495,16 +514,12 @@ export default function AccountManagement() {
                       <div className="flex items-center space-x-2">
                         <button
                           onClick={() => {
-                            setCurrentUser(user);
                             handleEdit(user);
                             setIsEditMode(true);
                           }}
                           className="btn btn-ghost btn-sm text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 tooltip tooltip-top"
                           data-tip="Edit User"
-                          disabled={
-                            user?.role === "supertenant" &&
-                            currentUser?.role !== "supertenant"
-                          }
+                          disabled={user?.role === "supertenant"}
                         >
                           <Pencil className="h-5 w-5" />
                         </button>
@@ -519,7 +534,7 @@ export default function AccountManagement() {
                                 "Menghapus user authMethod= 'LDAP' tidak berdampak apa-apa, disable user di LDAP"
                               );
                             } else {
-                              setCurrentUser(user);
+                              setSelectedUserId(user._id);
                               document
                                 .getElementById("confirm-delete")
                                 .showModal();
@@ -559,7 +574,7 @@ export default function AccountManagement() {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    handleDelete(currentUser);
+                    handleDelete();
                   }}
                 >
                   Ya, Hapus

@@ -24,6 +24,22 @@ router.get("/list", async (req, res) => {
     };
   }
 
+  if (
+    req?.user?.description?.startsWith("SALES") &&
+    req?.user?.description.split("_").length > 1
+  ) {
+    const getVendor = req?.user?.description.split("_")[1];
+
+    query = {
+      ...query,
+      $and: [
+        { Brand: { $regex: getVendor, $options: "i" } }, // cocok dengan vendor
+        { Brand: { $nin: ["", null] } }, // tidak kosong/null
+        { Brand: { $exists: true } }, // field harus ada
+      ],
+    };
+  }
+
   try {
     const total = await Product.countDocuments(query);
     const data = await Product.find(query)

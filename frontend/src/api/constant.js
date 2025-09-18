@@ -5,8 +5,8 @@ if (import.meta.env.VITE_BACKEND_URL) {
   PROD_URL = import.meta.env.VITE_BACKEND_URL;
 }
 
-export let NODE_ENV = "development";
-// export let NODE_ENV = "production";
+// export let NODE_ENV = "development";
+export let NODE_ENV = "production";
 
 export const BASE_URL = NODE_ENV == "production" ? PROD_URL : DEV_URL;
 

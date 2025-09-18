@@ -34,9 +34,6 @@ const userSchema = new mongoose.Schema(
     //2fa google authenticator
     _2faSecret: String,
     _2faIsVerified: Boolean,
-    generatedApiKeys: [
-      { apiKey: String, expired: Date, projectName: String, createdAt: Date },
-    ],
   },
   { timestamps: true }
 );

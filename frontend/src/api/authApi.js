@@ -78,7 +78,7 @@ export const deleteAppUser = async (id) => {
 };
 
 export const refreshToken = async () => {
-  const response = await axiosInstance.delete(`/api/auth/refresh-token`);
+  const response = await axiosInstance.post(`/api/auth/refresh-token`);
   return response.data;
 };
 

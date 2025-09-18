@@ -329,12 +329,12 @@ router.post(
       });
 
       if (
-        (userLDAP?.description || "").toUpperCase() !== "SALES" &&
-        userLDAP.description !== "OVERDUE" &&
-        userLDAP.description !== "IT"
+        (!userLDAP?.description.startsWith("SALES") &&
+          userLDAP.description !== "OVERDUE" &&
+          userLDAP.description !== "IT")
       ) {
         return res.status(400).json({
-          message: "User tidak diizinkan karena bukan SALES.",
+          message: "User tidak diizinkan, description belum didaftarkan.",
         });
       }
 
@@ -685,7 +685,7 @@ router.put(
   "/updateUser",
   authenticate,
   asyncHandler(async (req, res) => {
-    const { _id, role, password, email } = req.body;
+    const { _id, role, password, email, _2faIsVerified } = req.body;
 
     if (!_id || !role) {
       return res.status(400).json({
@@ -702,7 +702,7 @@ router.put(
       });
     }
 
-    if (user.authMethod == "supertenant") {
+    if (user.role == "supertenant") {
       return res.status(400).json({
         success: false,
         message: "User supertenant masih belum bisa diedit seperti user lain.",
@@ -742,6 +742,18 @@ router.put(
         });
       }
       user.email = email;
+    }
+
+    console.log("_2faIsVerified", _2faIsVerified);
+    if (_2faIsVerified !== undefined) {
+      const userRaw = await UserRefrensi.findOne({ _id: user._id });
+      if (!userRaw._2faSecret && _2faIsVerified === true) {
+        return res.status(400).json({
+          message:
+            "gagal mengaktifkan 2fa user ini, 2fa secret tidak ditemukan",
+        });
+      }
+      user._2faIsVerified = _2faIsVerified ? true : false;
     }
 
     // Update role dan update array

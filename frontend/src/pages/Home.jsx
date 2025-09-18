@@ -59,7 +59,10 @@ const Home = () => {
             title="Overdue Page"
             description="Lihat daftar Overdue hanya untuk description OVERDUE"
             path="/overdue/list"
-            disabled={userInfo?.description === "SALES"}
+            disabled={
+              userInfo?.description === "SALES" ||
+              userInfo?.description === "SALES_PHILIPS"
+            }
           />
           <GridItem
             icon={<Logs className="h-5 w-5 text-neutral-500" />}
@@ -73,7 +76,7 @@ const Home = () => {
             title="IT Menu"
             description="Mengatur Konfigurasi dan Data Master"
             path="/management/customer"
-            disabled={userInfo?.description === "SALES"}
+            disabled={userInfo?.description != "IT"}
           />
         </ul>
       </div>
