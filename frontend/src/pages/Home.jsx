@@ -2,7 +2,14 @@ import React from "react";
 import { APP_NAME } from "@/api/constant";
 import { useUserInfo } from "@/store";
 import { BackgroundBeamsWithCollision } from "@/components/ui/background-beams-with-collision";
-import { History, Package, User2, ShieldCheck, Logs } from "lucide-react";
+import {
+  History,
+  Package,
+  User2,
+  ShieldCheck,
+  Logs,
+  Download,
+} from "lucide-react";
 import GridItem from "@/components/ui/GridItem";
 
 const Home = () => {
@@ -77,6 +84,12 @@ const Home = () => {
             description="Mengatur Konfigurasi dan Data Master"
             path="/management/customer"
             disabled={userInfo?.description != "IT"}
+          />
+          <GridItem
+            icon={<Download className="h-5 w-5 text-neutral-500" />}
+            title="Download Data"
+            description="Mendownload data rangkukam sales order menjadi csv"
+            path="/download/data"
           />
         </ul>
       </div>

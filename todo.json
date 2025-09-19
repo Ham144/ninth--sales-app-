@@ -21,4 +21,5 @@
 [x] modify: extDoc: req.user.username &  keterangan : keterangan
 [x] getInventoryByLocation soap sebagai cek stock
 [x] add: table list menampilkan stock
+[x] add: download csv
 [] modify: perbaiki organization bukan hanya melakukan cron untuk 1 organization

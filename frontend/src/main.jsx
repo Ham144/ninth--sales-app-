@@ -25,6 +25,7 @@ import OverdueDownloader from "./pages/OverdueDownloader";
 import CapthaGeneration from "./pages/CapthaGeneration.jsx";
 import DeveloperPage from "./pages/DeveloperPage";
 import StockCheckPage from "./pages/StockCheckPage";
+import DownloadPage from "./pages/DownloadPage";
 // import RegisterPage from "./pages/RegisterPage";
 
 const router = createBrowserRouter(
@@ -42,6 +43,7 @@ const router = createBrowserRouter(
         <Route path="/2fa/verification" element={<Verification2Fa />} />
         <Route path="/overdue/statistics" element={<OverdueStatistics />} />
         <Route path="/overdue/downloader" element={<OverdueDownloader />} />
+        <Route path="/download/data" element={<DownloadPage />} />
 
         {/* menu IT and admin */}
         <Route path="/management/product" element={<ProductManagement />} />

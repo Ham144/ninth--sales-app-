@@ -4,10 +4,6 @@ import ProductApi from "@/api/productApi";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useState, useCallback, useRef } from "react";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import { v4 as uuidv4 } from "uuid";
 import ModalTempOption from "@/components/ModalTempOption";
@@ -322,6 +318,7 @@ const RequestPage = () => {
       navigate("/not-found");
     }
   }, [userInfo]);
+
   return (
     <div className="min-h-screen pb-28  relative overflow-hidden">
       {/* Background layers */}

@@ -11,6 +11,7 @@ import Customer from "../models/Customer.model.js";
 import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
 import mongoose from "mongoose";
 import Location from "../models/Location.model.js";
+import UserRefrensi from "../models/User.model.js";
 
 const router = Router();
 
@@ -230,6 +231,76 @@ router.post("/new", async (req, res) => {
   }
 });
 
+router.get("/download", async (req, res) => {
+  const { month, preview } = req.query;
+
+  const userInfo = req.user;
+
+  const vendor =
+    userInfo?.description?.startsWith("SALES") &&
+    userInfo?.description?.split("_")[1];
+
+  // Normalisasi month: support 0-11 atau 1-12, default ke bulan berjalan
+  const today = new Date();
+  const year = today.getFullYear();
+  let m = Number.isFinite(Number(month))
+    ? parseInt(month, 10)
+    : today.getMonth();
+  if (m >= 1 && m <= 12) m = m - 1; // ubah 1-12 → 0-11
+  if (m < 0 || m > 11 || Number.isNaN(m)) m = today.getMonth();
+
+  // Range [awal bulan, awal bulan berikutnya)
+  const from = new Date(year, m, 1);
+  const to = new Date(year, m + 1, 1);
+
+  try {
+    const baseMatch = {
+      OrderDate: { $gte: from, $lt: to },
+      org: req.user.org,
+    };
+
+    let createdByFilter = [];
+    if (vendor) {
+      console.log(vendor);
+      createdByFilter = await UserRefrensi.find({
+        org: req.user.org,
+        description: { $regex: new RegExp(`^SALES_${vendor}`, "i") },
+      }).select("_id");
+
+      if (createdByFilter?.length > 0) {
+        createdByFilter = createdByFilter.map((item) => item._id);
+      }
+      baseMatch.createdBy = { $in: createdByFilter };
+    }
+
+    // Preview: ringan untuk tampilan list
+    if (String(preview) === "true") {
+      const data = await SalesOrder.find(baseMatch)
+        .select("return_value customer OrderDate ExtDoc DocumentNo")
+        .sort({ createdAt: -1 })
+        .populate({ path: "customer", select: "No Name" })
+        .lean();
+      return res.status(200).json(data);
+    }
+
+    // Full: semua field dan populate referensi
+    const data = await SalesOrder.find(baseMatch)
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "customer",
+        select: "No Name Customer_Price_Group Salesperson_Code",
+      })
+      .populate({ path: "org", select: "organizationName" })
+      .populate({ path: "createdBy", select: "username email" })
+      .lean();
+
+    return res.status(200).json(data);
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: "Kesalahan Server Internal" });
+  }
+});
+
 router.get("/list", async (req, res) => {
   const { searchKey } = req.query;
 
@@ -260,7 +331,7 @@ router.get("/list", async (req, res) => {
         "_id return_value DocumentNo RequestDeliveryDate customer SalesLineTotal"
       )
       .lean()
-      .sort({createdAt: -1})
+      .sort({ createdAt: -1 });
 
     return res.status(200).json(salesOrders);
   } catch (error) {
