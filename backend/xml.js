@@ -50,6 +50,7 @@ export const requestSalesOrderXml = ({
   LocationCode,
   AreaCode,
   SOAP_TRANSACTION_XMLNS,
+  NoSeries,
 }) => {
   return `
 <Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
@@ -66,7 +67,7 @@ export const requestSalesOrderXml = ({
           <CustomerPriceGrp></CustomerPriceGrp>
           <SalespersonCode></SalespersonCode>
           <SellToContact></SellToContact>
-          <NoSeries>SO-SMA</NoSeries>
+          <NoSeries>${NoSeries}</NoSeries> 
           <ExtDoc>${ExtDoc || ""}</ExtDoc>
           <RequestDeliveryDate>${RequestDeliveryDate}</RequestDeliveryDate>
           <Keterangan>${Keterangan}</Keterangan>

@@ -23,3 +23,10 @@
 [x] add: table list menampilkan stock
 [x] add: download csv
 [] modify: perbaiki organization bukan hanya melakukan cron untuk 1 organization
+
+//modifikasi kecil
+[x] mod: buat PASSKEY untuk melewati validasi cloudflare untuk mempermudah
+[x] mod: batasi pencarian product dengan user.description.vendor
+[x] mod: lokasi default dari customer jika ada user.description.vendor
+[x] mod: cegah new SO jika ada user.description.vendor namun customer locationnya tidak sesuai atau brand productnya tidak sesuai dengan user.description.vendor
+[x] mod: jika ada user.description.vendor maka tulis no series "SO-SMD"

@@ -14,9 +14,21 @@ router.get("/list", async (req, res) => {
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
 
-  console.log("test");
+  const userInfo = req.user;
+  const vendor =
+    userInfo?.description?.startsWith("SALES") &&
+    userInfo?.description?.split("_")[1];
 
   let query = {};
+  if (vendor) {
+    query = {
+      $and: [
+        { Brand: { $regex: vendor, $options: "i" } }, // cocok dengan vendor
+        { Brand: { $nin: ["", null] } }, // tidak kosong/null
+        { Brand: { $exists: true } }, // field harus ada
+      ],
+    };
+  }
   if (searchKey) {
     const escaped = escapeRegex(searchKey?.trim());
     query = {

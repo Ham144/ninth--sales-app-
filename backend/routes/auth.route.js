@@ -217,6 +217,7 @@ router.post(
       password,
       selectedOrg,
       captchaToken,
+      BYPASS_TURNSTILE_KEY,
     } = req.body;
     if (!usernameRaw || !password || !selectedOrg) {
       return res.status(400).json({
@@ -247,7 +248,11 @@ router.post(
       console.log("Login dari web atau lainnya");
     }
     //turnstile
-    if (process.env.NODE_ENV === "production" && !isMobileClient) {
+    if (
+      process.env.NODE_ENV === "production" &&
+      !isMobileClient &&
+      !BYPASS_TURNSTILE_KEY
+    ) {
       try {
         const result = await axios.post(
           "https://challenges.cloudflare.com/turnstile/v0/siteverify",
@@ -274,6 +279,16 @@ router.post(
         return res
           .status(500)
           .json({ success: false, message: "Gagal memverifikasi CAPTCHA." });
+      }
+    }
+
+    if (BYPASS_TURNSTILE_KEY) {
+      if (process.env.BYPASS_TURNSTILE_KEY != BYPASS_TURNSTILE_KEY) {
+        console.log(process.env.BYPASS_TURNSTILE_KEY, BYPASS_TURNSTILE_KEY);
+        return res.status(403).json({
+          success: false,
+          message: "BYPASS_TURNSTILE_KEY tidak valid.",
+        });
       }
     }
 
@@ -329,9 +344,9 @@ router.post(
       });
 
       if (
-        (!userLDAP?.description.startsWith("SALES") &&
-          userLDAP.description !== "OVERDUE" &&
-          userLDAP.description !== "IT")
+        !userLDAP?.description.startsWith("SALES") &&
+        userLDAP.description !== "OVERDUE" &&
+        userLDAP.description !== "IT"
       ) {
         return res.status(400).json({
           message: "User tidak diizinkan, description belum didaftarkan.",

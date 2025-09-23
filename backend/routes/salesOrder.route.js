@@ -49,6 +49,13 @@ export const requestSalesOrder = async ({
       return null;
     }
 
+    //penentuan noseries
+    const vendor = req?.user?.description?.split("_")[1];
+    let NoSeries = "SO-SMA";
+    if (!vendor) {
+      NoSeries = "SO-SMD";
+    }
+
     const xml = requestSalesOrderXml({
       DocumentNo,
       SellToCustNo,
@@ -59,6 +66,7 @@ export const requestSalesOrder = async ({
       LocationCode,
       AreaCode,
       SOAP_TRANSACTION_XMLNS,
+      NoSeries: NoSeries,
     });
 
     const rawXmlResponse = await fetchData({
@@ -135,7 +143,14 @@ router.post("/new", async (req, res) => {
   } = req.body;
 
   try {
+    //antisipasi SMD dari projek lain
+    const userInfo = req.user;
+
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
+
+    const vendor =
+      userInfo?.description?.startsWith("SALES") &&
+      userInfo?.description?.split("_")[1];
 
     if (!globalIndex)
       return res.status(500).json({ message: "Gagal membuat global index" });
@@ -170,6 +185,16 @@ router.post("/new", async (req, res) => {
     else if (after.length === 2)
       after = before.split("_").slice(0, 1).join("_");
     else after = location.name;
+
+    //cegah pergantian location jika ada user.description.vendor
+    if (vendor) {
+      if (location.name != customer.Location_Code) {
+        return res.status(400).json({
+          message:
+            "Location default dari customer, jangan mencoba mengganti. karena user anda spesifik PHILIPS",
+        });
+      }
+    }
 
     const orderDate = new Date().toISOString().split("T")[0];
     const salesOrderResponseXml = await requestSalesOrder({

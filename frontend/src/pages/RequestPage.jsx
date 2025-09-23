@@ -579,11 +579,25 @@ const RequestPage = () => {
 
         {/* Pilih location */}
         <div>
-          <label className="block text-sm font-medium text-indigo-700 mb-1">
+          <label className="text-sm font-medium flex  gap-x-2  items-center text-indigo-700 mb-1 max-md:flex-col ">
             Pilih Lokasi
+            {userInfo?.description.split("_")[1] && (
+              <div className="p-1 rounded-sm bg-primary text-white my-2">
+                Location default dari customer karena user anda spesifik{" "}
+                {userInfo?.description.split("_")[1]}
+              </div>
+            )}
           </label>
+
           <div className="relative">
             <select
+              disabled={
+                userInfo?.description.startsWith("SALES")
+                  ? userInfo?.description.split("_")[1]
+                    ? true
+                    : false
+                  : true
+              }
               onChange={(e) => {
                 setSalesOrder((prev) => ({
                   ...prev,

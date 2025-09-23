@@ -125,13 +125,13 @@ export function ProcessPage() {
                     <p className="flex items-center space-x-2">
                       <strong className="font-semibold">Return Value:</strong>
                       <span className="text-lg">
-                        {salesOrderDetail.data.return_value}
+                        {salesOrderDetail?.data.return_value}
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
                       <strong className="font-semibold">Document No:</strong>
                       <span className="text-lg">
-                        {salesOrderDetail.data.DocumentNo}
+                        {salesOrderDetail?.data.DocumentNo}
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
