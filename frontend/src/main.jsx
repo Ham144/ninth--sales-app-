@@ -51,13 +51,13 @@ const router = createBrowserRouter(
         <Route path="/management/account" element={<AccountManagement />} />
         <Route path="/management/config" element={<Config />} />
         <Route path="/supertenant/management" element={<SuperTenantPage />} />
-        <Route path="/all_account" element={<AllAccounts />} />
+        {/* <Route path="/all_account" element={<AllAccounts />} /> */}
         <Route path="/developer.integration" element={<DeveloperPage />} />
+        <Route index={true} path="/login" element={<Login />} />
       </Route>
 
       {/* Public routes that don't require authentication */}
       <Route path="/captchaGeneration" element={<CapthaGeneration />} />
-      <Route index={true} path="/login" element={<Login />} />
       {/* <Route index={true} path="/register" element={<RegisterPage />} /> */}
 
       <Route path="*" element={<NotFound />} />

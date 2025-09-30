@@ -30,3 +30,13 @@
 [x] mod: lokasi default dari customer jika ada user.description.vendor
 [x] mod: cegah new SO jika ada user.description.vendor namun customer locationnya tidak sesuai atau brand productnya tidak sesuai dengan user.description.vendor
 [x] mod: jika ada user.description.vendor maka tulis no series "SO-SMD"
+#SO update
+[x] mod: tidak bisa pilih location dan tidak perlu tampilin overdue
+[x] mod: download data sudah di filter untuk user.description.vendor
+[x] fix: bug munculnya sales order yang bukan miliknya di hal. process 
+
+[x] mod:  blocked_ma : true tidak perlu dikeluarin
+[x] mod: item yg baru di atas
+[x] fix: UI set manual qty SO
+# untuk menjadi source of truth (data user, org, product, location, SO dan model lain)
+[x] add: enpoint findUser: byId byUsername dll

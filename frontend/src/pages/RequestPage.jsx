@@ -11,6 +11,7 @@ import OnlyAsk from "@/components/OnlyAsk";
 import { useUserInfo } from "@/store";
 import locationApi from "@/api/LocationApi";
 import Item from "@/components/Item";
+import { Search } from "lucide-react";
 
 const initialSalesOrder = {
   customer: {},
@@ -93,6 +94,7 @@ const RequestPage = () => {
   const { mutateAsync: selectCustomer } = useMutation({
     mutationKey: ["customer"],
     mutationFn: async (no) => await CustomerApi.getByNo(no),
+    retry: false,
     onSuccess: async (data) => {
       setCustomerSearch("");
       setSalesOrder((prev) => ({
@@ -116,12 +118,30 @@ const RequestPage = () => {
         frontendSession: newFronendSession,
       }));
       // Jika sudah ada products, trigger temporary save dengan customer baru
-      if (salesOrder.products?.length > 0) {
+      if (salesOrder?.products?.length > 0) {
         debouncedTempSave();
       }
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.message || "Terjadi kesalahan");
+      const status = err?.response?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.response?.message ||
+        err?.message ||
+        "Terjadi kesalahan tak terduga";
+      const detail =
+        err?.response?.data?.data?.message || err?.response?.data?.data;
+      const composed = [
+        status ? `[${status}]` : null,
+        msg,
+        detail
+          ? `- ${typeof detail === "string" ? detail : JSON.stringify(detail)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ");
+      toast.error(composed);
     },
   });
 
@@ -257,13 +277,13 @@ const RequestPage = () => {
       return {
         ...prev,
         products: [
-          ...(prev.products || []),
           {
             ...prod,
             qty: 1,
             priceGroupKey: targetKey,
             price: matchedPrice,
           },
+          ...(prev.products || []),
         ],
       };
     });
@@ -277,11 +297,11 @@ const RequestPage = () => {
     setProductSearch("");
   };
 
-  const updateProductQty = (sku, delta) => {
+  const updateProductQty = (productNo, delta) => {
     setSalesOrder((prev) => ({
       ...prev,
       products: (prev.products || []).map((p) =>
-        p.No === sku ? { ...p, qty: Math.max(1, p.qty + delta) } : p
+        p.No === productNo ? { ...p, qty: Math.max(1, p.qty + delta) } : p
       ),
     }));
 
@@ -301,10 +321,10 @@ const RequestPage = () => {
     debouncedTempSave();
   };
 
-  const removeProduct = (sku) => {
+  const removeProduct = (productNo) => {
     setSalesOrder((prev) => ({
       ...prev,
-      products: (prev.products || []).filter((p) => p.No !== sku),
+      products: (prev.products || []).filter((p) => p.No !== productNo),
     }));
 
     // Trigger temporary save setelah remove product
@@ -507,20 +527,7 @@ const RequestPage = () => {
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5 text-indigo-400"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
+                  <Search className="w-5 h-5 text-indigo-500" />
                 </div>
                 <input
                   disabled={!salesOrder.customer?.No}
@@ -596,7 +603,7 @@ const RequestPage = () => {
                   ? userInfo?.description.split("_")[1]
                     ? true
                     : false
-                  : true
+                  : false
               }
               onChange={(e) => {
                 setSalesOrder((prev) => ({
@@ -646,7 +653,7 @@ const RequestPage = () => {
             <h2 className="font-bold text-lg text-indigo-800 mb-4">
               Daftar Produk
             </h2>
-            <div className="max-h-80 overflow-y-auto space-y-3 pr-2">
+            <div className="max-h-80 overflow-y-scroll space-y-3 pr-2">
               {salesOrder?.products?.map((prod) => (
                 <Item
                   updateProductQty={updateProductQty}

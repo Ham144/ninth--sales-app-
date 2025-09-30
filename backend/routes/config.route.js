@@ -1,5 +1,4 @@
 import { Router } from "express";
-import nodemailer from "nodemailer";
 import Org from "../models/Organization.model.js";
 
 const router = Router();
@@ -48,60 +47,6 @@ router.put("/all", async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Gagal, internal server error." });
-  }
-});
-
-//test email
-router.post("/smtp/test", async (req, res) => {
-  const {
-    EMAIL_HOST,
-    EMAIL_PORT,
-    EMAIL_SECURE,
-    EMAIL_USER,
-    EMAIL_PASS,
-    recipient,
-  } = req.body;
-
-  console.log(req.body);
-  if (!recipient) {
-    return res.status(400).json({ message: "Email penerima diperlukan." });
-  }
-
-  const transporter = nodemailer.createTransport({
-    host: EMAIL_HOST,
-    port: EMAIL_PORT,
-    secure: EMAIL_SECURE,
-    auth: {
-      user: EMAIL_USER,
-      pass: EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-
-  try {
-    // Verifikasi koneksi
-    await transporter.verify();
-
-    // Kirim email
-    await transporter.sendMail({
-      from: `"CSI System" <${EMAIL_USER}>`,
-      to: recipient,
-      subject: "SMTP Configuration Test",
-      text: "This is a test email to verify your SMTP configuration. If you received this, it works!",
-      html: "<b>This is a test email to verify your SMTP configuration.</b><p>If you received this, it works!</p>",
-    });
-
-    return res
-      .status(200)
-      .json({ message: `Email percobaan berhasil dikirim ke ${recipient}` });
-  } catch (error) {
-    console.error("SMTP Test Error:", error);
-    return res.status(500).json({
-      message: "Gagal mengirim email percobaan.",
-      error: error.message,
-    });
   }
 });
 

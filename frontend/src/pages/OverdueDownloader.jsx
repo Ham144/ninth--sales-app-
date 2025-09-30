@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { CalendarIcon, CalendarRange } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 

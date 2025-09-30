@@ -14,6 +14,11 @@ const authenticate = async (req, res, next) => {
     ) {
       return res.status(401).json({ message: "Api key sudah tidak valid" });
     }
+
+    if(req.headers["user-info"]) {
+      req.user = JSON.parse(req.headers["user-info"]);
+    }
+    
     next();
     return;
   }
@@ -27,6 +32,7 @@ const authenticate = async (req, res, next) => {
       message: "session renewal",
     });
   }
+
 
   try {
     let decoded;

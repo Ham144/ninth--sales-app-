@@ -69,7 +69,7 @@ router.get("/list", async (req, res) => {
 });
 
 //ini untuk getByNo lebih detail serta mengecek pembayaran tertunda
-router.post("/getByNo/:no", async (req, res) => {
+router.get("/getByNo/:no", async (req, res) => {
   const no = req.params.no;
 
   try {
@@ -80,54 +80,60 @@ router.post("/getByNo/:no", async (req, res) => {
       });
     }
 
-    const myOrganization = await Org.findById(req.user.org).select(
-      "SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_XMLNS"
-    );
+    //jika ada vendor tidak perlu keluarin overdue
+    const vendor = req?.user?.description?.split("_")[1];
+    let pembayaranTertunda = [];
+    if (!vendor) {
+      console.log("vendor tidak ada jadi masuk sini ");
+      const myOrganization = await Org.findById(req.user.org).select(
+        "SOAP_PEMBAYARANTERTUNDA_USERNAME SOAP_PEMBAYARANTERTUNDA_PASSWORD SOAP_PEMBAYARANTERTUNDA_SOAPACTION SOAP_PEMBAYARANTERTUNDA_URL SOAP_PEMBAYARANTERTUNDA_XMLNS"
+      );
 
-    //cek pembayaran tertunda
-    const xml = cekPembayaranTertundaXml({
-      customerNo: customer?.No,
-      SOAP_PEMBAYARANTERTUNDA_XMLNS:
-        myOrganization.SOAP_PEMBAYARANTERTUNDA_XMLNS,
-    });
-    const username = myOrganization.SOAP_PEMBAYARANTERTUNDA_USERNAME;
-    const password = myOrganization.SOAP_PEMBAYARANTERTUNDA_PASSWORD;
-    const soap_action = myOrganization.SOAP_PEMBAYARANTERTUNDA_SOAPACTION;
-    const url = myOrganization.SOAP_PEMBAYARANTERTUNDA_URL;
+      //cek pembayaran tertunda
+      const xml = cekPembayaranTertundaXml({
+        customerNo: customer?.No,
+        SOAP_PEMBAYARANTERTUNDA_XMLNS:
+          myOrganization.SOAP_PEMBAYARANTERTUNDA_XMLNS,
+      });
+      const username = myOrganization.SOAP_PEMBAYARANTERTUNDA_USERNAME;
+      const password = myOrganization.SOAP_PEMBAYARANTERTUNDA_PASSWORD;
+      const soap_action = myOrganization.SOAP_PEMBAYARANTERTUNDA_SOAPACTION;
+      const url = myOrganization.SOAP_PEMBAYARANTERTUNDA_URL;
 
-    const pembayaranTertundaXmlResponse = await fetchData({
-      xml,
-      username,
-      password,
-      url,
-      SOAPAction: soap_action,
-    });
+      const pembayaranTertundaXmlResponse = await fetchData({
+        xml,
+        username,
+        password,
+        url,
+        SOAPAction: soap_action,
+      });
 
-    // Ubah XML ke JSON
-    const pembayaranTertundaJson = await parseStringPromise(
-      pembayaranTertundaXmlResponse,
-      {
-        explicitArray: false,
-        ignoreAttrs: false,
-      }
-    );
+      // Ubah XML ke JSON
+      const pembayaranTertundaJson = await parseStringPromise(
+        pembayaranTertundaXmlResponse,
+        {
+          explicitArray: false,
+          ignoreAttrs: false,
+        }
+      );
 
-    // Akses data RemainingSI (array isi tag RemainingSI)
-    const remainingSIList =
-      pembayaranTertundaJson["Soap:Envelope"]?.["Soap:Body"]?.[
-        "ReadMultiple_Result"
-      ]?.["ReadMultiple_Result"]?.["RemainingSI"];
+      // Akses data RemainingSI (array isi tag RemainingSI)
+      const remainingSIList =
+        pembayaranTertundaJson["Soap:Envelope"]?.["Soap:Body"]?.[
+          "ReadMultiple_Result"
+        ]?.["ReadMultiple_Result"]?.["RemainingSI"];
 
-    const today = new Date().toISOString().slice(0, 10);
+      const today = new Date().toISOString().slice(0, 10);
 
-    // filter yang due date-nya di bawah hari ini
-    const pembayaranTertunda =
-      remainingSIList?.length > 1
-        ? remainingSIList?.filter((item) => {
-            const dueDate = new Date(item["Due_Date"]).getTime();
-            return dueDate < new Date(today).getTime();
-          })
-        : remainingSIList;
+      // filter yang due date-nya di bawah hari ini
+      pembayaranTertunda =
+        remainingSIList?.length > 1
+          ? remainingSIList?.filter((item) => {
+              const dueDate = new Date(item["Due_Date"]).getTime();
+              return dueDate < new Date(today).getTime();
+            })
+          : [];
+    }
 
     const data = {
       customer,
@@ -135,7 +141,7 @@ router.post("/getByNo/:no", async (req, res) => {
     };
 
     return res.json({
-      data,
+      data: data,
       message: "berhasil mengambil single data",
     });
   } catch (error) {

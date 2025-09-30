@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   Cog,
   ChevronRight,
   ChevronLeft,
-  GitPullRequest,
-  List,
   Users2,
   Crown,
-  Hotel,
-  ShoppingBag,
   Package,
   Link,
 } from "lucide-react";
@@ -40,6 +36,7 @@ export default function PengelolaSideBarMenu({ children }) {
   const [sidebarWidth, setSidebarWidth] = useState(64);
   const [startX, setStartX] = useState(0);
   const [startWidth, setStartWidth] = useState(64);
+  const navigate = useNavigate();
 
   const toggleSidebar = () => {
     const newWidth = isOpen ? 64 : 256;
@@ -78,6 +75,19 @@ export default function PengelolaSideBarMenu({ children }) {
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, []);
+
+  useEffect(() => {
+    if (!userInfo) {
+      navigate("/");
+    } else {
+      if (
+        userInfo.description !== "IT" &&
+        userInfo.description !== "SUPERTENANT"
+      ) {
+        navigate("/");
+      }
+    }
+  }, [userInfo]);
 
   return (
     <div className="sticky top-0 z-20 h-screen flex">

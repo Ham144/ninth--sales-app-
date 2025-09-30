@@ -196,7 +196,7 @@ export function ProcessPage() {
                           <tr>
                             <th className="p-2 text-left">Item No</th>
                             <th className="p-2 text-right">Qty</th>
-                            <th className="p-2 text-right">Total Price</th>
+                            <th className="p-2 text-right">Unit Price</th>
                           </tr>
                         </thead>
                         <tbody>

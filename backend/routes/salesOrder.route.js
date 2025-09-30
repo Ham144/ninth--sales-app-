@@ -12,6 +12,7 @@ import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
 import mongoose from "mongoose";
 import Location from "../models/Location.model.js";
 import UserRefrensi from "../models/User.model.js";
+import Product from "../models/product.model.js";
 
 const router = Router();
 
@@ -27,6 +28,11 @@ export const requestSalesOrder = async ({
   req,
 }) => {
   try {
+    // Validasi req.user.org
+    if (!req.user || !req.user.org) {
+      return { error: true, message: "User atau organization tidak ditemukan" };
+    }
+
     const org = await Org.findById(req.user.org).select(
       "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
     );
@@ -52,7 +58,7 @@ export const requestSalesOrder = async ({
     //penentuan noseries
     const vendor = req?.user?.description?.split("_")[1];
     let NoSeries = "SO-SMA";
-    if (!vendor) {
+    if (vendor) {
       NoSeries = "SO-SMD";
     }
 
@@ -68,6 +74,8 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_XMLNS,
       NoSeries: NoSeries,
     });
+
+    console.log(xml);
 
     const rawXmlResponse = await fetchData({
       xml: xml,
@@ -133,7 +141,7 @@ export const requestSalesOrder = async ({
 
 router.post("/new", async (req, res) => {
   const {
-    customer,
+    customer: customerObj,
     products,
     tempToDeleteId,
     requestDeliveryDate,
@@ -143,8 +151,8 @@ router.post("/new", async (req, res) => {
   } = req.body;
 
   try {
-    //antisipasi SMD dari projek lain
-    const userInfo = req.user;
+    // req.user sudah di-set dari middleware authenticate
+    const userInfo = req?.user;
 
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
 
@@ -155,15 +163,72 @@ router.post("/new", async (req, res) => {
     if (!globalIndex)
       return res.status(500).json({ message: "Gagal membuat global index" });
 
+    //kondisi menerima customer boleh hanya No atau objek lengkap
+    let customer;
+    if (customerObj?.No && customerObj?.Name) {
+      customer = customerObj;
+    } else {
+      customer = await Customer.findOne({ No: customerObj });
+    }
+
+    // Periksa dan lengkapi data product dari DB jika tidak lengkap
+    let enrichedProducts = await Promise.all(
+      products.map(async (item) => {
+        // Jika product sudah memiliki price dan Name, langsung return
+        if (item.price !== undefined && item.Name !== undefined) {
+          return item;
+        }
+
+        // Ambil data lengkap dari database
+        const product = await Product.findOne({ No: item.No });
+        if (!product) {
+          throw new Error(
+            `Product dengan No '${item.No}' tidak ditemukan di database`
+          );
+        }
+
+        // Tentukan harga berdasarkan Customer_Price_Group
+        const targetKey = customer.Customer_Price_Group?.toUpperCase();
+        if (!targetKey) {
+          throw new Error(`Customer tidak memiliki Customer_Price_Group`);
+        }
+
+        // Normalize keys jadi uppercase
+        const normalizedProduct = Object.entries(product.toObject()).reduce(
+          (acc, [key, value]) => {
+            acc[key.toUpperCase()] = value;
+            return acc;
+          },
+          {}
+        );
+
+        const matchedPrice = normalizedProduct[targetKey];
+
+        // Validasi harga
+        if (matchedPrice == null || Number(matchedPrice) === 0) {
+          throw new Error(
+            `Harga untuk Customer_Price_Group '${targetKey}' tidak ditemukan atau 0 untuk product '${item.No}'`
+          );
+        }
+
+        return {
+          ...item,
+          Name: product.Name,
+          price: Number(matchedPrice),
+          priceGroupKey: targetKey,
+        };
+      })
+    );
+
     let SalesLine = [];
-    for (let i = 0; i < products.length; i++) {
+    for (let i = 0; i < enrichedProducts.length; i++) {
       SalesLine.push({
         DocumentNo: globalIndex,
         LineNo: (i + 1) * 1000,
-        ItemNo: products[i].No || "",
-        Qty: products[i].qty,
-        UnitPrice: products[i].price * products[i].qty,
-        LineDiscountAmount: "",
+        ItemNo: enrichedProducts[i].No || "",
+        Qty: enrichedProducts[i].qty,
+        UnitPrice: enrichedProducts[i].price || 0,
+        LineDiscountAmount: 0,
         PromoCode: "",
       });
     }
@@ -175,7 +240,9 @@ router.post("/new", async (req, res) => {
         name: locationCode,
       }).select("name");
     } else {
-      location = customer.Location_Code;
+      location = {
+        name: customer.Location_Code,
+      };
     }
     const before = location.name.split("_")[0];
 
@@ -219,7 +286,8 @@ router.post("/new", async (req, res) => {
     }
 
     const SalesLineTotal = SalesLine.reduce((total, item) => {
-      return total + item.UnitPrice;
+      const lineTotal = (Number(item.UnitPrice) || 0) * (Number(item.Qty) || 0);
+      return total + lineTotal;
     }, 0);
 
     const generatedSalesOrder = await SalesOrder.create({
@@ -336,6 +404,7 @@ router.get("/list", async (req, res) => {
       matchStage = {
         $and: [
           { org: req.user.org },
+          { createdBy: req.user._id },
           {
             $or: [
               { DocumentNo: { $regex: searchKey, $options: "i" } },

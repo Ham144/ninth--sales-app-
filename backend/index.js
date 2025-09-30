@@ -21,6 +21,9 @@ import overdueRoutes from "./routes/overdue.route.js";
 import locationRoutes from "./routes/Location.route.js";
 import authorizeSupertenant from "./middlewares/authoririzeSupertenant.js";
 import integrationRoutes from "./routes/integration.route.js";
+import apiKeyAuth from "./middlewares/apiKeyAuth.js";
+import userRoutes from "./routes/user.routes.js";
+import organizationRoutes from "./routes/organization.route.js";
 
 const __dirname = path.resolve();
 
@@ -29,12 +32,12 @@ const corsOrigin = isProduction
   ? [
       "http://midcsi.muara.co.id:7047",
       "http://192.168.169.12:5173",
-      "https://192.168.169.12:1991",
+      "http://192.168.169.12:1991",
     ]
   : [
       "http://192.168.169.12:5173",
       "http://midcsi.muara.co.id:7047",
-      "https://192.168.169.12:1991",
+      "http://192.168.169.12:1991",
     ];
 
 const app = express();
@@ -75,12 +78,15 @@ app.use("/api/v1/customer", authenticate, customerRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
 app.use("/api/v1/overdue", authenticate, overdueRoutes);
 app.use("/api/v1/location", authenticate, locationRoutes);
+// source of truth endpoint (pakai x-api-key krn Backend to Backend)
+app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
+app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
 
 //frontend routes
-app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
-});
+// app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+// });
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();

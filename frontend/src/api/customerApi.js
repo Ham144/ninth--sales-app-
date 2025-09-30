@@ -13,7 +13,7 @@ const CustomerApi = {
     return response.data;
   },
   getByNo: async (no) => {
-    const response = await axiosInstance.post(`/api/v1/customer/getByNo/${no}`);
+    const response = await axiosInstance.get(`/api/v1/customer/getByNo/${no}`);
     return response.data;
   },
 };

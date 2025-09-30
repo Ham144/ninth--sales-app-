@@ -31,28 +31,13 @@ export const getUserInfo = async () => {
     });
     return res.data;
   } catch (error) {
-    const originalRequest = error.config;
-
-    // Jika token expired
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
-
-      try {
-        // Coba refresh token (tidak perlu ambil accessToken)
-        await axiosInstance.post("/api/auth/refresh-token", null, {
-          withCredentials: true,
-        });
-
-        // Ulangi getUserInfo
-        const retryRes = await axiosInstance(originalRequest);
-        return retryRes.data;
-      } catch (refreshError) {
-        console.error("🔁 Refresh token failed (cookie-based)", refreshError);
-        throw refreshError;
-      }
-    }
-
-    throw error;
+    // Jika error (termasuk setelah interceptor coba refresh), return response yang menandakan user tidak login
+    console.log("getUserInfo failed:", error.message);
+    return {
+      success: false,
+      userInfo: null,
+      message: "User not authenticated",
+    };
   }
 };
 

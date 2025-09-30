@@ -99,7 +99,7 @@ const OverduePage = () => {
                   </td>
                 </tr>
               ) : overdueList?.data?.data?.length > 0 ? (
-                overdueList.data.data.map((item, index) => (
+                overdueList?.data.data.map((item, index) => (
                   <tr key={item._id} className="hover:bg-gray-50">
                     <td>{skip + index + 1}</td>
                     <td>{item.documentNo}</td>

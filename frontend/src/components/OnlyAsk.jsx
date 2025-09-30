@@ -5,8 +5,6 @@ import ProductApi from "@/api/productApi";
 import { toast, Toaster } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { AlertDialog } from "./ui/alert-dialog";
-import { Trash2 } from "lucide-react";
 import Item from "./Item";
 
 const OnlyAsk = ({ setSalesOrder, salesOrder, locationCode }) => {
@@ -80,7 +78,6 @@ const OnlyAsk = ({ setSalesOrder, salesOrder, locationCode }) => {
       }
 
       return [
-        ...prev,
         {
           ...prod,
           qty: 1,
@@ -89,6 +86,7 @@ const OnlyAsk = ({ setSalesOrder, salesOrder, locationCode }) => {
           stockAvailable: stockAvailable + " - " + customerLocation, // ✅ hanya stok yang match
           selectedForSalesOrder: false,
         },
+        ...prev,
       ];
     });
 
@@ -107,7 +105,7 @@ const OnlyAsk = ({ setSalesOrder, salesOrder, locationCode }) => {
 
     setSalesOrder((prev) => ({
       ...prev,
-      products: [...remainingUniqueSalesOrderProd, ...askedProductOn],
+      products: [...askedProductOn,...remainingUniqueSalesOrderProd, ],
     }));
 
     setAskedProduct([]);

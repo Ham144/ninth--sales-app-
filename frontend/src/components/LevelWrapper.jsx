@@ -6,10 +6,10 @@ import { useQuery } from "@tanstack/react-query";
 import React, { useEffect, useRef } from "react"; // Tambahkan useRef
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { LoaderOne, LoaderThree } from "./ui/loader";
+import { LoaderOne } from "./ui/loader";
 
 const LevelWrapper = () => {
-  const { userInfo, setUserInfo, clearUserInfo } = useUserInfo();
+  const { userInfo, setUserInfo } = useUserInfo();
   const location = useLocation();
   const navigate = useNavigate();
   const hasFetchedUserInfoOnMount = useRef(false); // Flag untuk melacak fetch awal
@@ -37,33 +37,40 @@ const LevelWrapper = () => {
     queryFn: async () => {
       console.log("Fetching getUserInfo from backend...");
       const response = await getUserInfo();
-      setUserInfo(response.userInfo);
+      // Hanya set userInfo jika response success dan ada userInfo
+      if (response.success && response.userInfo) {
+        setUserInfo(response.userInfo);
+      } else {
+        // Jika tidak success, set userInfo ke null (user tidak login)
+        setUserInfo(null);
+      }
       return response;
     },
-    refetchOnWindowFocus: false, // <-- Ubah ini!
-    staleTime: Infinity, // <-- Ubah ini! Data dianggap selalu segar sampai kita minta ulang
+    refetchOnWindowFocus: false,
+    staleTime: Infinity,
     retry: 1,
-    //getUserInfo hanya dipanggil jika fullreload atau ke /login, karena getUserInfo itu berat hit database, dan sudah ada axiosInstance yang menangani 401 dari middleware authenticate
+    //getUserInfo dipanggil jika userInfo tidak ada dan BUKAN di halaman login
+    // Di halaman login, TIDAK perlu cek authentication sama sekali
     enabled: !userInfo && !isPublicPath && !hasFetchedUserInfoOnMount.current,
   });
 
   // Efek untuk memicu fetch getUserInfo hanya saat komponen dimuat pertama kali
   // atau saat user pindah dari halaman public ke protected dan userInfo belum ada
   useEffect(() => {
-    // Jika belum pernah fetch userInfo pada mount ini
-    // Dan bukan public path
-    // Dan userInfo belum ada di Zustand
-    if (!hasFetchedUserInfoOnMount.current && !isPublicPath && !userInfo) {
+    // Jika belum pernah fetch userInfo pada mount ini dan userInfo belum ada di Zustand
+    // Dan bukan di halaman login
+    if (!hasFetchedUserInfoOnMount.current && !userInfo && !isPublicPath) {
       console.log("Initial check or re-check for user session.");
       refetch();
       hasFetchedUserInfoOnMount.current = true; // Set flag agar tidak fetch berulang
     }
-  }, [isPublicPath, userInfo, refetch]); // Dependencies
+  }, [userInfo, refetch, isPublicPath]); // Dependencies
 
   // Efek untuk penanganan redirect berdasarkan status autentikasi dan otorisasi
   useEffect(() => {
     // 1. Jika loading selesai dan user TIDAK login dan BUKAN di public path
-    if (!isLoading && !userInfo && !isPublicPath) {
+    // Tapi jangan redirect jika sudah di halaman login (untuk mencegah infinite loop)
+    if (!isLoading && !userInfo && !isPublicPath && currentPath !== "/login") {
       console.log(
         "Redirecting to login: User not authenticated for protected path."
       );

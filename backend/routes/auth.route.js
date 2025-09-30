@@ -11,7 +11,6 @@ import jwt from "jsonwebtoken";
 import speakEasy from "speakeasy";
 import axios from "axios";
 import qrcode from "qrcode";
-import mongoose, { Mongoose } from "mongoose";
 
 const router = Router();
 
@@ -686,7 +685,11 @@ router.post("/refresh-token", async (req, res) => {
       maxAge: 1 * 60 * 1000, // 1 menit
     });
 
-    return res.json({ message: "Token berhasil diperbarui" });
+    // Jangan update refresh token di database, biarkan tetap sama
+    // Refresh token akan expire sesuai JWT expiration time
+    // Hanya update access token saja
+
+    return res.json({ message: "Token berhasil diperbarui", access_token: accessToken });
   } catch (err) {
     console.log(err);
     return res
@@ -817,7 +820,7 @@ router.get(
       _id: req.user._id,
       org: req.user.org,
     })
-      .select("-password -refreshToken")
+      .select("-password -refreshToken -_2faSecret")
       .lean();
 
     if (!userDB) {
@@ -1282,13 +1285,6 @@ router.post("/2fa/login-complete", async (req, res) => {
     const accessToken = await generateTokenJWT(payload);
     const refreshToken = await generateRefreshToken(payload);
 
-    res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "Lax",
-      maxAge: 1 * 60 * 1000,
-    });
-
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: false,
@@ -1296,10 +1292,20 @@ router.post("/2fa/login-complete", async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+      maxAge: 5 * 60 * 1000,
+    });
+
     user.refreshToken = refreshToken;
     await user.save();
 
-    return res.json({ success: true, message: "Login completed with 2FA" });
+    return res.json({ success: true,
+      refresh_token: refreshToken,
+      access_token: accessToken,
+       message: "Login completed with 2FA" });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error?.message });

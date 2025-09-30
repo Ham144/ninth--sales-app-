@@ -29,7 +29,7 @@ router.post("/generate/apiKey", async (req, res) => {
 
     await IntegrationKeyModel.create({
       apiKey: xapiKey,
-      expiredAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+      expiredAt: new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000), // 3 year
       status: "active",
       createdAt: new Date(),
       projectName: req.body.projectName,

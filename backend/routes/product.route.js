@@ -10,19 +10,26 @@ router.get("/list", async (req, res) => {
   const searchKey = req.query.searchKey || "";
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
+  
+  let query = { Blocked_MA: false };
 
-  let query = {};
   if (searchKey) {
     const escaped = escapeRegex(searchKey);
     query = {
-      $or: [
-        { No: { $regex: "^" + escaped, $options: "i" } },
-        { Description: { $regex: escaped, $options: "i" } },
-        { Description_2: { $regex: escaped, $options: "i" } },
-        { Description_3: { $regex: escaped, $options: "i" } },
+      $and: [
+        { Blocked_MA: false }, // tetap filter yg false
+        {
+          $or: [
+            { No: { $regex: "^" + escaped, $options: "i" } },
+            { Description: { $regex: escaped, $options: "i" } },
+            { Description_2: { $regex: escaped, $options: "i" } },
+            { Description_3: { $regex: escaped, $options: "i" } },
+          ],
+        },
       ],
     };
   }
+  
 
   if (
     req?.user?.description?.startsWith("SALES") &&

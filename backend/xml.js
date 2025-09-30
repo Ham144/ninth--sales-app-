@@ -67,7 +67,7 @@ export const requestSalesOrderXml = ({
           <CustomerPriceGrp></CustomerPriceGrp>
           <SalespersonCode></SalespersonCode>
           <SellToContact></SellToContact>
-          <NoSeries>${NoSeries}</NoSeries> 
+          <NoSeries>${NoSeries}</NoSeries>
           <ExtDoc>${ExtDoc || ""}</ExtDoc>
           <RequestDeliveryDate>${RequestDeliveryDate}</RequestDeliveryDate>
           <Keterangan>${Keterangan}</Keterangan>

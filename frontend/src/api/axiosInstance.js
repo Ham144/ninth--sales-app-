@@ -48,6 +48,13 @@ axiosInstance.interceptors.response.use(
         }
       } catch (refreshError) {
         console.error("Refresh token failed:", refreshError);
+        // Jika refresh token gagal, redirect ke login
+        if (refreshError.response?.status === 401) {
+          // Clear user state dan redirect ke login
+          if (typeof window !== "undefined") {
+            window.location.href = "/login";
+          }
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

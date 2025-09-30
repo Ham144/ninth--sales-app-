@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       required: true,
-      enum: ["owner", "member", "supertenant"],
+      enum: ["member", "viewer", "owner", "supertenant"],
       default: "member",
     },
     password: String, //ini untuk authMethod 'app'
@@ -34,6 +34,13 @@ const userSchema = new mongoose.Schema(
     //2fa google authenticator
     _2faSecret: String,
     _2faIsVerified: Boolean,
+    //new
+    phone: {
+      type: String,
+    },
+    otp: String, //otp untuk login whatsapp bukan 2fa
+    otpExpired: Date,
+    otpTried: Number, //maks 5 percobaan
   },
   { timestamps: true }
 );

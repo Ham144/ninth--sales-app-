@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { cn } from "@/lib/utils";
 import { APP_NAME, NODE_ENV, siteKeyCloudflare } from "@/api/constant";
 import { DotBackgroundDemo } from "@/components/ui/DotBackgroundDemo";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { refreshToken, loginApp, loginLdap, getUserInfo } from "@/api/authApi";
+import { loginApp, loginLdap, getUserInfo } from "@/api/authApi";
 import { toast } from "sonner";
 import OrgApi from "@/api/orgApi";
 import { useUserInfo } from "@/store";
@@ -23,9 +23,10 @@ export default function SignupFormDemo() {
   });
   const [captchaToken, setCaptchaToken] = useState("");
 
-  const { setUserInfo } = useUserInfo();
+  const { setUserInfo, userInfo } = useUserInfo();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const hasCheckedAuth = useRef(false);
 
   const [search, setSearch] = useState("*");
   const { data: orgList } = useQuery({
@@ -33,10 +34,8 @@ export default function SignupFormDemo() {
     queryFn: () => OrgApi.getAllOrg(search),
   });
 
-  const { data: userInfo } = useQuery({
-    queryKey: ["userInfo"],
-    queryFn: async () => await getUserInfo(),
-  });
+  // Cek authentication sekali saat mount, tapi jangan panggil getUserInfo
+  // Karena getUserInfo bisa menyebabkan reload jika token tidak ada
 
   const { mutateAsync: handleLoginLdap, isPending: isLoginLdapPending } =
     useMutation({
@@ -136,14 +135,40 @@ export default function SignupFormDemo() {
       },
     });
 
+  // Cek authentication sekali saat mount
   useEffect(() => {
-    if (userInfo?.success) {
+    const checkAuth = async () => {
+      if (!hasCheckedAuth.current && !userInfo) {
+        hasCheckedAuth.current = true;
+
+        // Cek apakah ada refresh_token cookie (tanpa memanggil API)
+        const hasRefreshToken = document.cookie.includes("refresh_token=");
+
+        if (hasRefreshToken) {
+          // Jika ada cookie, coba panggil getUserInfo dengan error handling
+          try {
+            const response = await getUserInfo();
+            if (response.success && response.userInfo) {
+              setUserInfo(response.userInfo);
+            }
+          } catch (error) {
+            // Jika error, biarkan user tetap di login page
+            console.log("Auth check failed, staying on login page");
+          }
+        }
+      }
+    };
+
+    checkAuth();
+  }, []); // Empty dependency - hanya jalan sekali
+
+  // Redirect jika user sudah login
+  useEffect(() => {
+    if (userInfo) {
+      toast.success("Anda sudah login, mengalihkan...");
       navigate("/");
-      setTimeout(() => {
-        navigate("/");
-      }, 1000);
     }
-  }, [userInfo]);
+  }, [userInfo, navigate]);
 
   return (
     <DotBackgroundDemo>
