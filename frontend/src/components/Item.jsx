@@ -142,13 +142,6 @@ const Item = ({
                     const newQty = parseInt(e.target.value, 10) || 0;
                     const maxStock = stockData?.stockResult || 999999;
 
-                    if (newQty > maxStock) {
-                      toast.error(
-                        `Quantity melebihi stok tersedia (${maxStock})`
-                      );
-                      return;
-                    }
-
                     setManualQty.length === 2
                       ? setManualQty(prod.No, newQty)
                       : setManualQty(newQty);
@@ -162,12 +155,6 @@ const Item = ({
                   const newQty = prod.qty + 1;
                   const maxStock = stockData?.stockResult || 999999;
 
-                  if (newQty > maxStock) {
-                    toast.error(
-                      `Quantity melebihi stok tersedia (${maxStock})`
-                    );
-                    return;
-                  }
 
                   updateProductQty.length === 2
                     ? updateProductQty(prod.No, 1)

@@ -29,7 +29,6 @@ const Home = () => {
           </div>
         </div>
       </h2>
-
       <div className="relative container h-full ">
         <ul className="grid gap-4 p-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 h-[calc(100vh-8rem)] overflow-y-auto pb-32">
           {/* Profile Card */}
@@ -43,7 +42,6 @@ const Home = () => {
               path="/profile"
             />
           )}
-
           {/* Quick Actions */}
           <GridItem
             icon={<Package className="h-5 w-5 text-yellow-600" />}
@@ -52,7 +50,6 @@ const Home = () => {
             path="/request"
             disabled={userInfo?.description === "OVERDUE"}
           />
-
           <GridItem
             icon={<History className="h-5 w-5 text-green-600" />}
             title="Proceed Sales Order"
@@ -66,10 +63,7 @@ const Home = () => {
             title="Overdue Page"
             description="Lihat daftar Overdue hanya untuk description OVERDUE"
             path="/overdue/list"
-            disabled={
-              userInfo?.description === "SALES" ||
-              userInfo?.description === "SALES_PHILIPS"
-            }
+            disabled={userInfo?.description?.startsWith("SALES")}
           />
           <GridItem
             icon={<Logs className="h-5 w-5 text-neutral-500" />}

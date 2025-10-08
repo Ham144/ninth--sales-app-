@@ -11,7 +11,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
     displayName: String,
-    description: String, //dari AD
+    description: String, //dari AD // IT | SMD | SALES_ | SALES 
     email: String,
     role: {
       type: String,

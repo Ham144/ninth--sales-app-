@@ -20,7 +20,9 @@ const OverduePage = () => {
   const { userInfo } = useUserInfo();
 
   useEffect(() => {
-    if (userInfo?.description == "SALES") {
+    if (
+      userInfo?.description?.startsWith("SALES")
+    ) {
       navigate("/not-found");
     }
   }, [userInfo]);

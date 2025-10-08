@@ -689,7 +689,10 @@ router.post("/refresh-token", async (req, res) => {
     // Refresh token akan expire sesuai JWT expiration time
     // Hanya update access token saja
 
-    return res.json({ message: "Token berhasil diperbarui", access_token: accessToken });
+    return res.json({
+      message: "Token berhasil diperbarui",
+      access_token: accessToken,
+    });
   } catch (err) {
     console.log(err);
     return res
@@ -1302,10 +1305,12 @@ router.post("/2fa/login-complete", async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    return res.json({ success: true,
+    return res.json({
+      success: true,
       refresh_token: refreshToken,
       access_token: accessToken,
-       message: "Login completed with 2FA" });
+      message: "Login completed with 2FA",
+    });
   } catch (error) {
     console.log(error);
     return res.status(500).json({ success: false, message: error?.message });
@@ -1383,6 +1388,8 @@ router.delete(
     }); // Pastikan opsi cookie sama saat menghapus
     return res.json({
       success: true,
+      refresh_token: "",
+      access_token: "",
       message: "Berhasil logout.",
     });
   })

@@ -33,9 +33,9 @@
 #SO update
 [x] mod: tidak bisa pilih location dan tidak perlu tampilin overdue
 [x] mod: download data sudah di filter untuk user.description.vendor
-[x] fix: bug munculnya sales order yang bukan miliknya di hal. process 
+[x] fix: bug munculnya sales order yang bukan miliknya di hal. process
 
-[x] mod:  blocked_ma : true tidak perlu dikeluarin
+[x] mod: blocked_ma : true tidak perlu dikeluarin
 [x] mod: item yg baru di atas
 [x] fix: UI set manual qty SO
 # untuk menjadi source of truth (data user, org, product, location, SO dan model lain)
