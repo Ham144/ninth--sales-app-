@@ -31,7 +31,7 @@ const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
   ? [
       "http://midcsi.muara.co.id:7047",
-      "http://192.168.169.12:5173",
+      "https://s-bit.muara.co.id",
       "http://192.168.169.12:1991",
     ]
   : [

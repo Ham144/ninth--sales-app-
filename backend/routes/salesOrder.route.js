@@ -32,7 +32,7 @@ export const requestSalesOrder = async ({
     if (!req.user || !req.user.org) {
       return { error: true, message: "User atau organization tidak ditemukan" };
     }
- 
+
     const org = await Org.findById(req.user.org).select(
       "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
     );
@@ -399,10 +399,7 @@ router.get("/list", async (req, res) => {
     //jika IT maka munculkan SO
     let matchStage = { org: req.user.org };
 
-    if (
-      req.user.description !== "IT" &&
-      req.user.role !== "supertenant" 
-    ) {
+    if (req.user.description !== "IT" && req.user.role !== "supertenant") {
       matchStage.createdBy = req.user._id;
     }
 
@@ -516,7 +513,9 @@ router.delete("/temp/delete/:id", async (req, res) => {
   const id = req.params.id;
 
   try {
-    await TemporarySalesOrder.findByIdAndDelete(id);
+    await TemporarySalesOrder.findOneAndDelete({
+      _id: id,
+    });
     return res.json({ message: "Temporary Sales Order Berhasil Dihapus" });
   } catch (error) {
     console.log(error);

@@ -41,7 +41,7 @@ export const getUserInfo = async () => {
   }
 };
 
-export const getAllAccount = async () => {
+export const getAllAccount = async ({}) => {
   const response = await axiosInstance.get(`/api/auth/getAllAccount`);
   return response.data;
 };

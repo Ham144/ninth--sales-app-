@@ -80,9 +80,10 @@ router.get("/getByNo/:no", async (req, res) => {
       });
     }
 
-    //jika ada vendor tidak perlu keluarin overdue
     const vendor = req?.user?.description?.split("_")[1];
+
     let pembayaranTertunda = [];
+    //jika ada vendor tidak perlu keluarin overdue
     if (!vendor) {
       console.log("vendor tidak ada jadi masuk sini ");
       const myOrganization = await Org.findById(req.user.org).select(
@@ -133,11 +134,27 @@ router.get("/getByNo/:no", async (req, res) => {
               return dueDate < new Date(today).getTime();
             })
           : [];
+
+      const data = {
+        customer,
+        pembayaranTertunda,
+      };
+      return res.json({
+        data: data,
+        message: "berhasil mengambil single data",
+      });
     }
 
+    //sensor beberapa value jika SMD
+    const customerObj = customer.toObject();
+    customer = {
+      ...customerObj,
+      Balance: "SMD not GRANTED",
+      Balance_Due: "SMD not GRANTED",
+      Credit_Limit_LCY: "SMD not GRANTED",
+    };
     const data = {
       customer,
-      pembayaranTertunda,
     };
 
     return res.json({

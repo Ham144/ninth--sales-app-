@@ -40,3 +40,4 @@
 [x] fix: UI set manual qty SO
 # untuk menjadi source of truth (data user, org, product, location, SO dan model lain)
 [x] add: enpoint findUser: byId byUsername dll
+[x] mod: stock no access jika SMD

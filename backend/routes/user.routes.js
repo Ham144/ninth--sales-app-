@@ -4,17 +4,29 @@ import UserRefrensi from "../models/User.model.js";
 const router = Router();
 
 router.get("/findById/:id", async (req, res) => {
-  const user = await UserRefrensi.findById(id).select(
+  const user = await UserRefrensi.findById(req?.params?.id).select(
     "-otpExpired -otp -_2faSecret -password -refreshToken"
   );
   return res.json(user);
 });
 
 router.get("/findByUsername/:username", async (req, res) => {
-  const user = await UserRefrensi.findOne({ username }).select(
-    "-otpExpired -otp -_2faSecret -password -refreshToken"
-  );
-  return res.json(user);
+  try {
+    const username = req.params.username?.trim();
+    if (!username)
+      return res.status(400).json({ message: "Username tidak diberikan" });
+
+    // Escape karakter regex spesial
+    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const user = await UserRefrensi.find({
+      username: { $regex: escaped, $options: "i" }, // i = case-insensitive
+    }).select("-otpExpired -otp -_2faSecret -password -refreshToken");
+
+    return res.json(user);
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
 });
 
 router.post("/findManyByIds", async (req, res) => {

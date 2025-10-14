@@ -35,7 +35,8 @@ const userSchema = new mongoose.Schema(
     _2faSecret: String,
     _2faIsVerified: Boolean,
     //new
-    phone: {
+    whatsappOtpIsVerified: Boolean,
+    phone: { //format: 628..
       type: String,
     },
     otp: String, //otp untuk login whatsapp bukan 2fa

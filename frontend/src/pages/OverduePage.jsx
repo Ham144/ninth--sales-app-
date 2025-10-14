@@ -20,12 +20,10 @@ const OverduePage = () => {
   const { userInfo } = useUserInfo();
 
   useEffect(() => {
-    if (
-      userInfo?.description?.startsWith("SALES")
-    ) {
+    if (userInfo?.description?.startsWith("SALES")) {
       navigate("/not-found");
     }
-  }, [userInfo]);
+  }, []);
 
   const skip = (page - 1) * limit;
 

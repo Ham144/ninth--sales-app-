@@ -38,7 +38,7 @@ const TurnstileCaptcha = ({ siteKey, onVerify, onError }) => {
       delete window.onTurnstileSuccess;
     };
   }, [onError]);
-
+  
   useEffect(() => {
     if (
       scriptLoaded &&

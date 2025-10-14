@@ -11,6 +11,8 @@ import jwt from "jsonwebtoken";
 import speakEasy from "speakeasy";
 import axios from "axios";
 import qrcode from "qrcode";
+import phoneFormating from "../utils/phoneFormating.js";
+import sendWa from "../utils/whatsappUtil.js";
 
 const router = Router();
 
@@ -207,7 +209,6 @@ const asyncHandler = (fn) => (req, res, next) => {
 // );
 
 //login LDAP ✅
-
 router.post(
   "/login/ldap",
   asyncHandler(async (req, res) => {
@@ -340,7 +341,9 @@ router.post(
         username,
         org: selectedOrg,
         authMethod: "ldap",
-      });
+      }).select(
+        "-password -createdAt -email -otp -refreshToken -role -otpExpired -_2faSecret  -updatedAt -__v"
+      );
 
       if (
         !userLDAP?.description.startsWith("SALES") &&
@@ -393,6 +396,7 @@ router.post(
           { $set: { email: userLDAP["mail"] } }
         );
       }
+
       if (userDB.displayName !== userLDAP["displayName"]) {
         await UserRefrensi.findOneAndUpdate(
           { username },
@@ -422,6 +426,41 @@ router.post(
         });
       }
 
+      // If whatsappOtpIsVerified is enabled for the user, return pending token and skip cookies
+      if (userDB?.whatsappOtpIsVerified && userDB?.phone) {
+        const otp = Math.floor(100000 + Math.random() * 900000);
+        const isSuccess = await sendWa({ message: otp, phone: userDB.phone });
+        if (isSuccess) {
+          userDB.otp = otp;
+          userDB.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+          userDB.otpTried = 0;
+          console.log(userDB);
+          await userDB.save();
+        } else {
+          return res.status(400).json({
+            success: false,
+            message: "Terjadi kesalahan mengirim OTP ke Whatsapp",
+          });
+        }
+        const pendingToken = jwt.sign(
+          {
+            _id: userDB._id,
+            org: OrgDB._id,
+            method: "app",
+            whatsappOtp: true,
+            stage: "pending",
+          },
+          process.env.JWT_SECRET,
+          { expiresIn: "5m" }
+        );
+
+        return res.json({
+          success: true,
+          whatsappOtpIsVerified: true,
+          pendingToken,
+          message: "Whatsapp OTP verification required",
+        });
+      }
       const payload = {
         _id: userDB._id,
         username: username,
@@ -536,7 +575,7 @@ router.post("/login/app", async (req, res) => {
 
   // Ambil user dengan password (jangan .select dulu!)
   let userDB;
-  if (username == " ") {
+  if (username == "SUPERTENANT") {
     userDB = await UserRefrensi.findOne({
       username,
     });
@@ -556,7 +595,6 @@ router.post("/login/app", async (req, res) => {
   }
 
   const isPasswordMatch = await bcrypt.compare(password, userDB.password);
-  console.log("isPasswordMatch", isPasswordMatch);
   if (!isPasswordMatch) {
     return res.status(400).json({
       success: false,
@@ -596,6 +634,40 @@ router.post("/login/app", async (req, res) => {
       message: "2FA verification required",
     });
   }
+  // If whatsappOtpIsVerified is enabled for the user, return pending token and skip cookies
+  if (userDB?.whatsappOtpIsVerified && userDB?.phone) {
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const isSuccess = await sendWa({ message: otp, phone: userDB.phone });
+    if (isSuccess) {
+      userDB.otp = otp;
+      userDB.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+      userDB.otpTried = 0;
+      await userDB.save();
+    } else {
+      return res.json({
+        success: false,
+        message: "Terjadi kesalahan mengirim OTP ke Whatsapp",
+      });
+    }
+    const pendingToken = jwt.sign(
+      {
+        _id: userDB._id,
+        org: OrgDB._id,
+        method: "app",
+        whatsappOtp: true,
+        stage: "pending",
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "5m" }
+    );
+
+    return res.json({
+      success: true,
+      whatsappOtpIsVerified: true,
+      pendingToken,
+      message: "Whatsapp OTP verification required",
+    });
+  }
 
   const payload = {
     _id: userDB._id,
@@ -611,7 +683,7 @@ router.post("/login/app", async (req, res) => {
     httpOnly: true,
     secure: false,
     sameSite: "Lax",
-    maxAge: 1 * 60 * 1000,
+    maxAge: 5 * 60 * 1000,
   });
 
   res.cookie("refresh_token", refreshToken, {
@@ -628,7 +700,7 @@ router.post("/login/app", async (req, res) => {
 
   return res.json({
     success: true,
-    message: "Selamat datang.",
+    message: "Selamat datang kembali.",
     data: userWithoutPassword,
     accessToken,
     refreshToken,
@@ -807,6 +879,42 @@ router.put(
   })
 );
 
+router.put("/update/my-profile", authenticate, async (req, res) => {
+  const {
+    displayName,
+    email,
+    password,
+    oldPassword,
+    phone,
+    whatsappOtpIsVerified,
+  } = req.body;
+
+  let myUser = await UserRefrensi.findById(req.user._id);
+  if (displayName) myUser.displayName = displayName;
+  if (email) myUser.email = email;
+  if (phone) myUser.phone = await phoneFormating(phone);
+  if (whatsappOtpIsVerified != null) {
+    myUser.whatsappOtpIsVerified = whatsappOtpIsVerified;
+  }
+
+  if (password && myUser.authMethod === "app") {
+    if (!oldPassword)
+      return res.status(400).json({ message: "oldPassword is required." });
+    const isMatch = await bcrypt.compare(oldPassword, myUser.password);
+    if (!isMatch) return res.status(400).json({ message: "Password salah." });
+    const salt = await bcrypt.getSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    myUser.password = hashedPassword;
+  }
+
+  await myUser.save();
+
+  return res.json({
+    success: true,
+    message: "User berhasil diperbarui.",
+  });
+});
+
 //ini untuk memperbarui userInfo karena di authenticate payload cuma di decode
 router.get(
   "/getUserInfo",
@@ -823,7 +931,9 @@ router.get(
       _id: req.user._id,
       org: req.user.org,
     })
-      .select("-password -refreshToken -_2faSecret")
+      .select(
+        "-password -refreshToken -_2faSecret -otp -createdAt -otpTried -updatedAt -__v"
+      )
       .lean();
 
     if (!userDB) {
@@ -880,16 +990,26 @@ router.get(
   authenticate,
   authorize,
   asyncHandler(async (req, res) => {
-    console.log(req.user.org);
-    const userDBs = await UserRefrensi.find({
-      org: req.user.org,
-    }).select("-password");
+    try {
+      const { username } = req.query;
+      const query = username
+        ? {
+            username: {
+              $regex: username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
+              $options: "i",
+            },
+          }
+        : {};
 
-    return res.json({
-      success: true,
-      message: "Semua akun berhasil diambil.",
-      data: userDBs,
-    });
+      const user = await UserRefrensi.find(query)
+        .select("-otpExpired -otp -_2faSecret -password -refreshToken")
+        .sort({ createdAt: -1 })
+        .limit(5);
+
+      return res.json(user);
+    } catch (err) {
+      return res.status(500).json({ message: err.message });
+    }
   })
 );
 
@@ -1212,6 +1332,86 @@ router.post("/2fa/verify", authenticate, async (req, res) => {
   }
 });
 
+//whatsapp otp init
+router.get("/whatsapp-otp/test", authenticate, async (req, res) => {
+  try {
+    const user = await UserRefrensi.findOne({
+      _id: req.user._id,
+      org: req.user.org,
+    });
+
+    if (!user?.whatsappOtpIsVerified && user?.phone) {
+      //buat otp 6 digit
+      const otp = Math.floor(100000 + Math.random() * 900000);
+      const isSuccess = await sendWa({ message: otp, phone: user.phone });
+      if (isSuccess) {
+        user.otp = otp;
+        user.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+        user.otpTried = 0;
+        await user.save();
+        return res.json({ success: true, message: "success" });
+      } else {
+        return res.json({ success: false, message: "failed" });
+      }
+    }
+    return res
+      .status(400)
+      .json({ success: false, message: "user harus memiliki nomor whatsapp" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ success: false, message: error?.message });
+  }
+});
+
+//confirmation of whatsapp  OTP layer 3 activation not for the login check
+router.post("/whatsapp-otp/verify", authenticate, async (req, res) => {
+  const { otp } = req.body;
+
+  if (!otp)
+    return res.status(400).json({
+      success: false,
+      message: "otp is required",
+    });
+  try {
+    const user = await UserRefrensi.findOne({
+      _id: req.user._id,
+      org: req.user.org,
+    });
+
+    if (!user.otp) {
+      return res.status(400).json({
+        success: false,
+        message: "otp belum ditetapkan",
+      });
+    }
+
+    const isMatched = otp === user.otp;
+    if (isMatched) {
+      user.whatsappOtpIsVerified = true;
+      user.otp = "";
+      user.otpTried = 0;
+      user.otpExpiresAt = null;
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: "whatsapp Otp Is Verified and enabled successfully",
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: "OTP salah",
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({
+      message: error?.message,
+    });
+  }
+});
+
 // complete 2FA login: verify OTP against user's secret and then issue cookies
 router.post("/2fa/login-complete", async (req, res) => {
   const { otp, pendingToken } = req.body;
@@ -1264,6 +1464,42 @@ router.post("/2fa/login-complete", async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
 
+    //stop disini jika ada layer 3 (whatsapp OTP)
+    if (user?.whatsappOtpIsVerified && user?.phone) {
+      const otp = Math.floor(100000 + Math.random() * 900000);
+      const isSuccess = await sendWa({ message: otp, phone: user.phone });
+      if (isSuccess) {
+        user.otp = otp;
+        user.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
+        user.otpTried = 0;
+        console.log(user);
+        await user.save();
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Terjadi kesalahan mengirim OTP ke Whatsapp",
+        });
+      }
+      const pendingToken = jwt.sign(
+        {
+          _id: decoded._id,
+          org: decoded.org,
+          method: "app",
+          whatsappOtp: true,
+          stage: "pending",
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: "5m" }
+      );
+
+      return res.json({
+        success: true,
+        whatsappOtpIsVerified: true,
+        pendingToken,
+        message: "Whatsapp OTP verification required",
+      });
+    }
+
     const OrgDB = await Org.findById(decoded.org);
     if (!OrgDB) {
       return res
@@ -1313,6 +1549,104 @@ router.post("/2fa/login-complete", async (req, res) => {
     });
   } catch (error) {
     console.log(error);
+    return res.status(500).json({ success: false, message: error?.message });
+  }
+});
+
+// complete whatsapp OTP login layer
+router.post("/whatsapp-otp/login-complete", async (req, res) => {
+  const { otp, pendingToken } = req.body;
+
+  if (!otp || !pendingToken) {
+    return res.status(400).json({
+      success: false,
+      message: "otp and pendingToken are required",
+    });
+  }
+
+  try {
+    let decoded;
+    try {
+      decoded = jwt.verify(pendingToken, process.env.JWT_SECRET);
+    } catch (err) {
+      return res
+        .status(401)
+        .json({ message: "Invalid or expired pending token" });
+    }
+
+    if (!decoded?.whatsappOtp || decoded?.stage !== "pending") {
+      return res.status(400).json({ message: "Invalid pending token stage" });
+    }
+
+    const user = await UserRefrensi.findOne({
+      _id: decoded._id,
+      org: decoded.org,
+    });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+    const isMatched = user.otp === otp;
+
+    if (!isMatched) {
+      return res.status(400).json({ success: false, message: "Invalid OTP" });
+    }
+
+    const OrgDB = await Org.findById(decoded.org);
+    if (!OrgDB) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Organization not found" });
+    }
+    if (OrgDB?.isDisabled) {
+      return res.status(400).json({
+        message:
+          "anda tidak bisa login, Organization terkait saat ini dibekukan",
+      });
+    }
+
+    const payload = {
+      _id: user._id,
+      username: user.username,
+      org: OrgDB._id,
+      role: user.role,
+      description: user?.description,
+    };
+
+    const accessToken = await generateTokenJWT(payload);
+    const refreshToken = await generateRefreshToken(payload);
+
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    res.cookie("access_token", accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "Lax",
+      maxAge: 5 * 60 * 1000,
+    });
+
+    user.refreshToken = refreshToken;
+    //reset
+    user.whatsappOtpIsVerified = true;
+    user.otp = "";
+    user.otpTried = 0;
+    user.otpExpired = null;
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      refresh_token: refreshToken,
+      access_token: accessToken,
+      message: "Login completed with Whatsppap OTP",
+    });
+  } catch (error) {
     return res.status(500).json({ success: false, message: error?.message });
   }
 });

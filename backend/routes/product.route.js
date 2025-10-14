@@ -10,7 +10,7 @@ router.get("/list", async (req, res) => {
   const searchKey = req.query.searchKey || "";
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
-  
+
   let query = { Blocked_MA: false };
 
   if (searchKey) {
@@ -29,7 +29,6 @@ router.get("/list", async (req, res) => {
       ],
     };
   }
-  
 
   if (
     req?.user?.description?.startsWith("SALES") &&
@@ -85,9 +84,14 @@ router.get("/getStock", async (req, res) => {
   try {
     const stockResult = await fetchingSoapToGetStock(No, locationCode, req);
 
-    let updatedProduct = await Product.findOne({ No });
-    if (!updatedProduct) {
-      updatedProduct = new Product({ No });
+    //sensor stock jika description sales_{vendor}
+    // req.user = {
+    //   ...req.user,
+    //   description: "SALES_PHILLIPS",
+    // };
+    const vendor = req?.user?.description?.split("_")[1];
+    if (vendor) {
+      return res.json({ stockResult: "SMD NOT GRANTED" });
     }
 
     return res.json({ stockResult });

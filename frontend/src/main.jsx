@@ -9,7 +9,6 @@ import Home from "./pages/Home.jsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Profile from "./pages/Profile.jsx";
 import NotFound from "./pages/not-found.jsx";
-import AllAccounts from "./pages/AllAccounts.jsx";
 import LevelWrapper from "./components/LevelWrapper";
 import Config from "./pages/Config";
 import SuperTenantPage from "./pages/SuperTenantPage";

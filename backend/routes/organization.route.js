@@ -9,4 +9,9 @@ router.get("/findById/:id", async (req, res) => {
   return res.json(org);
 });
 
+router.get("/getAllOrg", async (req, res) => {
+  const org = await Org.find();
+  return res.json(org);
+});
+
 export default router;
