@@ -24,6 +24,11 @@ router.get("/integration/list", async (req, res) => {
 
 router.post("/generate/apiKey", async (req, res) => {
   try {
+    if (req.user.description != "IT") {
+      return res.status(403).json({
+        message: "Only IT can create API key",
+      });
+    }
     const random = crypto.randomBytes(16).toString("hex");
     const xapiKey = "CSIOPEN_" + random;
 

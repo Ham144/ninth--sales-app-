@@ -33,10 +33,10 @@ router.get("/list", async (req, res) => {
     const escaped = escapeRegex(searchKey?.trim());
     query = {
       $or: [
-        { No: { $regex: "^" + escaped, $options: "i" } },
-        { Name: { $regex: "^" + escaped, $options: "i" } },
-        { Phone_No: { $regex: "^" + escaped, $options: "i" } },
-        { HP_No: { $regex: "^" + escaped, $options: "i" } },
+        { No: { $regex: escaped, $options: "i" } },
+        { Name: { $regex: escaped, $options: "i" } },
+        { Phone_No: { $regex: escaped, $options: "i" } },
+        { HP_No: { $regex: escaped, $options: "i" } },
       ],
     };
   }
@@ -45,9 +45,9 @@ router.get("/list", async (req, res) => {
     const total = await Customer.countDocuments(query);
     const data = await Customer.find(query)
       .skip(skip)
-      .limit(limit)
+      .limit(!searchKey ? 10 : limit)
       .sort({ createdAt: -1 }) // opsional: urutkan
-      .select("_id No Name")
+      .select("_id No Name Address")
       .lean();
 
     const totalPages = Math.ceil(total / limit);

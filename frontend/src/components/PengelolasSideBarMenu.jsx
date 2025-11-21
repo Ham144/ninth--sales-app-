@@ -131,7 +131,7 @@ export default function PengelolaSideBarMenu({ children }) {
                   to={path}
                   className={({ isActive }) =>
                     `flex  items-center p-2 rounded-lg transition-all duration-200 ${
-                      userInfo.role != "supertenant" &&
+                      userInfo.description != "IT" &&
                       name == "supertenant" &&
                       "hidden"
                     } ${

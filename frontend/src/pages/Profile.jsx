@@ -115,10 +115,6 @@ const Profile = () => {
   });
 
   const [activeTab, setActiveTab] = useState("profile");
-  const [formData, setFormData] = useState({
-    password: "",
-    role: userInfo?.role || "", // Default role based on userInfo
-  });
 
   const { mutate: handleLogout } = useMutation({
     mutationFn: logout,

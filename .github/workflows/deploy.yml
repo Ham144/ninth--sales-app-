@@ -1,0 +1,54 @@
+name: Deploy to Production (Local Ubuntu)
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+
+    # pastikan sudah terinstall di server tujuan :
+    # - nodejs
+    # - pnpm atau npm based on dev
+    # - pm2 dan sudah setup
+    # - git
+    # - mongo
+    # - nginx dan sudah setup
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy and Restart App
+        run: echo "🚀 Mulai deploy di self-hosted runner..."
+          export PATH=$PATH:/home/ham/.nvm/versions/node/v22.16.0/bin
+
+          which node || echo "❌ Node not found"
+          which npm || echo "❌ npm not found"
+
+          WORKDIR="/home/ham/midcsi"
+
+          cd "$WORKDIR"
+          git fetch origin main
+          git reset --hard origin/main
+
+          cd "$WORKDIR" || { echo "❌ Folder project tidak ditemukan"; exit 1; }
+
+          echo "📂 Struktur folder:"
+          ls -la
+
+          echo "🧱 Build frontend..."
+          cd frontend
+          npm install --no-frozen-lockfile
+          npm run build
+
+          echo "⚙️ Build backend..."
+          cd ../backend
+          rm -rf node_modules
+          npm install
+
+          echo "♻️ Restart PM2..."
+          pm2 restart backend
+
+          echo "✅ Deploy sukses!"

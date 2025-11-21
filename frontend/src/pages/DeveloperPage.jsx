@@ -10,14 +10,14 @@ const DeveloperPage = () => {
 
   const { userInfo } = useUserInfo();
 
-  const { data: apiKeys, isPending: pendingApiKeys } = useQuery({
+  const { data: apiKeys, isLoading: pendingApiKeys } = useQuery({
     queryKey: ["apiKeys"],
     queryFn: async () => {
       const res = await axiosInstance.get("/api/asThirdParty/integration/list");
       console.log(res);
       return res.data;
     },
-    enabled: userInfo.username == "SUPERTENANT",
+    enabled: userInfo.description == "IT",
   });
 
   const { mutateAsync: handleGenerateApiKey } = useMutation({

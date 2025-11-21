@@ -15,10 +15,19 @@ const authenticate = async (req, res, next) => {
       return res.status(401).json({ message: "Api key sudah tidak valid" });
     }
 
-    if(req.headers["user-info"]) {
-      req.user = JSON.parse(req.headers["user-info"]);
+    let userInfo = {};
+    try {
+      const header = req.headers["user-info"];
+      if (header) {
+        // pastikan string JSON valid dulu
+        userInfo = JSON.parse(header);
+      }
+    } catch (err) {
+      console.error("❌ Failed to parse user-info header:", err.message);
     }
-    
+    req.user = userInfo;
+    // inject ke req untuk keperluan downstream
+    req.integrationKey = apiKey;
     next();
     return;
   }
@@ -32,7 +41,6 @@ const authenticate = async (req, res, next) => {
       message: "session renewal",
     });
   }
-
 
   try {
     let decoded;

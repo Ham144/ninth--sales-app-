@@ -41,3 +41,10 @@
 # untuk menjadi source of truth (data user, org, product, location, SO dan model lain)
 [x] add: enpoint findUser: byId byUsername dll
 [x] mod: stock no access jika SMD
+
+
+CI/CD self hosted action runner:
+pergi ke > settings > actions > runner > new self-hosted runner
+auto run : 
+sudo ./svc.sh install
+sudo ./svc.sh start

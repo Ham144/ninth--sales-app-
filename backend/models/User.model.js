@@ -9,9 +9,10 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       required: true,
+      unique: true,
     },
     displayName: String,
-    description: String, //dari AD // IT | SMD | SALES_ | SALES 
+    description: String, //dari AD // IT | SMD | SALES_ | SALES
     email: String,
     role: {
       type: String,
@@ -36,7 +37,8 @@ const userSchema = new mongoose.Schema(
     _2faIsVerified: Boolean,
     //new
     whatsappOtpIsVerified: Boolean,
-    phone: { //format: 628..
+    phone: {
+      //format: 628..
       type: String,
     },
     otp: String, //otp untuk login whatsapp bukan 2fa

@@ -19,13 +19,11 @@ import salesOrderRoutes from "./routes/salesOrder.route.js";
 import startCronOverdue from "./utils/cron-overdue.js";
 import overdueRoutes from "./routes/overdue.route.js";
 import locationRoutes from "./routes/Location.route.js";
-import authorizeSupertenant from "./middlewares/authoririzeSupertenant.js";
+// import authorizeSupertenant from "./middlewares/authoririzeSupertenant.js";
 import integrationRoutes from "./routes/integration.route.js";
 import apiKeyAuth from "./middlewares/apiKeyAuth.js";
 import userRoutes from "./routes/user.routes.js";
 import organizationRoutes from "./routes/organization.route.js";
-
-const __dirname = path.resolve();
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
@@ -38,6 +36,8 @@ const corsOrigin = isProduction
       "http://192.168.169.12:5173",
       "http://midcsi.muara.co.id:7047",
       "http://192.168.169.12:1991",
+      "http://192.168.169.24:3000",
+      "https://s-bit.muara.co.id",
     ];
 
 const app = express();
@@ -68,7 +68,7 @@ app.use("/api/bulk", authenticate, authorize, bulkRoutes);
 app.use(
   "/api/asThirdParty",
   authenticate,
-  authorizeSupertenant,
+  // authorizeSupertenant,
   integrationRoutes
 );
 
@@ -83,10 +83,11 @@ app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
 
 //frontend routes
-// app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
-// });
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+});
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();

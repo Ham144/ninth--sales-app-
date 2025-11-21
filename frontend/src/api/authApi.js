@@ -15,9 +15,9 @@ export const register = async (body) => {
   const response = await axiosInstance.post(
     "/api/auth/multi-tenant/register",
     body
-  );
+  )
   return response?.data;
-};
+}
 
 export const createAppUser = async (body) => {
   const response = await axiosInstance.post("/api/auth/createAppUser", body);

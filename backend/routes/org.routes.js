@@ -1,6 +1,6 @@
 import { Router } from "express";
 import Org from "../models/Organization.model.js";
-import authorizeSupertenant from "../middlewares/authoririzeSupertenant.js";
+// import authorizeSupertenant from "../middlewares/authoririzeSupertenant.js";
 import authenticate from "../middlewares/authenticate.js";
 
 const router = Router();
@@ -8,7 +8,7 @@ const router = Router();
 router.post(
   "/createOrg",
   authenticate,
-  authorizeSupertenant,
+  // authorizeSupertenant,
   async (req, res) => {
     const {
       organizationName,
@@ -105,44 +105,39 @@ router.get("/getAllOrg", async (req, res) => {
   }
 });
 
-router.get(
-  "/getAllOrgSuperTenant",
-  authenticate,
-  authorizeSupertenant,
-  async (req, res) => {
-    const { search, limit, skip } = req.query;
+router.get("/getAllOrgSuperTenant", authenticate, async (req, res) => {
+  const { search, limit, skip } = req.query;
 
-    let query = {};
-    if (search) {
-      query = {
-        organizationName: { $regex: "^" + search, $options: "i" },
-      };
-    }
-    try {
-      const orgList = await Org.find(query)
-        .populate("createdBy", "username")
-        .select(
-          "-__v -AD_HOST -AD_PORT -EMAIL_USER -EMAIL_PASS -EMAIL_HOST -EMAIL_PORT -EMAIL_SECURE"
-        )
-        .limit(limit || 10)
-        .skip(skip || 0);
-
-      res.json({
-        message: "berhasil ambil data",
-        data: orgList,
-      });
-    } catch (error) {
-      return res.status(500).json({
-        message: "internal server error",
-      });
-    }
+  let query = {};
+  if (search) {
+    query = {
+      organizationName: { $regex: "^" + search, $options: "i" },
+    };
   }
-);
+  try {
+    const orgList = await Org.find(query)
+      .populate("createdBy", "username")
+      .select(
+        "-__v -AD_HOST -AD_PORT -EMAIL_USER -EMAIL_PASS -EMAIL_HOST -EMAIL_PORT -EMAIL_SECURE"
+      )
+      .limit(limit || 10)
+      .skip(skip || 0);
+
+    res.json({
+      message: "berhasil ambil data",
+      data: orgList,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "internal server error",
+    });
+  }
+});
 
 router.delete(
   "/disableOrg/:_id",
   authenticate,
-  authorizeSupertenant,
+  // authorizeSupertenant,
   async (req, res) => {
     const _id = req.params._id;
 
@@ -184,7 +179,7 @@ router.delete(
 router.delete(
   "/deleteOrg/:_id",
   authenticate,
-  authorizeSupertenant,
+  // authorizeSupertenant,
   async (req, res) => {
     const _id = req.params._id;
 

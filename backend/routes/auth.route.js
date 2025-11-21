@@ -348,7 +348,8 @@ router.post(
       if (
         !userLDAP?.description.startsWith("SALES") &&
         userLDAP.description !== "OVERDUE" &&
-        userLDAP.description !== "IT"
+        userLDAP.description !== "IT" &&
+        userLDAP.description !== "PROCUREMENT"
       ) {
         return res.status(400).json({
           message: "User tidak diizinkan, description belum didaftarkan.",
@@ -469,32 +470,44 @@ router.post(
         description: userLDAP["description"],
       };
 
-      const access_token = await generateTokenJWT(payload);
-      const refresh_token = await generateRefreshToken(payload);
+      const myVendor =
+        (payload?.description?.startsWith("SALES") &&
+          payload?.description.split("_").length) > 1
+          ? payload?.description.split("_")[1]
+          : null;
 
-      res.cookie("refresh_token", refresh_token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-        maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
+      const access_token =
+        myVendor === "PHILIPS" ? null : await generateTokenJWT(payload);
+      const refresh_token =
+        myVendor === "PHILIPS" ? null : await generateRefreshToken(payload);
 
-      res.cookie("access_token", access_token, {
-        httpOnly: true,
-        secure: false,
-        sameSite: "Lax",
-        maxAge: 5 * 60 * 1000,
-      });
+      if (myVendor !== "PHILIPS") {
+        res.cookie("refresh_token", refresh_token, {
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax",
+          maxAge: 7 * 24 * 60 * 60 * 1000,
+        });
+        userDB.refreshToken = refresh_token;
+      }
 
-      userDB.refreshToken = refresh_token;
+      if (myVendor !== "PHILIPS") {
+        res.cookie("access_token", access_token, {
+          httpOnly: true,
+          secure: false,
+          sameSite: "Lax",
+          maxAge: 5 * 60 * 1000,
+        });
+      }
+
       await userDB.save();
 
       return res.json({
         success: true,
         message: "Selamat datang kembali.",
         data: payload,
-        refresh_token: refresh_token,
-        access_token: access_token,
+        refresh_token: myVendor === "PHILIPS" ? "not granted" : refresh_token,
+        access_token: myVendor === "PHILIPS" ? "not granted" : access_token,
         _2faIsVerified: userDB._2faIsVerified,
       });
     } catch (error) {
@@ -985,13 +998,32 @@ router.get(
   })
 );
 
+//ini memang untuk mengambil semua akun jangan difitler nanti banyak fitur rusak
 router.get(
   "/getAllAccount",
   authenticate,
-  authorize,
+  asyncHandler(async (req, res) => {
+    console.log(req.user.org);
+    const userDBs = await UserRefrensi.find({
+      org: req.user.org,
+    }).select("-password -refreshToken -_2faSecret -otp"); 
+
+    return res.json({
+      success: true,
+      message: "Semua akun berhasil diambil.",
+      data: userDBs,
+    });
+  })
+);
+
+//ini untuk search akun
+router.get(
+  "/searchAccount",
+  authenticate,
   asyncHandler(async (req, res) => {
     try {
       const { username } = req.query;
+      console.log(username);
       const query = username
         ? {
             username: {

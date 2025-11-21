@@ -3,10 +3,16 @@ import UserRefrensi from "../models/User.model.js";
 
 const router = Router();
 
+import mongoose from "mongoose";
+// ...
 router.get("/findById/:id", async (req, res) => {
-  const user = await UserRefrensi.findById(req?.params?.id).select(
-    "-otpExpired -otp -_2faSecret -password -refreshToken"
-  );
+  const id = req.params.id;
+  if (!id || id === "null" || !mongoose.Types.ObjectId.isValid(id)) {
+    return res.status(400).json({ message: "id valid tidak" });
+  }
+  const user = await UserRefrensi.findById(
+    new mongoose.Types.ObjectId(id)
+  ).select("-otpExpired -otp -_2faSecret -password -refreshToken");
   return res.json(user);
 });
 
@@ -16,12 +22,23 @@ router.get("/findByUsername/:username", async (req, res) => {
     if (!username)
       return res.status(400).json({ message: "Username tidak diberikan" });
 
-    // Escape karakter regex spesial
-    const escaped = username.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!username || username === "null" || username.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Parameter username tidak boleh kosong",
+      });
+    }
 
-    const user = await UserRefrensi.find({
-      username: { $regex: escaped, $options: "i" }, // i = case-insensitive
+    const user = await UserRefrensi.findOne({
+      username: username?.trim()?.toLowerCase(),
     }).select("-otpExpired -otp -_2faSecret -password -refreshToken");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User tidak ditemukan",
+      });
+    }
 
     return res.json(user);
   } catch (err) {

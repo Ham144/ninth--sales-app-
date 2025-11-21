@@ -146,6 +146,7 @@ router.post("/new", async (req, res) => {
     frontendSession,
     keterangan,
     locationCode,
+    isPending = false,
   } = req.body;
 
   try {
@@ -262,34 +263,38 @@ router.post("/new", async (req, res) => {
     }
 
     const orderDate = new Date().toISOString().split("T")[0];
-    const salesOrderResponseXml = await requestSalesOrder({
-      DocumentNo: globalIndex,
-      ExtDoc: req.user.username,
-      SellToCustNo: customer.No,
-      RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
-      Keterangan: keterangan,
-      LocationCode: location.name,
-      AreaCode: after,
-      SalesLine: SalesLine,
-      req,
-    });
 
-    if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
-      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
-      return res.status(500).json({
-        message: JSON.stringify(
-          salesOrderResponseXml?.message || salesOrderResponseXml
-        ),
+    let salesOrderResponseXml;
+    if (!isPending) {
+      salesOrderResponseXml = await requestSalesOrder({
+        DocumentNo: globalIndex,
+        ExtDoc: req.user.username,
+        SellToCustNo: customer.No,
+        RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
+        Keterangan: keterangan,
+        LocationCode: location.name,
+        AreaCode: after,
+        SalesLine: SalesLine,
+        req,
       });
-    }
 
+      if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
+        console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
+        return res.status(500).json({
+          message: JSON.stringify(
+            salesOrderResponseXml?.message || salesOrderResponseXml
+          ),
+        });
+      }
+    }
     const SalesLineTotal = SalesLine.reduce((total, item) => {
       const lineTotal = (Number(item.UnitPrice) || 0) * (Number(item.Qty) || 0);
       return total + lineTotal;
     }, 0);
 
     const generatedSalesOrder = await SalesOrder.create({
-      return_value: salesOrderResponseXml.return_value,
+      return_value:
+        salesOrderResponseXml?.return_value ?? "waiting for approval",
       DocumentNo: globalIndex,
       customer: customer._id,
       ShiptToCode: customer.ShiptToCode || "",
@@ -308,6 +313,7 @@ router.post("/new", async (req, res) => {
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,
       createdBy: req.user._id,
+      isPending: isPending,
     });
 
     await TemporarySalesOrder.findByIdAndDelete(tempToDeleteId);
@@ -318,7 +324,7 @@ router.post("/new", async (req, res) => {
     return res.status(200).json(generatedSalesOrder);
   } catch (error) {
     console.log(error);
-    return res.status(500).json({ message: "Kesalahan Server Internal" });
+    return res.status(500).json({ message: error.message });
   }
 });
 
@@ -393,11 +399,25 @@ router.get("/download", async (req, res) => {
 });
 
 router.get("/list", async (req, res) => {
-  const { searchKey } = req.query;
+  const { searchKey, isPending = false } = req.query;
 
   try {
+    const myVendor =
+      req?.user?.description?.startsWith("SALES") &&
+      req?.user?.description.split("_").length > 1
+        ? req?.user?.description.split("_")[1]
+        : null;
+
     //jika IT maka munculkan SO
     let matchStage = { org: req.user.org };
+
+    if (Boolean(isPending) === true) {
+      // cari yang baru: isPending true
+      matchStage.isPending = true;
+    } else {
+      // cari yang lama: field isPending tidak ada
+      matchStage.isPending = { $exists: false };
+    }
 
     if (req.user.description !== "IT" && req.user.role !== "supertenant") {
       matchStage.createdBy = req.user._id;
@@ -427,9 +447,7 @@ router.get("/list", async (req, res) => {
 
     const salesOrders = await SalesOrder.find(matchStage)
       .populate("customer", "Name No")
-      .select(
-        "_id return_value DocumentNo RequestDeliveryDate customer SalesLineTotal"
-      )
+      .select(`${myVendor ? "-price" : "-__v"}`)
       .lean()
       .sort({ createdAt: -1 });
 
@@ -443,7 +461,23 @@ router.get("/list", async (req, res) => {
 router.get("/getById/:id", async (req, res) => {
   const id = req.params.id;
   try {
-    const salesOrder = await SalesOrder.findById(id).lean();
+    const myVendor =
+      req?.user?.description?.startsWith("SALES") &&
+      req?.user?.description.split("_").length > 1
+        ? req?.user?.description.split("_")[1]
+        : null;
+
+    let salesOrder = await SalesOrder.findById(id)
+      .select(`${myVendor ? "-SalesLineTotal" : "-__v"}`)
+      .lean();
+
+    // Censor UnitPrice in SalesLine if myVendor is true
+    if (myVendor && salesOrder?.SalesLine?.length > 0) {
+      salesOrder.SalesLine = salesOrder?.SalesLine?.map((line) => ({
+        ...line,
+        UnitPrice: "SMD Not Granted",
+      }));
+    }
     return res.status(200).json(salesOrder);
   } catch (error) {
     console.log(error);
@@ -511,11 +545,13 @@ router.put("/temp/create", async (req, res) => {
 
 router.delete("/temp/delete/:id", async (req, res) => {
   const id = req.params.id;
-
   try {
-    await TemporarySalesOrder.findOneAndDelete({
-      _id: id,
-    });
+    const temp = await TemporarySalesOrder.findById(id);
+    if (!temp) {
+      return res.json({ message: "Temporary Sales Telah dihapus" });
+    }
+    const deleted = await TemporarySalesOrder.findByIdAndDelete(id);
+    console.log(deleted);
     return res.json({ message: "Temporary Sales Order Berhasil Dihapus" });
   } catch (error) {
     console.log(error);
