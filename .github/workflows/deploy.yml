@@ -30,11 +30,14 @@ jobs:
 
           WORKDIR="/home/ham/midcsi"
 
-          cd "$WORKDIR"
-          git fetch origin main
-          git reset --hard origin/main
+          echo "📌 Pindah ke working directory..."
+          cd "$WORKDIR" || { echo "❌ WORKDIR tidak ditemukan"; exit 1; }
 
-          cd "$WORKDIR" || { echo "❌ Folder project tidak ditemukan"; exit 1; }
+          echo "🔁 Git fetch..."
+          git fetch origin main
+
+          echo "🔁 Git reset..."
+          git reset --hard origin/main
 
           echo "📂 Struktur folder:"
           ls -la
