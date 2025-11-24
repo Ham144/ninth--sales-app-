@@ -8,8 +8,6 @@ export const NODE_ENV =
     ? "production"
     : "development";
 
-export const BASE_URL = NODE_ENV == "production" ? PROD_URL : DEV_URL;
-
 export let siteKeyCloudflare = "0x4AAAAAABm0ajGlobtbdIIR";
 
 export const APP_NAME = "Sales Order CSI";
