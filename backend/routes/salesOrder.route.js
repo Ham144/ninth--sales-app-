@@ -399,7 +399,7 @@ router.get("/download", async (req, res) => {
 });
 
 router.get("/list", async (req, res) => {
-  const { searchKey, isPending = false } = req.query;
+  const { searchKey, isPending = false, page = 1 } = req.query;
 
   try {
     const myVendor =
@@ -451,7 +451,9 @@ router.get("/list", async (req, res) => {
       .populate("customer", "Name No")
       .select(`${myVendor ? "-price" : "-__v"}`)
       .lean()
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * 50)
+      .limit(50);
 
     return res.status(200).json(salesOrders);
   } catch (error) {

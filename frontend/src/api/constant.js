@@ -1,12 +1,15 @@
-if (import.meta.env.VITE_BACKEND_URL) {
-  PROD_URL = import.meta.env.VITE_BACKEND_URL;
-}
-
 export const NODE_ENV =
   typeof window !== "undefined" &&
   window.location.hostname === "midcsi.muara.co.id"
     ? "production"
     : "development";
+
+export let BASE_URL = "";
+if (NODE_ENV === "production") {
+  BASE_URL = "http://midcsi.muara.co.id:7047";
+} else {
+  BASE_URL = "http://192.168.169.12:7047";
+}
 
 export let siteKeyCloudflare = "0x4AAAAAABm0ajGlobtbdIIR";
 
