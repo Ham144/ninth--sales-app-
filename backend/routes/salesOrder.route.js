@@ -412,11 +412,13 @@ router.get("/list", async (req, res) => {
     let matchStage = { org: req.user.org };
 
     if (Boolean(isPending) === true) {
-      // cari yang baru: isPending true
       matchStage.isPending = true;
     } else {
-      // cari yang lama: field isPending tidak ada
-      matchStage.isPending = { $exists: false };
+      matchStage.$or = [
+        { isPending: { $exists: false } },
+        { isPending: false },
+        { isPending: null },
+      ];
     }
 
     if (req.user.description !== "IT" && req.user.role !== "supertenant") {

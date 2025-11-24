@@ -43,7 +43,25 @@
 [x] mod: stock no access jika SMD
 
 
-CI/CD self hosted action runner:
+CI/CD self hosted action runner ::
+
+#terhubung ke akun dulu
+ssh-keygen -t ed25519 -C "ham@mimin"
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+ssh-add -l
+copy public key : cat ~/.ssh/id_ed25519.pub
+test: ssh -T git@github.com
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/id_ed25519
+chmod 644 ~/.ssh/id_ed25519.pub
+
+#initialisasi git di folder tujuan
+git init 
+git remote add origin <code ssh>
+git fetch
+git checkout -t origin/main
+
 pergi ke > settings > actions > runner > new self-hosted runner
 auto run : 
 sudo ./svc.sh install

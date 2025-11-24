@@ -1,12 +1,12 @@
-const DEV_URL = "http://192.168.169.12:7047";
-let PROD_URL = "http://midcsi.muara.co.id:7047";
-
 if (import.meta.env.VITE_BACKEND_URL) {
   PROD_URL = import.meta.env.VITE_BACKEND_URL;
 }
 
-// export let NODE_ENV = "development";
-export let NODE_ENV = "production";
+export const NODE_ENV =
+  typeof window !== "undefined" &&
+  window.location.hostname === "midcsi.muara.co.id"
+    ? "production"
+    : "development";
 
 export const BASE_URL = NODE_ENV == "production" ? PROD_URL : DEV_URL;
 
