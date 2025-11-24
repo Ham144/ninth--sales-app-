@@ -586,6 +586,87 @@ router.get("/temp/collect", async (req, res) => {
   }
 });
 
+const formatDateToDDMMYYYY = (dateValue) => {
+  if (!dateValue) return null;
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return null;
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+router.post("/confirm", async (req, res) => {
+  const { id } = req.body;
+
+  try {
+    const pendingSalesOrder = await SalesOrder.findById(id).populate(
+      "customer",
+      "No Location_Code"
+    );
+
+    if (!pendingSalesOrder) {
+      return res
+        .status(404)
+        .json({ message: "Pending Sales Order Tidak Ditemukan" });
+    }
+
+    if (!pendingSalesOrder?.customer?.No) {
+      return res
+        .status(400)
+        .json({ message: "Customer untuk Sales Order tidak ditemukan" });
+    }
+
+    const requestDeliveryDate =
+      formatDateToDDMMYYYY(pendingSalesOrder.RequestDeliveryDate) ||
+      getCurrentDateForNAV();
+    const keterangan = pendingSalesOrder.Keterangan ?? "";
+    const SalesLine = pendingSalesOrder.SalesLine ?? [];
+    const locationCode =
+      pendingSalesOrder.LocationCode ||
+      pendingSalesOrder.customer?.Location_Code ||
+      "";
+    const areaCode = pendingSalesOrder.Dim1 || "";
+
+    if (SalesLine.length === 0) {
+      return res.status(400).json({
+        message: "SalesLine kosong, tidak dapat melanjutkan konfirmasi",
+      });
+    }
+
+    const salesOrderResponseXml = await requestSalesOrder({
+      DocumentNo: pendingSalesOrder.DocumentNo,
+      ExtDoc: pendingSalesOrder.ExtDoc,
+      SellToCustNo: pendingSalesOrder.customer.No,
+      RequestDeliveryDate: requestDeliveryDate,
+      Keterangan: keterangan,
+      LocationCode: locationCode,
+      AreaCode: areaCode,
+      SalesLine: SalesLine,
+      req,
+    });
+
+    if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
+      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
+      return res.status(500).json({
+        message: JSON.stringify(
+          salesOrderResponseXml?.message || salesOrderResponseXml
+        ),
+      });
+    }
+
+    pendingSalesOrder.return_value =
+      salesOrderResponseXml?.return_value ?? pendingSalesOrder.return_value;
+    pendingSalesOrder.isPending = false;
+    await pendingSalesOrder.save();
+
+    return res.status(200).json(pendingSalesOrder);
+  } catch (error) {
+    console.log(error?.message);
+    return res.status(500).json({ message: error?.message });
+  }
+});
+
 export default router;
 
 export const convertToISOConvertableDate = (dateStr) => {
