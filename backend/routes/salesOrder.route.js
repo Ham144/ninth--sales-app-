@@ -501,7 +501,11 @@ router.get("/list", async (req, res) => {
       ];
     }
 
-    if (req.user.description !== "IT" && req.user.role !== "supertenant") {
+    if (
+      req.user.description !== "IT" &&
+      req.user.role !== "supertenant" &&
+      req.user.description !== "PROCUREMENT"
+    ) {
       matchStage.createdBy = req.user._id;
     }
 
