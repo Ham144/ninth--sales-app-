@@ -6,7 +6,6 @@ import generateGlobalIndex from "../utils/generateGlobalIndex.js";
 import { getCurrentDateForNAV } from "../utils/getCurrentDateTanggalBlnThn.js";
 import GetMyOrganizationAbbr from "../utils/getMyOrganizationAbbr.js";
 import SalesOrder from "../models/SalesOrder.model.js";
-import Org from "../models/Organization.model.js";
 import Customer from "../models/Customer.model.js";
 import TemporarySalesOrder from "../models/temporarySalesOrder.model.js";
 import mongoose from "mongoose";
@@ -16,6 +15,7 @@ import Product from "../models/product.model.js";
 
 const router = Router();
 
+//hanya butuh req.user._id requestor
 export const requestSalesOrder = async ({
   DocumentNo,
   SellToCustNo,
@@ -28,14 +28,17 @@ export const requestSalesOrder = async ({
   req,
 }) => {
   try {
-    // Validasi req.user.org
-    if (!req.user || !req.user.org) {
-      return { error: true, message: "User atau organization tidak ditemukan" };
+    // lengkapi requestor asli
+
+    console.log(req.user);
+    const requestor = await UserRefrensi.findById(req.user._id).populate("org");
+    if (!requestor) {
+      return { error: true, message: "Requestor tidak ditemukan" };
     }
 
-    const org = await Org.findById(req.user.org).select(
-      "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
-    );
+    // const org = await Org.findById(req.user.org).select(
+    //   "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
+    // );
 
     const {
       SOAP_TRANSACTION_URL,
@@ -43,7 +46,7 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_PASSWORD,
       SOAP_TRANSACTION_SOAPACTION,
       SOAP_TRANSACTION_XMLNS,
-    } = org;
+    } = requestor.org;
 
     if (
       !SOAP_TRANSACTION_URL ||
@@ -56,7 +59,7 @@ export const requestSalesOrder = async ({
     }
 
     //penentuan noseries
-    const vendor = req?.user?.description?.split("_")[1];
+    const vendor = requestor.description?.split("_")[1];
     let NoSeries = "SO-SMA";
     if (vendor) {
       NoSeries = "SO-SMD";
@@ -74,6 +77,7 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_XMLNS,
       NoSeries: NoSeries,
     });
+    console.log(xml);
 
     const rawXmlResponse = await fetchData({
       xml: xml,
@@ -325,6 +329,82 @@ router.post("/new", async (req, res) => {
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: error.message });
+  }
+});
+
+router.post("/confirm", async (req, res) => {
+  const { id } = req.body;
+
+  try {
+    const pendingSalesOrder = await SalesOrder.findById(id).populate(
+      "customer",
+      "No Location_Code"
+    );
+
+    if (!pendingSalesOrder) {
+      return res
+        .status(404)
+        .json({ message: "Pending Sales Order Tidak Ditemukan" });
+    }
+
+    if (!pendingSalesOrder?.customer?.No) {
+      return res
+        .status(400)
+        .json({ message: "Customer untuk Sales Order tidak ditemukan" });
+    }
+
+    const requestDeliveryDate =
+      formatDateToDDMMYYYY(pendingSalesOrder.RequestDeliveryDate) ||
+      getCurrentDateForNAV();
+    const keterangan = pendingSalesOrder.Keterangan ?? "";
+    const SalesLine = pendingSalesOrder.SalesLine ?? [];
+    const locationCode =
+      pendingSalesOrder.LocationCode ||
+      pendingSalesOrder.customer?.Location_Code ||
+      "";
+    const areaCode = pendingSalesOrder.Dim1 || "";
+
+    if (SalesLine.length === 0) {
+      return res.status(400).json({
+        message: "SalesLine kosong, tidak dapat melanjutkan konfirmasi",
+      });
+    }
+
+    const realRequestor = await UserRefrensi.findById(
+      pendingSalesOrder.createdBy
+    );
+    req.user = realRequestor;
+
+    const salesOrderResponseXml = await requestSalesOrder({
+      DocumentNo: pendingSalesOrder.DocumentNo,
+      ExtDoc: pendingSalesOrder.ExtDoc,
+      SellToCustNo: pendingSalesOrder.customer.No,
+      RequestDeliveryDate: requestDeliveryDate,
+      Keterangan: keterangan,
+      LocationCode: locationCode,
+      AreaCode: areaCode,
+      SalesLine: SalesLine,
+      req,
+    });
+
+    if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
+      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
+      return res.status(500).json({
+        message: JSON.stringify(
+          salesOrderResponseXml?.message || salesOrderResponseXml
+        ),
+      });
+    }
+
+    pendingSalesOrder.return_value =
+      salesOrderResponseXml?.return_value ?? pendingSalesOrder.return_value;
+    pendingSalesOrder.isPending = false;
+    await pendingSalesOrder.save();
+
+    return res.status(200).json(pendingSalesOrder);
+  } catch (error) {
+    console.log(error?.message);
+    return res.status(500).json({ message: error?.message });
   }
 });
 
@@ -595,77 +675,6 @@ const formatDateToDDMMYYYY = (dateValue) => {
   const year = date.getFullYear();
   return `${day}/${month}/${year}`;
 };
-
-router.post("/confirm", async (req, res) => {
-  const { id } = req.body;
-
-  try {
-    const pendingSalesOrder = await SalesOrder.findById(id).populate(
-      "customer",
-      "No Location_Code"
-    );
-
-    if (!pendingSalesOrder) {
-      return res
-        .status(404)
-        .json({ message: "Pending Sales Order Tidak Ditemukan" });
-    }
-
-    if (!pendingSalesOrder?.customer?.No) {
-      return res
-        .status(400)
-        .json({ message: "Customer untuk Sales Order tidak ditemukan" });
-    }
-
-    const requestDeliveryDate =
-      formatDateToDDMMYYYY(pendingSalesOrder.RequestDeliveryDate) ||
-      getCurrentDateForNAV();
-    const keterangan = pendingSalesOrder.Keterangan ?? "";
-    const SalesLine = pendingSalesOrder.SalesLine ?? [];
-    const locationCode =
-      pendingSalesOrder.LocationCode ||
-      pendingSalesOrder.customer?.Location_Code ||
-      "";
-    const areaCode = pendingSalesOrder.Dim1 || "";
-
-    if (SalesLine.length === 0) {
-      return res.status(400).json({
-        message: "SalesLine kosong, tidak dapat melanjutkan konfirmasi",
-      });
-    }
-
-    const salesOrderResponseXml = await requestSalesOrder({
-      DocumentNo: pendingSalesOrder.DocumentNo,
-      ExtDoc: pendingSalesOrder.ExtDoc,
-      SellToCustNo: pendingSalesOrder.customer.No,
-      RequestDeliveryDate: requestDeliveryDate,
-      Keterangan: keterangan,
-      LocationCode: locationCode,
-      AreaCode: areaCode,
-      SalesLine: SalesLine,
-      req,
-    });
-
-    if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
-      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
-      return res.status(500).json({
-        message: JSON.stringify(
-          salesOrderResponseXml?.message || salesOrderResponseXml
-        ),
-      });
-    }
-
-    pendingSalesOrder.return_value =
-      salesOrderResponseXml?.return_value ?? pendingSalesOrder.return_value;
-    pendingSalesOrder.isPending = false;
-    await pendingSalesOrder.save();
-
-    return res.status(200).json(pendingSalesOrder);
-  } catch (error) {
-    console.log(error?.message);
-    return res.status(500).json({ message: error?.message });
-  }
-});
 
 export default router;
 
