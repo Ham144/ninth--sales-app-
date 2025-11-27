@@ -60,10 +60,12 @@ export const requestSalesOrder = async ({
 
     //penentuan noseries
     const vendor = requestor.description?.split("_")[1];
-    let NoSeries = "SO-SMA";
+    let NoSeries = "SO/SMA";
     if (vendor) {
-      NoSeries = "SO-SMD";
+      NoSeries = "SO/SMD";
     }
+
+    console.log(NoSeries);
 
     const xml = requestSalesOrderXml({
       DocumentNo,
@@ -514,7 +516,8 @@ router.get("/list", async (req, res) => {
         $and: [
           { org: req.user.org },
           ...(req.user.description !== "IT" &&
-          req.user.description !== "supertenant"
+          req.user.description !== "supertenant" &&
+          req.user.description !== "PROCUREMENT"
             ? [{ createdBy: req.user._id }]
             : []),
           {
