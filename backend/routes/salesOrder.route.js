@@ -65,8 +65,6 @@ export const requestSalesOrder = async ({
       NoSeries = "SO-SMD";
     }
 
-    console.log(NoSeries);
-
     const xml = requestSalesOrderXml({
       DocumentNo,
       SellToCustNo,
@@ -79,7 +77,6 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_XMLNS,
       NoSeries: NoSeries,
     });
-    console.log(xml);
 
     const rawXmlResponse = await fetchData({
       xml: xml,
@@ -481,7 +478,13 @@ router.get("/download", async (req, res) => {
 });
 
 router.get("/list", async (req, res) => {
-  const { searchKey, isPending = false, page = 1 } = req.query;
+  const {
+    searchKey,
+    isPending = false,
+    page = 1,
+    return_valueType,
+    extDoc,
+  } = req.query;
 
   try {
     const myVendor =
@@ -492,6 +495,15 @@ router.get("/list", async (req, res) => {
 
     //jika IT maka munculkan SO
     let matchStage = { org: req.user.org };
+
+    if (return_valueType) {
+      matchStage.return_value = { $regex: return_valueType, $options: "i" };
+    }
+    if (extDoc) {
+      console.log(extDoc);
+      const splitSelectedUserString = extDoc.split(",");
+      matchStage.ExtDoc = { $in: splitSelectedUserString };
+    }
 
     if (Boolean(isPending) === true) {
       matchStage.isPending = true;
@@ -514,7 +526,7 @@ router.get("/list", async (req, res) => {
     if (searchKey && searchKey !== "undefined") {
       matchStage = {
         $and: [
-          { org: req.user.org },
+          { org: req.user.org, ...matchStage },
           ...(req.user.description !== "IT" &&
           req.user.description !== "supertenant" &&
           req.user.description !== "PROCUREMENT"
