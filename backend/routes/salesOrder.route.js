@@ -685,6 +685,26 @@ router.get("/temp/collect", async (req, res) => {
   }
 });
 
+router.delete("/delete/:id", async (req, res) => {
+  const id = req?.params?.id;
+  if (!id) return res.status(400).json({ message: "id is required" });
+  try {
+    const so = await SalesOrder.findById(id);
+    const isSentToNAV = so?.isPending == false;
+    if (isSentToNAV) {
+      return res.status(400).json({
+        message: "Tidak boleh menghapus SO yang sudah dikirim ke NAV",
+      });
+    }
+    console.log("harusnya berhasil");
+    await SalesOrder.findByIdAndDelete(id);
+    return res.json({ message: "berhasil menghapus pending SO" });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ message: error?.message });
+  }
+});
+
 const formatDateToDDMMYYYY = (dateValue) => {
   if (!dateValue) return null;
   const date = new Date(dateValue);
