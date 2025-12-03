@@ -496,7 +496,7 @@ router.get("/list", async (req, res) => {
     //jika IT maka munculkan SO
     let matchStage = { org: req.user.org };
 
-    if (return_valueType) {
+    if (return_valueType && Boolean(isPending) === false) {
       matchStage.return_value = { $regex: return_valueType, $options: "i" };
     }
     if (extDoc) {
