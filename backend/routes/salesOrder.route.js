@@ -499,10 +499,12 @@ router.get("/list", async (req, res) => {
     if (return_valueType && Boolean(isPending) === false) {
       matchStage.return_value = { $regex: return_valueType, $options: "i" };
     }
-    if (extDoc) {
-      console.log(extDoc);
+    if (extDoc?.length > 0) {
       const splitSelectedUserString = extDoc.split(",");
-      matchStage.ExtDoc = { $regex: splitSelectedUserString, $options: "i" };
+
+      matchStage.$or = splitSelectedUserString.map((str) => ({
+        ExtDoc: { $regex: str, $options: "i" },
+      }));
     }
 
     if (Boolean(isPending) === true) {
