@@ -502,7 +502,7 @@ router.get("/list", async (req, res) => {
     if (extDoc) {
       console.log(extDoc);
       const splitSelectedUserString = extDoc.split(",");
-      matchStage.ExtDoc = { $in: splitSelectedUserString };
+      matchStage.ExtDoc = { $regex: splitSelectedUserString, $options: "i" };
     }
 
     if (Boolean(isPending) === true) {
@@ -572,6 +572,7 @@ router.get("/getById/:id", async (req, res) => {
 
     let salesOrder = await SalesOrder.findById(id)
       .select(`${myVendor ? "-SalesLineTotal" : "-__v"}`)
+      .populate("customer", "No Name ")
       .lean();
 
     // Censor UnitPrice in SalesLine if myVendor is true

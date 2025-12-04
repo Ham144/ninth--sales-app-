@@ -135,6 +135,13 @@ export function ProcessPage() {
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
+                      <strong className="font-semibold">Customer :</strong>
+                      <span className="text-lg">
+                        {salesOrderDetail.data?.customer?.Name}{" "}
+                        {salesOrderDetail.data?.customer?.No}
+                      </span>
+                    </p>
+                    <p className="flex items-center space-x-2">
                       <strong className="font-semibold">Order Date:</strong>
                       <span className="text-lg">
                         {new Date(
