@@ -9,6 +9,7 @@ import { placeHolderSearchSalesOrder } from "@/api/constant";
 import { toast } from "sonner";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
+import { Package } from "lucide-react";
 
 export function ProcessPage() {
   const [active, setActive] = useState(null);
@@ -200,11 +201,131 @@ export function ProcessPage() {
                         {salesOrderDetail.data.Dim1}
                       </span>
                     </p>
-                    <p className="flex items-center space-x-2">
-                      <span className="text-lg">
-                        {JSON.stringify(statusNAV)}
-                      </span>
-                    </p>
+                    {/* Section untuk SOAPI Data */}
+                    <div className="mt-6">
+                      <div className="card bg-white shadow border-teal-100">
+                        <div className="card-body">
+                          <h3 className="text-lg font-bold text-teal-800 mb-4 flex items-center">
+                            <ClipboardCheck className="w-5 h-5 mr-2" />
+                            Informasi Picking Order
+                          </h3>
+
+                          {statusNAV?.data?.SOAPI &&
+                          statusNAV?.data?.SOAPI?.length > 0 ? (
+                            <div className="space-y-4">
+                              {statusNAV?.data?.SOAPI.map((item, index) => (
+                                <div
+                                  key={index}
+                                  className="bg-teal-50 rounded-lg p-4 border border-teal-200"
+                                >
+                                  {/* Header dengan Nomor Pick Ticket */}
+                                  <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center">
+                                      <div className="bg-teal-100 p-2 rounded mr-3">
+                                        <Package className="w-5 h-5 text-teal-600" />
+                                      </div>
+                                      <div>
+                                        <p className="text-xs text-teal-600">
+                                          Pick Ticket No
+                                        </p>
+                                        <p className="font-bold text-teal-900">
+                                          {item.Pick_Ticket_No}
+                                        </p>
+                                      </div>
+                                    </div>
+                                    <span className="badge badge-teal badge-sm px-3">
+                                      {item.Qty_Picked} items
+                                    </span>
+                                  </div>
+
+                                  {/* Grid untuk informasi utama */}
+                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div className="bg-white p-3 rounded border">
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Sales Order No
+                                      </p>
+                                      <p className="font-medium text-teal-800">
+                                        {item.No}
+                                      </p>
+                                    </div>
+
+                                    <div className="bg-white p-3 rounded border">
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Delivery Order No
+                                      </p>
+                                      <p className="font-medium text-teal-800">
+                                        {item.Do_No}
+                                      </p>
+                                    </div>
+
+                                    <div className="bg-white p-3 rounded border">
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Commercial Invoice
+                                      </p>
+                                      <p className="font-medium text-teal-800">
+                                        {item.CI_No}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Informasi tambahan dalam satu baris */}
+                                  <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-teal-200">
+                                    <div>
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Shipping Invoice
+                                      </p>
+                                      <p className="text-sm font-medium text-teal-800">
+                                        {item.SI_NO}
+                                      </p>
+                                    </div>
+
+                                    <div>
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Item Code
+                                      </p>
+                                      <p className="text-sm font-medium text-teal-800">
+                                        {item.Item_No}
+                                      </p>
+                                    </div>
+
+                                    <div>
+                                      <p className="text-xs text-teal-600 mb-1">
+                                        Quantity Picked
+                                      </p>
+                                      <p className="text-sm font-medium text-teal-800">
+                                        <span className="text-teal-900 font-bold">
+                                          {item.Qty_Picked}
+                                        </span>{" "}
+                                        units
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  {/* Key ID (tersembunyi, bisa di-expand) */}
+                                  <details className="mt-3">
+                                    <summary className="text-xs text-teal-500 cursor-pointer hover:text-teal-700">
+                                      Show System Key
+                                    </summary>
+                                    <div className="mt-2 p-2 bg-teal-100 rounded text-xs font-mono break-all">
+                                      {item.Key}
+                                    </div>
+                                  </details>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-center py-8">
+                              <div className="mx-auto w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-4">
+                                <Package className="w-8 h-8 text-teal-400" />
+                              </div>
+                              <p className="text-teal-600">
+                                Tidak ada data tersedia
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="bg-gray-50 rounded-2xl p-4">

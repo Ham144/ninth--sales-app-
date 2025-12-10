@@ -77,18 +77,17 @@ router.get("/statusNav", async (req, res) => {
     }
 
     // 🔹 Ambil node utama secara dinamis
-    const body = parsed;
+    const body =
+      parsed.Envelope.Body.ReadMultiple_Result.ReadMultiple_Result.SOAPI || [];
 
-    if (!body) {
+    if (!body?.length) {
       return res.json({
-        data: {
-          statusNAV: "Belum ada data",
-        },
+        data: [],
       });
     }
 
     return res.json({
-      body,
+      data: body,
     });
   } catch (error) {
     console.log(error?.message);
