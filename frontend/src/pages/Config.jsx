@@ -29,6 +29,12 @@ export default function Config() {
     SOAP_PEMBAYARANTERTUNDA_USERNAME: "",
     SOAP_PEMBAYARANTERTUNDA_PASSWORD: "",
     SOAP_PEMBAYARANTERTUNDA_SOAPACTION: "",
+
+    SOAP_CHECKSTATUSNAV_URL: "",
+    SOAP_CHECKSTATUSNAV_USERNAME: "",
+    SOAP_CHECKSTATUSNAV_PASSWORD: "",
+    SOAP_CHECKSTATUSNAV_SOAPACTION: "",
+    SOAP_CHECKSTATUSNAV_XMLNS: "",
   });
 
   const services = [
@@ -37,6 +43,7 @@ export default function Config() {
     "Customer Service",
     "Transaction Service",
     "Pembayaran Tertunda Service",
+    "Check Status NAV Service",
   ];
 
   const { mutateAsync: handleTestEmail, isPending: loadingSendingEmail } =
@@ -94,6 +101,7 @@ export default function Config() {
     "SOAP_CUSTOMER_",
     "SOAP_TRANSACTION_",
     "SOAP_PEMBAYARANTERTUNDA_",
+    "SOAP_CHECKSTATUSNAV_",
   ];
 
   const suffixMap = {

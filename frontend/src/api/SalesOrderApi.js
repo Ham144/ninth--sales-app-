@@ -30,6 +30,14 @@ const SalesOrderApi = {
     );
     return response;
   },
+  getStatusNav: async (return_value) => {
+    const params = new URLSearchParams();
+    params.append("return_value", return_value);
+    const response = await axiosInstance.get("/api/v1/salesOrder/statusNav", {
+      params,
+    });
+    return response?.data;
+  },
   tempDeleteById: async (id) => {
     const response = await axiosInstance.delete(
       `/api/v1/salesOrder/temp/delete/${id}`

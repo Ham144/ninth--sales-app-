@@ -36,9 +36,7 @@ const Home = () => {
             <GridItem
               icon={<User2 className="h-5 w-5 text-primary" />}
               title={userInfo.displayName || userInfo.username}
-              description={`${userInfo?.description || "APP User"} · ${
-                userInfo.role
-              }`}
+              description={`${userInfo?.description || "APP User"}`}
               path="/profile"
             />
           )}

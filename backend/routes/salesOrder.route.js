@@ -30,7 +30,6 @@ export const requestSalesOrder = async ({
   try {
     // lengkapi requestor asli
 
-    console.log(req.user);
     const requestor = await UserRefrensi.findById(req.user._id).populate("org");
     if (!requestor) {
       return { error: true, message: "Requestor tidak ditemukan" };

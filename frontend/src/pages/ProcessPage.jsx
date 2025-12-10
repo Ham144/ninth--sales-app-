@@ -43,6 +43,13 @@ export function ProcessPage() {
     refetchSalesOrder(); // optional, karena queryKey sudah berubah
   };
 
+  const { data: statusNAV, isLoading: isLoadingStatusNAV } = useQuery({
+    queryKey: ["statusNAV"],
+    queryFn: async () =>
+      await SalesOrderApi.getStatusNav(selectedSalesOrder?.return_value),
+    enabled: !!selectedSalesOrder?.return_value,
+  });
+
   useEffect(() => {
     if (userInfo?.description === "OVERDUE") {
       navigate("/not-found");
@@ -191,6 +198,11 @@ export function ProcessPage() {
                       <strong className="font-semibold">Dim1 (Area):</strong>
                       <span className="text-lg">
                         {salesOrderDetail.data.Dim1}
+                      </span>
+                    </p>
+                    <p className="flex items-center space-x-2">
+                      <span className="text-lg">
+                        {JSON.stringify(statusNAV)}
                       </span>
                     </p>
                   </div>

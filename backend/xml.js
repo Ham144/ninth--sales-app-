@@ -149,3 +149,20 @@ export const pembayaranTertundaFullXml = () => {
 </Envelope>
   `;
 };
+
+export const checkStatusSONAVXml = ({ return_value, xmlns }) => {
+  return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+    <Body>
+      <ReadMultiple xmlns="${
+        xmlns || "urn:microsoft-dynamics-schemas/page/soapi"
+      }">
+        <filter>
+          <Field>No</Field>
+          <Criteria>${return_value}</Criteria>
+        </filter>
+        <bookmarkKey></bookmarkKey>
+        <setSize></setSize>
+      </ReadMultiple>
+    </Body>
+  </Envelope>`;
+};

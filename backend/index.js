@@ -24,6 +24,7 @@ import integrationRoutes from "./routes/integration.route.js";
 import apiKeyAuth from "./middlewares/apiKeyAuth.js";
 import userRoutes from "./routes/user.routes.js";
 import organizationRoutes from "./routes/organization.route.js";
+import salesOrderNav from "./routes/SalesOrderNav.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
@@ -76,6 +77,7 @@ app.use(
 app.use("/api/v1/product", authenticate, productRoutes);
 app.use("/api/v1/customer", authenticate, customerRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
+app.use("/api/v1/salesOrder", authenticate, salesOrderNav);
 app.use("/api/v1/overdue", authenticate, overdueRoutes);
 app.use("/api/v1/location", authenticate, locationRoutes);
 // source of truth endpoint (pakai x-api-key krn Backend to Backend)
