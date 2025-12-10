@@ -9,7 +9,7 @@ import { placeHolderSearchSalesOrder } from "@/api/constant";
 import { toast } from "sonner";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
-import { Package } from "lucide-react";
+import { ClipboardCheck, Package } from "lucide-react";
 
 export function ProcessPage() {
   const [active, setActive] = useState(null);
