@@ -77,7 +77,7 @@ router.get("/statusNav", async (req, res) => {
     }
 
     // 🔹 Ambil node utama secara dinamis
-    const body = parsed?.Envelope?.ReadMultiple_Result;
+    const body = parsed;
 
     if (!body) {
       return res.json({
