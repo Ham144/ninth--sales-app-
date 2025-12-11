@@ -12,7 +12,7 @@ import mongoose from "mongoose";
 import Location from "../models/Location.model.js";
 import UserRefrensi from "../models/User.model.js";
 import Product from "../models/product.model.js";
-import redisService, { deleteCacheByPrefix } from "../utils/redisService.js";
+import redisService from "../utils/redisService.js";
 
 const router = Router();
 
@@ -322,8 +322,6 @@ router.post("/new", async (req, res) => {
       isPending: isPending,
     });
 
-    await deleteCacheByPrefix("salesOrderList_");
-
     await TemporarySalesOrder.findByIdAndDelete(tempToDeleteId);
     await TemporarySalesOrder.findOneAndDelete({
       frontendSession: frontendSession,
@@ -405,11 +403,7 @@ router.post("/confirm", async (req, res) => {
     pendingSalesOrder.isPending = false;
     await pendingSalesOrder.save();
 
-    await deleteCacheByPrefix(`salesOrderList_${isPending}_${req.user.org}_`);
-    const redisKeyGetById = `salesOrder_getById_${id}`;
-
-    await redisService.del(redisKey);
-    await redisService.del(redisKeyGetById);
+    await redisService.del(pendingSalesOrder?.return_value);
 
     return res.status(200).json(pendingSalesOrder);
   } catch (error) {
@@ -498,13 +492,6 @@ router.get("/list", async (req, res) => {
     extDoc,
   } = req.query;
 
-  const redisKey = `salesOrderList_${isPending}_${page}_${return_valueType}_${searchKey}_${req.user.org}`;
-
-  const data = JSON.parse(await redisService.get(redisKey));
-  if (data) {
-    return res.json({ data, message: "cached Sales order list" });
-  }
-
   try {
     const myVendor =
       req?.user?.description?.startsWith("SALES") &&
@@ -575,8 +562,6 @@ router.get("/list", async (req, res) => {
       .skip((page - 1) * 50)
       .limit(50);
 
-    redisService.set(redisKey, JSON.stringify(salesOrders), "EX", 3 * 60 * 60);
-
     return res.status(200).json({ data: salesOrders });
   } catch (error) {
     console.error(error);
@@ -587,13 +572,6 @@ router.get("/list", async (req, res) => {
 router.get("/getById/:id", async (req, res) => {
   const id = req.params.id;
   try {
-    const redisKey = `salesOrder_getById_${id}`;
-
-    const data = JSON.parse(await redisService.get(redisKey));
-    if (data) {
-      return res.json(data);
-    }
-
     const myVendor =
       req?.user?.description?.startsWith("SALES") &&
       req?.user?.description.split("_").length > 1
@@ -613,7 +591,6 @@ router.get("/getById/:id", async (req, res) => {
       }));
     }
 
-    redisService.set(redisKey, JSON.stringify(salesOrder), "EX", 3 * 60 * 60);
     return res.status(200).json(salesOrder);
   } catch (error) {
     console.log(error);
@@ -729,11 +706,6 @@ router.delete("/delete", async (req, res) => {
       });
     }
     await SalesOrder.findByIdAndDelete(id);
-
-    await deleteCacheByPrefix("salesOrderList_");
-
-    const redisKeyGetById = `salesOrder_getById_${id}`;
-    await redisService.del(redisKeyGetById);
 
     return res.json({
       message: "Sales Order Berhasil Dihapus",
