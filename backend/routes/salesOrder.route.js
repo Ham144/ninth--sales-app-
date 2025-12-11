@@ -498,9 +498,7 @@ router.get("/list", async (req, res) => {
     extDoc,
   } = req.query;
 
-  const redisKey = `salesOrderList_${isPending}_${page}_${req.user.org}`;
-
-  console.log(redisKey);
+  const redisKey = `salesOrderList_${isPending}_${page}_${return_valueType}_${searchKey}_${req.user.org}`;
 
   const data = JSON.parse(await redisService.get(redisKey));
   if (data) {
