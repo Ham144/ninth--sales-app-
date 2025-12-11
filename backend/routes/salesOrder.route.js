@@ -12,6 +12,7 @@ import mongoose from "mongoose";
 import Location from "../models/Location.model.js";
 import UserRefrensi from "../models/User.model.js";
 import Product from "../models/product.model.js";
+import redisService, { deleteCacheByPrefix } from "../utils/redisService.js";
 
 const router = Router();
 
@@ -153,6 +154,7 @@ router.post("/new", async (req, res) => {
 
   try {
     // req.user sudah di-set dari middleware authenticate
+
     const userInfo = req?.user;
 
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
@@ -265,7 +267,9 @@ router.post("/new", async (req, res) => {
     }
 
     const orderDate = new Date().toISOString().split("T")[0];
-
+    const cleanForNAV = (str) => {
+      return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
+    };
     let salesOrderResponseXml;
     if (!isPending) {
       salesOrderResponseXml = await requestSalesOrder({
@@ -273,7 +277,7 @@ router.post("/new", async (req, res) => {
         ExtDoc: req.user.username,
         SellToCustNo: customer.No,
         RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
-        Keterangan: keterangan,
+        Keterangan: cleanForNAV(keterangan),
         LocationCode: location.name,
         AreaCode: after,
         SalesLine: SalesLine,
@@ -317,6 +321,8 @@ router.post("/new", async (req, res) => {
       createdBy: req.user._id,
       isPending: isPending,
     });
+
+    await deleteCacheByPrefix("salesOrderList_");
 
     await TemporarySalesOrder.findByIdAndDelete(tempToDeleteId);
     await TemporarySalesOrder.findOneAndDelete({
@@ -399,6 +405,12 @@ router.post("/confirm", async (req, res) => {
     pendingSalesOrder.isPending = false;
     await pendingSalesOrder.save();
 
+    await deleteCacheByPrefix(`salesOrderList_${isPending}_${req.user.org}_`);
+    const redisKeyGetById = `salesOrder_getById_${id}`;
+
+    await redisService.del(redisKey);
+    await redisService.del(redisKeyGetById);
+
     return res.status(200).json(pendingSalesOrder);
   } catch (error) {
     console.log(error?.message);
@@ -432,6 +444,7 @@ router.get("/download", async (req, res) => {
     const baseMatch = {
       OrderDate: { $gte: from, $lt: to },
       org: req.user.org,
+      isPending: false,
     };
 
     let createdByFilter = [];
@@ -484,6 +497,15 @@ router.get("/list", async (req, res) => {
     return_valueType,
     extDoc,
   } = req.query;
+
+  const redisKey = `salesOrderList_${isPending}_${page}_${req.user.org}`;
+
+  console.log(redisKey);
+
+  const data = JSON.parse(await redisService.get(redisKey));
+  if (data) {
+    return res.json({ data, message: "cached Sales order list" });
+  }
 
   try {
     const myVendor =
@@ -555,7 +577,9 @@ router.get("/list", async (req, res) => {
       .skip((page - 1) * 50)
       .limit(50);
 
-    return res.status(200).json(salesOrders);
+    redisService.set(redisKey, JSON.stringify(salesOrders), "EX", 3 * 60 * 60);
+
+    return res.status(200).json({ data: salesOrders });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Kesalahan Server Internal" });
@@ -565,6 +589,13 @@ router.get("/list", async (req, res) => {
 router.get("/getById/:id", async (req, res) => {
   const id = req.params.id;
   try {
+    const redisKey = `salesOrder_getById_${id}`;
+
+    const data = JSON.parse(await redisService.get(redisKey));
+    if (data) {
+      return res.json(data);
+    }
+
     const myVendor =
       req?.user?.description?.startsWith("SALES") &&
       req?.user?.description.split("_").length > 1
@@ -583,6 +614,8 @@ router.get("/getById/:id", async (req, res) => {
         UnitPrice: "SMD Not Granted",
       }));
     }
+
+    redisService.set(redisKey, JSON.stringify(salesOrder), "EX", 3 * 60 * 60);
     return res.status(200).json(salesOrder);
   } catch (error) {
     console.log(error);
@@ -655,8 +688,7 @@ router.delete("/temp/delete/:id", async (req, res) => {
     if (!temp) {
       return res.json({ message: "Temporary Sales Telah dihapus" });
     }
-    const deleted = await TemporarySalesOrder.findByIdAndDelete(id);
-    console.log(deleted);
+    await TemporarySalesOrder.findByIdAndDelete(id);
     return res.json({ message: "Temporary Sales Order Berhasil Dihapus" });
   } catch (error) {
     console.log(error);
@@ -687,8 +719,8 @@ router.get("/temp/collect", async (req, res) => {
   }
 });
 
-router.delete("/delete/:id", async (req, res) => {
-  const id = req?.params?.id;
+router.delete("/delete", async (req, res) => {
+  const { id } = req.query;
   if (!id) return res.status(400).json({ message: "id is required" });
   try {
     const so = await SalesOrder.findById(id);
@@ -698,11 +730,17 @@ router.delete("/delete/:id", async (req, res) => {
         message: "Tidak boleh menghapus SO yang sudah dikirim ke NAV",
       });
     }
-    console.log("harusnya berhasil");
     await SalesOrder.findByIdAndDelete(id);
-    return res.json({ message: "berhasil menghapus pending SO" });
+
+    await deleteCacheByPrefix("salesOrderList_");
+
+    const redisKeyGetById = `salesOrder_getById_${id}`;
+    await redisService.del(redisKeyGetById);
+
+    return res.json({
+      message: "Sales Order Berhasil Dihapus",
+    });
   } catch (error) {
-    console.log(error);
     return res.status(500).json({ message: error?.message });
   }
 });

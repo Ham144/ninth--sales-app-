@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Logs,
   Download,
+  Star,
 } from "lucide-react";
 import GridItem from "@/components/ui/GridItem";
 
@@ -82,6 +83,13 @@ const Home = () => {
             title="Download Data"
             description="Mendownload data rangkukam sales order menjadi csv"
             path="/download/data"
+          />
+          <GridItem
+            icon={<Star className="h-5 w-5 text-neutral-500" />}
+            title="Fitur Lanjutan"
+            description="Fitur lanjutan dan penyempurnaan disini"
+            newTab={true}
+            path={"http://s-bit.muara.co.id/"}
           />
         </ul>
       </div>

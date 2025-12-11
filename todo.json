@@ -42,6 +42,13 @@
 [x] add: enpoint findUser: byId byUsername dll
 [x] mod: stock no access jika SMD
 
+[x] add: caching redis untuk route sales order
+
+//11-12-20025
+[x] check status SO NAV
+[x] SO caching optimized 
+[x] hapus & , * - + di 
+
 
 CI/CD self hosted action runner ::
 

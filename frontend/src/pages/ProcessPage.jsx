@@ -45,11 +45,16 @@ export function ProcessPage() {
   };
 
   const { data: statusNAV, isLoading: isLoadingStatusNAV } = useQuery({
-    queryKey: ["statusNAV"],
+    queryKey: ["statusNAV", selectedSalesOrder?.return_value],
     queryFn: async () =>
       await SalesOrderApi.getStatusNav(selectedSalesOrder?.return_value),
     enabled: !!selectedSalesOrder?.return_value,
   });
+
+  const getStatusNavByNo = (no) => {
+    if (!statusNAV?.data || !Array.isArray(statusNAV?.data)) return null;
+    return statusNAV?.data.find((item) => item.Item_No === no);
+  };
 
   useEffect(() => {
     if (userInfo?.description === "OVERDUE") {
@@ -113,7 +118,7 @@ export function ProcessPage() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-[600px] backdrop-blur-lg bg-white/50 rounded-2xl shadow-2xl overflow-hidden"
+              className="w-full max-w-5xl backdrop-blur-lg bg-white/50 rounded-2xl shadow-2xl overflow-hidden"
             >
               <div className="flex justify-between items-center p-4 border-b border-gray-200">
                 <h3 className="font-bold text-2xl">Sales Order Detail</h3>
@@ -202,130 +207,6 @@ export function ProcessPage() {
                       </span>
                     </p>
                     {/* Section untuk SOAPI Data */}
-                    <div className="mt-6">
-                      <div className="card bg-white shadow border-teal-100">
-                        <div className="card-body">
-                          <h3 className="text-lg font-bold text-teal-800 mb-4 flex items-center">
-                            <ClipboardCheck className="w-5 h-5 mr-2" />
-                            Informasi Picking Order
-                          </h3>
-
-                          {statusNAV?.data?.SOAPI &&
-                          statusNAV?.data?.SOAPI?.length > 0 ? (
-                            <div className="space-y-4">
-                              {statusNAV?.data?.SOAPI.map((item, index) => (
-                                <div
-                                  key={index}
-                                  className="bg-teal-50 rounded-lg p-4 border border-teal-200"
-                                >
-                                  {/* Header dengan Nomor Pick Ticket */}
-                                  <div className="flex items-center justify-between mb-3">
-                                    <div className="flex items-center">
-                                      <div className="bg-teal-100 p-2 rounded mr-3">
-                                        <Package className="w-5 h-5 text-teal-600" />
-                                      </div>
-                                      <div>
-                                        <p className="text-xs text-teal-600">
-                                          Pick Ticket No
-                                        </p>
-                                        <p className="font-bold text-teal-900">
-                                          {item.Pick_Ticket_No}
-                                        </p>
-                                      </div>
-                                    </div>
-                                    <span className="badge badge-teal badge-sm px-3">
-                                      {item.Qty_Picked} items
-                                    </span>
-                                  </div>
-
-                                  {/* Grid untuk informasi utama */}
-                                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    <div className="bg-white p-3 rounded border">
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Sales Order No
-                                      </p>
-                                      <p className="font-medium text-teal-800">
-                                        {item.No}
-                                      </p>
-                                    </div>
-
-                                    <div className="bg-white p-3 rounded border">
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Delivery Order No
-                                      </p>
-                                      <p className="font-medium text-teal-800">
-                                        {item.Do_No}
-                                      </p>
-                                    </div>
-
-                                    <div className="bg-white p-3 rounded border">
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Commercial Invoice
-                                      </p>
-                                      <p className="font-medium text-teal-800">
-                                        {item.CI_No}
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {/* Informasi tambahan dalam satu baris */}
-                                  <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t border-teal-200">
-                                    <div>
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Shipping Invoice
-                                      </p>
-                                      <p className="text-sm font-medium text-teal-800">
-                                        {item.SI_NO}
-                                      </p>
-                                    </div>
-
-                                    <div>
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Item Code
-                                      </p>
-                                      <p className="text-sm font-medium text-teal-800">
-                                        {item.Item_No}
-                                      </p>
-                                    </div>
-
-                                    <div>
-                                      <p className="text-xs text-teal-600 mb-1">
-                                        Quantity Picked
-                                      </p>
-                                      <p className="text-sm font-medium text-teal-800">
-                                        <span className="text-teal-900 font-bold">
-                                          {item.Qty_Picked}
-                                        </span>{" "}
-                                        units
-                                      </p>
-                                    </div>
-                                  </div>
-
-                                  {/* Key ID (tersembunyi, bisa di-expand) */}
-                                  <details className="mt-3">
-                                    <summary className="text-xs text-teal-500 cursor-pointer hover:text-teal-700">
-                                      Show System Key
-                                    </summary>
-                                    <div className="mt-2 p-2 bg-teal-100 rounded text-xs font-mono break-all">
-                                      {item.Key}
-                                    </div>
-                                  </details>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-center py-8">
-                              <div className="mx-auto w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mb-4">
-                                <Package className="w-8 h-8 text-teal-400" />
-                              </div>
-                              <p className="text-teal-600">
-                                Tidak ada data tersedia
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
 
                   <div className="bg-gray-50 rounded-2xl p-4">
@@ -336,7 +217,22 @@ export function ProcessPage() {
                           <tr>
                             <th className="p-2 text-left">Item No</th>
                             <th className="p-2 text-right">Qty</th>
-                            <th className="p-2 text-right">Unit Price</th>
+                            <th className="p-2 text-right ">Unit Price</th>
+                            <th className="p-2 text-right max-md:hidden">
+                              Qty_Picked
+                            </th>
+                            <th className="p-2 text-right max-md:hidden">
+                              Pick_Ticket_No
+                            </th>
+                            <th className="p-2 text-right max-md:hidden">
+                              Do_No
+                            </th>
+                            <th className="p-2 text-right max-md:hidden">
+                              CI_No
+                            </th>
+                            <th className="p-2 text-right max-md:hidden">
+                              SI_NO
+                            </th>
                           </tr>
                         </thead>
                         <tbody>
@@ -346,6 +242,23 @@ export function ProcessPage() {
                               <td className="p-2 text-right">{line.Qty}</td>
                               <td className="p-2 text-right">
                                 {line.UnitPrice.toLocaleString()}
+                              </td>
+                              <td className="p-2 text-right max-md:hidden">
+                                {getStatusNavByNo(line.ItemNo)?.Qty_Picked ||
+                                  "-"}
+                              </td>
+                              <td className="p-2 text-right max-md:hidden">
+                                {getStatusNavByNo(line.ItemNo)
+                                  ?.Pick_Ticket_No || "-"}
+                              </td>
+                              <td className="p-2 text-right max-md:hidden">
+                                {getStatusNavByNo(line.ItemNo)?.Do_No || "-"}
+                              </td>
+                              <td className="p-2 text-right max-md:hidden">
+                                {getStatusNavByNo(line.ItemNo)?.CI_No || "-"}
+                              </td>
+                              <td className="p-2 text-right max-md:hidden">
+                                {getStatusNavByNo(line.ItemNo)?.SI_NO || "-"}
                               </td>
                             </tr>
                           ))}

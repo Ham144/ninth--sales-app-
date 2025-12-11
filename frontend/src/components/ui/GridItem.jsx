@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router";
 import { GlowingEffect } from "./glowing-effect";
+import { toast } from "sonner";
 
 const GridItem = ({
   area,
@@ -8,12 +9,23 @@ const GridItem = ({
   description,
   path,
   disabled = false,
+  newTab,
 }) => {
   const navigate = useNavigate();
 
   return (
     <li
-      onClick={() => !disabled && navigate(path)}
+      onClick={() => {
+        if (!disabled) {
+          return;
+        }
+        if (newTab) {
+          window.location.href = path;
+          return;
+        } else {
+          navigate(path);
+        }
+      }}
       className={`min-h-[14rem] list-none ${area} ${
         disabled ? "cursor-not-allowed" : "cursor-pointer"
       }`}

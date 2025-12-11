@@ -9,7 +9,7 @@ const SalesOrderApi = {
     const response = await axiosInstance.get(
       `/api/v1/salesOrder/list?searchKey=${searchKey}`
     );
-    return response;
+    return response?.data;
   },
   createTempSO: async (body) => {
     const response = await axiosInstance.put(

@@ -3,11 +3,21 @@ import { fetchData } from "../utils/soap-util.js";
 import xml2js from "xml2js";
 import { checkStatusSONAVXml } from "../xml.js";
 import UserRefrensi from "../models/User.model.js";
+import redisService from "../utils/redisService.js";
 
 const router = Router();
 
 router.get("/statusNav", async (req, res) => {
   const { return_value } = req.query;
+
+  if (!return_value) {
+    return { error: true, message: "return_value harus diisi" };
+  }
+
+  const data = JSON.parse(await redisService.get(return_value));
+  if (data) {
+    return res.json({ message: "berhasil ambil data 3 jam lalu", data });
+  }
 
   try {
     const requestor = await UserRefrensi.findById(req.user._id).populate("org");
@@ -47,8 +57,6 @@ router.get("/statusNav", async (req, res) => {
       SOAPAction: SOAP_CHECKSTATUSNAV_SOAPACTION,
     });
 
-    console.log(rawXmlResponse);
-
     if (!rawXmlResponse) {
       console.log("Response kosong");
       return { error: true, message: "Response kosong" };
@@ -66,7 +74,7 @@ router.get("/statusNav", async (req, res) => {
       return { error: true, message: "Gagal parse XML" };
     }
 
-    // 🔹 Cek kalau respons berisi error SOAP
+    // Cek kalau respons berisi error SOAP
     const fault = parsed?.Envelope?.Body?.Fault;
     if (fault) {
       return {
@@ -76,7 +84,7 @@ router.get("/statusNav", async (req, res) => {
       };
     }
 
-    // 🔹 Ambil node utama secara dinamis
+    //  Ambil node utama secara dinamis
     const body =
       parsed.Envelope.Body.ReadMultiple_Result.ReadMultiple_Result.SOAPI || [];
 
@@ -86,6 +94,12 @@ router.get("/statusNav", async (req, res) => {
       });
     }
 
+    await redisService.set(
+      return_value,
+      JSON.stringify(body),
+      "EX",
+      3 * 60 * 60
+    ); // 3 hours
     return res.json({
       data: body,
     });
