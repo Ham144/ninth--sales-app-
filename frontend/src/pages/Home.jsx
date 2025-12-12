@@ -87,7 +87,7 @@ const Home = () => {
           <GridItem
             icon={<Star className="h-5 w-5 text-neutral-500" />}
             title="Fitur Lanjutan"
-            description="Fitur lanjutan dan penyempurnaan disini"
+            description="Fitur lebih lengkap ada disini"
             newTab={true}
             path={"http://s-bit.muara.co.id/"}
           />

@@ -413,7 +413,7 @@ router.post("/confirm", async (req, res) => {
 });
 
 router.get("/download", async (req, res) => {
-  const { month, preview } = req.query;
+  const { month, preview, return_valueType } = req.query;
 
   const userInfo = req.user;
 
@@ -440,6 +440,10 @@ router.get("/download", async (req, res) => {
       org: req.user.org,
       isPending: false,
     };
+
+    if (return_valueType) {
+      baseMatch.return_value = { $regex: return_valueType, $options: "i" };
+    }
 
     let createdByFilter = [];
     if (vendor) {
@@ -562,7 +566,10 @@ router.get("/list", async (req, res) => {
       .skip((page - 1) * 50)
       .limit(50);
 
-    return res.status(200).json({ data: salesOrders });
+    const total = await SalesOrder.countDocuments(matchStage);
+    const totalPage = Math.ceil(total / 50);
+
+    return res.status(200).json({ data: salesOrders, totalPage, total });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Kesalahan Server Internal" });

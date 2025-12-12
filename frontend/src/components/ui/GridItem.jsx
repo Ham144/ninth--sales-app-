@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router";
 import { GlowingEffect } from "./glowing-effect";
-import { toast } from "sonner";
 
 const GridItem = ({
   area,
@@ -16,7 +15,7 @@ const GridItem = ({
   return (
     <li
       onClick={() => {
-        if (!disabled) {
+        if (disabled) {
           return;
         }
         if (newTab) {

@@ -9,13 +9,14 @@ import { placeHolderSearchSalesOrder } from "@/api/constant";
 import { toast } from "sonner";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
-import { ClipboardCheck, Package } from "lucide-react";
 
 export function ProcessPage() {
   const [active, setActive] = useState(null);
   const [selectedSalesOrder, setSelectedSalesOrder] = useState(null);
   const ref = useRef(null);
   const id = useId();
+
+  const [page, setPage] = useState(1);
 
   const { userInfo } = useUserInfo();
   const navigate = useNavigate();
@@ -30,6 +31,7 @@ export function ProcessPage() {
     queryKey: ["salesOrders", search], // ✅ search dimasukkan agar query auto update
     queryFn: async () => await SalesOrderApi.getAllSalesOrder(search),
   });
+  const totalPage = salesOrderList?.totalPage;
 
   // detail order
   const { data: salesOrderDetail, isLoading: isLoadingDetail } = useQuery({
@@ -76,7 +78,7 @@ export function ProcessPage() {
         className="flex items-center  gap-2 relative w-full max-w-md"
       >
         {/* Input dengan tombol clear di dalamnya */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 max-md:px-4">
           <PlaceholdersAndVanishInput
             placeholders={placeHolderSearchSalesOrder}
             value={search}
@@ -211,6 +213,9 @@ export function ProcessPage() {
 
                   <div className="bg-gray-50 rounded-2xl p-4">
                     <h4 className="font-semibold mb-2">Sales Lines</h4>
+                    {isLoadingStatusNAV && (
+                      <span className="loading loading-ring loading-lg"></span>
+                    )}
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-gray-100">
@@ -276,7 +281,7 @@ export function ProcessPage() {
       </AnimatePresence>
 
       {/* Sales Order List */}
-      <ul className="max-w-2xl  md:h-[70vh] max-md:h-[80vh]  overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
+      <ul className="max-w-2xl  md:h-[60vh] max-md:h-[70vh] max-md:px-3  overflow-y-auto gap-y-4 flex flex-col mx-auto w-full gap-4 mt-6">
         {isLoadingList ? (
           <div className="flex justify-center items-center">
             <span className="loading loading-ring loading-lg"></span>
@@ -327,6 +332,59 @@ export function ProcessPage() {
           ))
         )}
       </ul>
+      {/* pagination */}
+      <div className="join grid grid-cols-3 rounded-xl shadow-lg overflow-hidden bg-gradient-to-r from-pink-50 to-pink-100 p-1 absolute bottom-[12%]">
+        <button
+          disabled={page === 1}
+          onClick={() => page > 1 && setPage(page - 1)}
+          className="join-item btn btn-outline disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-md border-pink-200 text-pink-700 hover:bg-pink-50 hover:border-pink-300 hover:text-pink-800"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+          <span className="max-md:hidden">Sebelumnya</span>
+        </button>
+
+        <div className="join-item flex items-center justify-center bg-white border border-pink-200 rounded-lg mx-1 shadow-sm">
+          <span className="font-bold text-pink-700 text-lg">{page}</span>
+          <span className="text-pink-400 mx-1">/</span>
+          <span className="text-pink-500">{totalPage}</span>
+        </div>
+
+        <button
+          disabled={page === totalPage}
+          onClick={() => page < totalPage && setPage(page + 1)}
+          className="join-item btn btn-outline disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200 transition-all duration-300 ease-in-out hover:scale-[1.02] hover:shadow-md border-pink-200 text-pink-700 hover:bg-pink-50 hover:border-pink-300 hover:text-pink-800"
+        >
+          <span className="max-md:hidden">Selanjutnya</span>
+
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-5 w-5 ml-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }

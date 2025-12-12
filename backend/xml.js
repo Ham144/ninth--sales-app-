@@ -37,7 +37,7 @@ export const checkStockXML = (No, locationCode, SOAP_STOCK_XMLNS) => {
             <inventory>0</inventory>
         </GetInventoryByLocation>
     </Body>
-</Envelope>`;
+</nvelope>`;
 };
 
 export const requestSalesOrderXml = ({
