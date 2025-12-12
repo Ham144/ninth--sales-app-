@@ -56,7 +56,6 @@ router.get("/statusNav", async (req, res) => {
       url: SOAP_CHECKSTATUSNAV_URL,
       SOAPAction: SOAP_CHECKSTATUSNAV_SOAPACTION,
     });
-    console.log(rawXmlResponse);
 
     if (!rawXmlResponse) {
       console.log("Response kosong");
@@ -75,30 +74,19 @@ router.get("/statusNav", async (req, res) => {
       return { error: true, message: "Gagal parse XML" };
     }
 
-    // Handle SOAP Fault
-    const fault = parsed?.Envelope?.Body?.Fault;
-    if (fault) {
-      return {
-        error: true,
-        code: fault?.faultcode || null,
-        message: fault?.faultstring || "SOAP Fault tanpa pesan",
-      };
-    }
-
     // Ambil node utama NAV (ReadMultiple dua kali)
     const innerResult =
       parsed?.Envelope?.Body?.ReadMultiple_Result?.ReadMultiple_Result;
 
     if (!innerResult) {
-      return {
-        error: true,
-        message: "Data ReadMultiple_Result tidak ditemukan",
-      };
+      return res.status(200).json({
+        message: "belum ada data di NAV",
+        data: innerResult,
+      });
     }
 
     // Ambil SOAPI — bisa berupa array atau object
     let body = [innerResult?.SOAPI] || [];
-    console.log(body);
 
     if (!body?.length) {
       return res.json({
