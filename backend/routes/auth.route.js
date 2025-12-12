@@ -476,12 +476,18 @@ router.post(
           ? payload?.description.split("_")[1]
           : null;
 
-      const access_token =
-        myVendor === "PHILIPS" ? null : await generateTokenJWT(payload);
-      const refresh_token =
-        myVendor === "PHILIPS" ? null : await generateRefreshToken(payload);
+      // const access_token =
+      //   myVendor === "PHILIPS" ? null : await generateTokenJWT(payload);
+      // const refresh_token =
+      //   myVendor === "PHILIPS" ? null : await generateRefreshToken(payload);
 
-      if (myVendor !== "PHILIPS") {
+      const access_token =
+         await generateTokenJWT(payload);
+      const refresh_token =
+         await generateRefreshToken(payload);
+
+      
+      // if (myVendor !== "PHILIPS") {
         res.cookie("refresh_token", refresh_token, {
           httpOnly: true,
           secure: false,
@@ -489,16 +495,16 @@ router.post(
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
         userDB.refreshToken = refresh_token;
-      }
+      // }
 
-      if (myVendor !== "PHILIPS") {
+      // if (myVendor !== "PHILIPS") {
         res.cookie("access_token", access_token, {
           httpOnly: true,
           secure: false,
           sameSite: "Lax",
           maxAge: 5 * 60 * 1000,
         });
-      }
+      // }
 
       await userDB.save();
 
@@ -506,8 +512,8 @@ router.post(
         success: true,
         message: "Selamat datang kembali.",
         data: payload,
-        refresh_token: myVendor === "PHILIPS" ? "not granted" : refresh_token,
-        access_token: myVendor === "PHILIPS" ? "not granted" : access_token,
+        refresh_token: refresh_token,
+        access_token: access_token,
         _2faIsVerified: userDB._2faIsVerified,
       });
     } catch (error) {
