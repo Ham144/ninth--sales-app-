@@ -31,13 +31,13 @@ export const customerXml = ({ SOAP_CUSTOMER_XMLNS }) => {
 export const checkStockXML = (No, locationCode, SOAP_STOCK_XMLNS) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
-        <GetInventoryByLocation xmlns="${SOAP_STOCK_XMLNS}">
+        <GetInventoryByLocation xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
             <itemNo>${No}</itemNo>
             <locationCode>${locationCode}</locationCode>
             <inventory>0</inventory>
         </GetInventoryByLocation>
     </Body>
-</nvelope>`;
+</Envelope>`;
 };
 
 export const requestSalesOrderXml = ({

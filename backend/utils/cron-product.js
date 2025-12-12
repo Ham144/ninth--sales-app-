@@ -45,28 +45,24 @@ export const fetchingSoapToGetStock = async (No, locationCode, req) => {
       url: SOAP_STOCK_URL,
       SOAPAction: SOAP_STOCK_SOAPACTION,
     });
-
     if (!rawXmlResponse) {
       console.log("Response kosong");
       return null;
     }
+
     const parsed = await xml2js.parseStringPromise(rawXmlResponse, {
       explicitArray: false,
       trim: true,
     });
 
-    const result =
-      parsed?.["Soap:Envelope"]?.["Soap:Body"]?.[
-        "GetInventoryByLocation_Result"
-      ];
+    const body = parsed?.["Soap:Envelope"]?.["Soap:Body"];
 
-    if (!result) {
+    if (!body) {
       console.log("Tidak bisa menemukan data hasil");
       return null;
     }
 
-    // Ambil nilai inventory
-    const inventoryValue = result?.inventory;
+    const inventoryValue = body?.GetInventoryByLocation_Result?.inventory;
 
     return inventoryValue !== undefined ? Number(inventoryValue) : null;
   } catch (error) {

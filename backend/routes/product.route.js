@@ -87,6 +87,7 @@ router.get("/getStock", async (req, res) => {
   try {
     const stockResult = await fetchingSoapToGetStock(No, locationCode, req);
 
+    console.log("stockResult,: ", stockResult);
     //jika SMD sensor stock
     // const vendor = req?.user?.description?.split("_")[1];
     // if (vendor) {
