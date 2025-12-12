@@ -92,17 +92,18 @@ router.get("/statusNav", async (req, res) => {
       return res.json({
         data: [],
       });
-    }
+    } else if (body?.length > 0) {
+      await redisService.set(
+        return_value,
+        JSON.stringify(body),
+        "EX",
+        3 * 60 * 60
+      ); // 3 hours
 
-    await redisService.set(
-      return_value,
-      JSON.stringify(body),
-      "EX",
-      3 * 60 * 60
-    ); // 3 hours
-    return res.json({
-      data: body,
-    });
+      return res.json({
+        data: body,
+      });
+    }
   } catch (error) {
     console.log(error?.message);
     return res.status(500).json({
