@@ -56,6 +56,7 @@ router.get("/statusNav", async (req, res) => {
       url: SOAP_CHECKSTATUSNAV_URL,
       SOAPAction: SOAP_CHECKSTATUSNAV_SOAPACTION,
     });
+    console.log(rawXmlResponse);
 
     if (!rawXmlResponse) {
       console.log("Response kosong");
@@ -67,14 +68,14 @@ router.get("/statusNav", async (req, res) => {
       parsed = await xml2js.parseStringPromise(rawXmlResponse, {
         explicitArray: false,
         trim: true,
-        tagNameProcessors: [xml2js.processors.stripPrefix],
+        tagNameProcessors: [xml2js.processors.stripPrefix], // tetap dipakai
       });
     } catch (err) {
       console.error("Gagal parse XML:", err);
       return { error: true, message: "Gagal parse XML" };
     }
 
-    // Cek kalau respons berisi error SOAP
+    // Handle SOAP Fault
     const fault = parsed?.Envelope?.Body?.Fault;
     if (fault) {
       return {
@@ -84,9 +85,20 @@ router.get("/statusNav", async (req, res) => {
       };
     }
 
-    //  Ambil node utama secara dinamis
-    const body =
-      parsed.Envelope.Body.ReadMultiple_Result.ReadMultiple_Result.SOAPI || [];
+    // Ambil node utama NAV (ReadMultiple dua kali)
+    const innerResult =
+      parsed?.Envelope?.Body?.ReadMultiple_Result?.ReadMultiple_Result;
+
+    if (!innerResult) {
+      return {
+        error: true,
+        message: "Data ReadMultiple_Result tidak ditemukan",
+      };
+    }
+
+    // Ambil SOAPI — bisa berupa array atau object
+    let body = [innerResult?.SOAPI] || [];
+    console.log(body);
 
     if (!body?.length) {
       return res.json({
