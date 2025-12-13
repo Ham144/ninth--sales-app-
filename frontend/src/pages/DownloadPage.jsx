@@ -313,7 +313,7 @@ const DownloadPage = () => {
                 </div>
 
                 <h4 className="font-semibold text-gray-800 truncate mb-2">
-                  {item.customer.Name}
+                  {item.customer?.Name}
                 </h4>
 
                 <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-100">

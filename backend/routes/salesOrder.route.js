@@ -427,7 +427,6 @@ router.get("/download", async (req, res) => {
   let m = Number.isFinite(Number(month))
     ? parseInt(month, 10)
     : today.getMonth();
-  if (m >= 1 && m <= 12) m = m - 1; // ubah 1-12 → 0-11
   if (m < 0 || m > 11 || Number.isNaN(m)) m = today.getMonth();
 
   // Range [awal bulan, awal bulan berikutnya)
