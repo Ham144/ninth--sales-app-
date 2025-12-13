@@ -437,7 +437,6 @@ router.get("/download", async (req, res) => {
   try {
     const baseMatch = {
       OrderDate: { $gte: from, $lt: to },
-      org: req.user.org,
       isPending: false,
     };
 
@@ -534,8 +533,25 @@ router.get("/list", async (req, res) => {
     ) {
       matchStage.createdBy = req.user._id;
     }
+    let searchByCustomer = null;
 
     if (searchKey && searchKey !== "undefined") {
+      searchByCustomer = await Customer.findOne({
+        No: { $regex: searchKey, $options: "i" },
+      }).select("_id");
+
+      const orConditions = [
+        { DocumentNo: { $regex: searchKey, $options: "i" } },
+        { SalespersonCode: { $regex: searchKey, $options: "i" } },
+        { ExtDoc: { $regex: searchKey, $options: "i" } },
+        { SellToCustNo: { $regex: searchKey, $options: "i" } },
+        { return_value: { $regex: searchKey, $options: "i" } },
+      ];
+
+      if (searchByCustomer?._id) {
+        orConditions.push({ customer: searchByCustomer._id });
+      }
+
       matchStage = {
         $and: [
           { org: req.user.org, ...matchStage },
@@ -544,16 +560,7 @@ router.get("/list", async (req, res) => {
           req.user.description !== "PROCUREMENT"
             ? [{ createdBy: req.user._id }]
             : []),
-          {
-            $or: [
-              { DocumentNo: { $regex: searchKey, $options: "i" } },
-              { SalespersonCode: { $regex: searchKey, $options: "i" } },
-              { ExtDoc: { $regex: searchKey, $options: "i" } },
-              { SellToCustNo: { $regex: searchKey, $options: "i" } },
-              { return_value: { $regex: searchKey, $options: "i" } },
-              { "customer.Name": { $regex: searchKey, $options: "i" } },
-            ],
-          },
+          { $or: orConditions },
         ],
       };
     }
