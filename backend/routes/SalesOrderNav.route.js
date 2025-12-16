@@ -86,7 +86,11 @@ router.get("/statusNav", async (req, res) => {
     }
 
     // Ambil SOAPI — bisa berupa array atau object
-    let body = [innerResult?.SOAPI] || [];
+    const body = Array.isArray(innerResult?.SOAPI)
+      ? innerResult.SOAPI
+      : innerResult?.SOAPI
+      ? [innerResult.SOAPI]
+      : [];
 
     if (!body?.length) {
       return res.json({
