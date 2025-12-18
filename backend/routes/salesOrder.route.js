@@ -532,11 +532,11 @@ router.get("/list", async (req, res) => {
     ) {
       matchStage.createdBy = req.user._id;
     }
-    let searchByCustomer = null;
+    let searchByCustomerIds = [];
 
     if (searchKey && searchKey !== "undefined") {
-      searchByCustomer = await Customer.findOne({
-        No: { $regex: searchKey, $options: "i" },
+      searchByCustomerIds = await Customer.find({
+        Name: { $regex: searchKey, $options: "i" },
       }).select("_id");
 
       const orConditions = [
@@ -547,8 +547,8 @@ router.get("/list", async (req, res) => {
         { return_value: { $regex: searchKey, $options: "i" } },
       ];
 
-      if (searchByCustomer?._id) {
-        orConditions.push({ customer: searchByCustomer._id });
+      if (searchByCustomerIds?.length > 0) {
+        orConditions.push({ customer: { $in: searchByCustomerIds } });
       }
 
       matchStage = {
