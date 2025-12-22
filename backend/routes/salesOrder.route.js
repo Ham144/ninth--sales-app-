@@ -30,7 +30,6 @@ export const requestSalesOrder = async ({
 }) => {
   try {
     // lengkapi requestor asli
-
     const requestor = await UserRefrensi.findById(req.user._id).populate("org");
     if (!requestor) {
       return { error: true, message: "Requestor tidak ditemukan" };
@@ -492,6 +491,7 @@ router.get("/list", async (req, res) => {
     page = 1,
     return_valueType,
     extDoc,
+    requestDate,
   } = req.query;
 
   try {
@@ -503,6 +503,17 @@ router.get("/list", async (req, res) => {
 
     //jika IT maka munculkan SO
     let matchStage = { org: req.user.org };
+
+    if (requestDate) {
+      console.log(requestDate);
+      const start = new Date(requestDate);
+      start.setHours(0, 0, 0, 0);
+
+      const end = new Date(requestDate);
+      end.setHours(23, 59, 59, 999);
+
+      matchStage.createdAt = { $gte: start, $lte: end };
+    }
 
     if (return_valueType && Boolean(isPending) === false) {
       matchStage.return_value = { $regex: return_valueType, $options: "i" };
