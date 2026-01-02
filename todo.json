@@ -53,6 +53,10 @@
 [x] fix: filter bulan untuk download SO
 [x] add: filtering dengan No customer atau nama customer
 
+//01-20-2026
+[x] add: perbaiki SO download di midcsi
+[x] add: fitur cancel
+[x] add: fix book yang telah lalu harusnya tidak perlu dihitung
 
 CI/CD self hosted action runner ::
 

@@ -44,11 +44,10 @@ const salesOrderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "UserRefrensi",
     },
-    isPending: {
-      // jika false maka sales order perlu di konfirmasi oleh procurement di app s-bit
-      type: Boolean,
-      required: true,
-      default: false,
+    status: {
+      type: String,
+      enum: ["pending", "completed", "canceled"],
+      default: "completed",
     },
   },
   { timestamps: true }

@@ -3,7 +3,7 @@ import { Input } from "@/components/ui/input";
 import { MonthPicker } from "@/components/ui/monthpicker";
 import { useUserInfo } from "@/store";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowDown, Download } from "lucide-react";
+import { ArrowDown, Download, DownloadCloud } from "lucide-react";
 import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -20,127 +20,117 @@ const DownloadPage = () => {
     queryKey: ["download-sales-order", selectedMonth],
     queryFn: async () => {
       const res = await axiosInstance.get("/api/v1/salesOrder/download", {
-        params: { month: selectedMonth, preview: true },
+        params: {
+          month: selectedMonth,
+          preview: true,
+          return_valueType: "SMA",
+        },
       });
       return res.data;
     },
   });
 
-  const { mutateAsync: handleDownload, isPending: handleDownloadPending } =
-    useMutation({
-      mutationKey: ["salesOrder"],
-      mutationFn: async () => {
-        const res = await axiosInstance.get("/api/v1/salesOrder/download", {
-          params: { month: selectedMonth },
-        });
+  const { mutateAsync: handleDownload } = useMutation({
+    mutationKey: ["salesOrder"],
+    mutationFn: async () => {
+      const res = await axiosInstance.get("/api/v1/salesOrder/download", {
+        params: { month: selectedMonth, return_valueType: "SMA" },
+      });
 
-        const rows = res?.data || [];
+      const rows = res?.data || [];
 
-        const escapeCsv = (value) => {
-          if (value === undefined || value === null) return "";
-          const str = String(value);
-          const needsQuotes = /[",\n]/.test(str);
-          const escaped = str.replace(/"/g, '""');
-          return needsQuotes ? `"${escaped}"` : escaped;
-        };
+      const escapeCsv = (value) => {
+        if (value === undefined || value === null) return "";
+        const str = String(value);
+        const needsQuotes = /[",\n]/.test(str);
+        const escaped = str.replace(/"/g, '""');
+        return needsQuotes ? `"${escaped}"` : escaped;
+      };
 
-        const normalizeDate = (d) => {
-          if (!d) return "";
-          const date = new Date(d);
-          return isNaN(date.getTime()) ? String(d) : date.toISOString();
-        };
+      const normalizeDate = (d) => {
+        if (!d) return "";
+        const date = new Date(d);
+        return isNaN(date.getTime()) ? String(d) : date.toISOString();
+      };
 
-        const serializeSalesLine = (salesLine = []) => {
-          return salesLine
-            .map(
-              (l) =>
-                `ItemNo:${l?.ItemNo ?? ""}|Qty:${l?.Qty ?? 0}|UnitPrice:${
-                  l?.UnitPrice ?? 0
-                }|LineNo:${l?.LineNo ?? ""}`
-            )
-            .join("; ");
-        };
+      const headers = [
+        "return_value",
+        "DocumentNo",
+        "customer.Name",
+        "customer.No",
+        "ShiptToCode",
+        "OrderDate",
+        "LocationCode",
+        "Dim1",
+        "CustomerPriceGrp",
+        "SalespersonCode",
+        "SellToContact",
+        "NoSeries",
+        "ExtDoc",
+        "RequestDeliveryDate",
+        "Keterangan",
+        "SalesLineTotal",
+        "org.organizationName",
+        "createdBy.username",
+        // SalesLine fields (each SalesLine becomes one CSV row)
+        "SalesLine.ItemNo",
+        "SalesLine.Qty",
+        "SalesLine.UnitPrice",
+        "SalesLine.LineNo",
+      ];
 
-        const headers = [
-          "return_value",
-          "DocumentNo",
-          "customer.Name",
-          "customer.No",
-          "ShiptToCode",
-          "OrderDate",
-          "LocationCode",
-          "Dim1",
-          "CustomerPriceGrp",
-          "SalespersonCode",
-          "SellToContact",
-          "NoSeries",
-          "ExtDoc",
-          "RequestDeliveryDate",
-          "Keterangan",
-          "SalesLineTotal",
-          "org.organizationName",
-          "createdBy.username",
-          // SalesLine fields (each SalesLine becomes one CSV row)
-          "SalesLine.ItemNo",
-          "SalesLine.Qty",
-          "SalesLine.UnitPrice",
-          "SalesLine.LineNo",
-        ];
+      const getByPath = (obj, path) => {
+        return path
+          .split(".")
+          .reduce((acc, key) => (acc ? acc[key] : undefined), obj);
+      };
 
-        const getByPath = (obj, path) => {
-          return path
-            .split(".")
-            .reduce((acc, key) => (acc ? acc[key] : undefined), obj);
-        };
-
-        const csvLines = [headers.join(",")];
-        for (const row of rows) {
-          const salesLines =
-            Array.isArray(row?.SalesLine) && row.SalesLine.length > 0
-              ? row.SalesLine
-              : [null];
-          for (const line of salesLines) {
-            const values = headers.map((h) => {
-              if (h === "OrderDate" || h === "RequestDeliveryDate") {
-                return escapeCsv(normalizeDate(row[h]));
-              }
-              if (h === "CustomerPriceGrp") {
-                return escapeCsv(
-                  row?.CustomerPriceGrp ??
-                    row?.customer?.Customer_Price_Group ??
-                    ""
-                );
-              }
-              if (h === "SalespersonCode") {
-                return escapeCsv(
-                  row?.SalespersonCode ?? row?.customer?.Salesperson_Code ?? ""
-                );
-              }
-              if (h === "SalesLine.ItemNo")
-                return escapeCsv(line?.ItemNo ?? "");
-              if (h === "SalesLine.Qty") return escapeCsv(line?.Qty ?? 0);
-              if (h === "SalesLine.UnitPrice")
-                return escapeCsv(line?.UnitPrice ?? 0);
-              if (h === "SalesLine.LineNo")
-                return escapeCsv(line?.LineNo ?? "");
-              const val = getByPath(row, h);
-              return escapeCsv(val);
-            });
-            csvLines.push(values.join(","));
-          }
+      const csvLines = [headers.join(",")];
+      for (const row of rows) {
+        const salesLines =
+          Array.isArray(row?.SalesLine) && row.SalesLine.length > 0
+            ? row.SalesLine
+            : [null];
+        for (const line of salesLines) {
+          const values = headers.map((h) => {
+            if (h === "OrderDate" || h === "RequestDeliveryDate") {
+              return escapeCsv(normalizeDate(row[h]));
+            }
+            if (h === "CustomerPriceGrp") {
+              return escapeCsv(
+                row?.CustomerPriceGrp ??
+                  row?.customer?.Customer_Price_Group ??
+                  ""
+              );
+            }
+            if (h === "SalespersonCode") {
+              return escapeCsv(
+                row?.SalespersonCode ?? row?.customer?.Salesperson_Code ?? ""
+              );
+            }
+            if (h === "SalesLine.ItemNo") return escapeCsv(line?.ItemNo ?? "");
+            if (h === "SalesLine.Qty") return escapeCsv(line?.Qty ?? 0);
+            if (h === "SalesLine.UnitPrice")
+              return escapeCsv(line?.UnitPrice ?? 0);
+            if (h === "SalesLine.LineNo") return escapeCsv(line?.LineNo ?? "");
+            const val = getByPath(row, h);
+            return escapeCsv(val);
+          });
+          csvLines.push(values.join(","));
         }
+      }
 
-        const csvData = csvLines.join("\n");
+      const csvData = csvLines.join("\n");
 
-        const blob = new Blob([csvData], { type: "text/csv" });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "salesOrder.csv";
-        a.click();
-        window.URL.revokeObjectURL(url);
-      },
-    });
+      const blob = new Blob([csvData], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "salesOrder.csv";
+      a.click();
+      window.URL.revokeObjectURL(url);
+    },
+  });
 
   //ini untuk pencarian frontend-only untuk mengecek apakah ada yang diinginkan
   useEffect(() => {
@@ -266,20 +256,9 @@ const DownloadPage = () => {
             <div className="mt-4 md:mt-6">
               <button
                 onClick={handleDownload}
-                className="btn btn-primary rounded-lg px-6 py-3 flex items-center gap-2"
+                className="btn btn-primary rounded-lg px-6 py-3 flex items-center gap-2 text-white"
               >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+                <DownloadCloud />
                 Download Semua
               </button>
             </div>

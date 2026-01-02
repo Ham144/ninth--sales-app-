@@ -35,10 +35,6 @@ export const requestSalesOrder = async ({
       return { error: true, message: "Requestor tidak ditemukan" };
     }
 
-    // const org = await Org.findById(req.user.org).select(
-    //   "SOAP_TRANSACTION_URL SOAP_TRANSACTION_USERNAME SOAP_TRANSACTION_PASSWORD SOAP_TRANSACTION_SOAPACTION SOAP_TRANSACTION_XMLNS"
-    // );
-
     const {
       SOAP_TRANSACTION_URL,
       SOAP_TRANSACTION_USERNAME,
@@ -148,7 +144,6 @@ router.post("/new", async (req, res) => {
     frontendSession,
     keterangan,
     locationCode,
-    isPending = false,
   } = req.body;
 
   try {
@@ -158,12 +153,7 @@ router.post("/new", async (req, res) => {
 
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
 
-    const vendor =
-      userInfo?.description?.startsWith("SALES") &&
-      userInfo?.description?.split("_")[1];
-
-    if (!globalIndex)
-      return res.status(500).json({ message: "Gagal membuat global index" });
+    const vendor = userInfo?.description?.split("_")[1];
 
     //kondisi menerima customer boleh hanya No atau objek lengkap
     let customer;
@@ -270,7 +260,7 @@ router.post("/new", async (req, res) => {
       return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
     };
     let salesOrderResponseXml;
-    if (!isPending) {
+    if (!vendor) {
       salesOrderResponseXml = await requestSalesOrder({
         DocumentNo: globalIndex,
         ExtDoc: req.user.username,
@@ -299,7 +289,8 @@ router.post("/new", async (req, res) => {
 
     const generatedSalesOrder = await SalesOrder.create({
       return_value:
-        salesOrderResponseXml?.return_value ?? "waiting for approval",
+        salesOrderResponseXml?.return_value ??
+        (vendor ? "Pending SMD" : "pending SMA"),
       DocumentNo: globalIndex,
       customer: customer._id,
       ShiptToCode: customer.ShiptToCode || "",
@@ -318,7 +309,7 @@ router.post("/new", async (req, res) => {
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,
       createdBy: req.user._id,
-      isPending: isPending,
+      status: salesOrderResponseXml?.return_value ? "completed" : "pending",
     });
 
     await TemporarySalesOrder.findByIdAndDelete(tempToDeleteId);
@@ -397,9 +388,8 @@ router.post("/confirm", async (req, res) => {
       });
     }
 
-    pendingSalesOrder.return_value =
-      salesOrderResponseXml?.return_value ?? pendingSalesOrder.return_value;
-    pendingSalesOrder.isPending = false;
+    pendingSalesOrder.return_value = salesOrderResponseXml?.return_value;
+    pendingSalesOrder.status = "completed";
     await pendingSalesOrder.save();
 
     await redisService.del(pendingSalesOrder?.return_value);
@@ -416,9 +406,7 @@ router.get("/download", async (req, res) => {
 
   const userInfo = req.user;
 
-  const vendor =
-    userInfo?.description?.startsWith("SALES") &&
-    userInfo?.description?.split("_")[1];
+  const vendor = userInfo?.description?.split("_")[1];
 
   // Normalisasi month: support 0-11 atau 1-12, default ke bulan berjalan
   const today = new Date();
@@ -435,7 +423,7 @@ router.get("/download", async (req, res) => {
   try {
     const baseMatch = {
       OrderDate: { $gte: from, $lt: to },
-      isPending: false,
+      status: "completed",
     };
 
     if (return_valueType) {
@@ -444,7 +432,6 @@ router.get("/download", async (req, res) => {
 
     let createdByFilter = [];
     if (vendor) {
-      console.log(vendor);
       createdByFilter = await UserRefrensi.find({
         org: req.user.org,
         description: { $regex: new RegExp(`^SALES_${vendor}`, "i") },
@@ -457,7 +444,7 @@ router.get("/download", async (req, res) => {
     }
 
     // Preview: ringan untuk tampilan list
-    if (String(preview) === "true") {
+    if (preview && preview == "true") {
       const data = await SalesOrder.find(baseMatch)
         .select("return_value customer OrderDate ExtDoc DocumentNo")
         .sort({ createdAt: -1 })
@@ -487,25 +474,24 @@ router.get("/download", async (req, res) => {
 router.get("/list", async (req, res) => {
   const {
     searchKey,
-    isPending = false,
     page = 1,
     return_valueType,
     extDoc,
     requestDate,
+    status, // "pending" | "completed" | "canceled"
   } = req.query;
 
   try {
-    const myVendor =
-      req?.user?.description?.startsWith("SALES") &&
-      req?.user?.description.split("_").length > 1
-        ? req?.user?.description.split("_")[1]
-        : null;
+    const PAGE_SIZE = 50;
 
-    //jika IT maka munculkan SO
-    let matchStage = { org: req.user.org };
+    const matchStage = {
+      org: req.user.org,
+    };
 
+    // ======================
+    // FILTER TANGGAL
+    // ======================
     if (requestDate) {
-      console.log(requestDate);
       const start = new Date(requestDate);
       start.setHours(0, 0, 0, 0);
 
@@ -515,38 +501,52 @@ router.get("/list", async (req, res) => {
       matchStage.createdAt = { $gte: start, $lte: end };
     }
 
-    if (return_valueType && Boolean(isPending) === false) {
-      matchStage.return_value = { $regex: return_valueType, $options: "i" };
+    // ======================
+    // FILTER STATUS
+    // ======================
+    const allowedStatus = ["pending", "completed", "canceled"];
+    if (allowedStatus.includes(status)) {
+      matchStage.status = status;
     }
-    if (extDoc?.length > 0) {
-      const splitSelectedUserString = extDoc.split(",");
 
-      matchStage.$or = splitSelectedUserString.map((str) => ({
-        ExtDoc: { $regex: str, $options: "i" },
+    // ======================
+    // FILTER RETURN VALUE
+    // ======================
+    if (return_valueType) {
+      if (return_valueType == "SMA") {
+        matchStage.return_value = { $regex: "SMA", $options: "i" };
+      } else {
+        matchStage.return_value = { $regex: return_valueType, $options: "i" };
+      }
+    }
+
+    // ======================
+    // FILTER EXT DOC
+    // ======================
+    if (extDoc) {
+      const extDocs = extDoc.split(",");
+      matchStage.$or = extDocs.map((doc) => ({
+        ExtDoc: { $regex: doc, $options: "i" },
       }));
     }
 
-    if (Boolean(isPending) === true) {
-      matchStage.isPending = true;
-    } else {
-      matchStage.$or = [
-        { isPending: { $exists: false } },
-        { isPending: false },
-        { isPending: null },
-      ];
-    }
-
-    if (
+    // ======================
+    // ROLE-BASED ACCESS
+    // ======================
+    const isRestrictedUser =
       req.user.description !== "IT" &&
-      req.user.role !== "supertenant" &&
-      req.user.description !== "PROCUREMENT"
-    ) {
+      req.user.description !== "PROCUREMENT" &&
+      req.user.role !== "supertenant";
+
+    if (isRestrictedUser) {
       matchStage.createdBy = req.user._id;
     }
-    let searchByCustomerIds = [];
 
+    // ======================
+    // SEARCH KEY
+    // ======================
     if (searchKey && searchKey !== "undefined") {
-      searchByCustomerIds = await Customer.find({
+      const customers = await Customer.find({
         Name: { $regex: searchKey, $options: "i" },
       }).select("_id");
 
@@ -558,38 +558,34 @@ router.get("/list", async (req, res) => {
         { return_value: { $regex: searchKey, $options: "i" } },
       ];
 
-      if (searchByCustomerIds?.length > 0) {
-        orConditions.push({ customer: { $in: searchByCustomerIds } });
+      if (customers.length > 0) {
+        orConditions.push({ customer: { $in: customers } });
       }
 
-      matchStage = {
-        $and: [
-          { org: req.user.org, ...matchStage },
-          ...(req.user.description !== "IT" &&
-          req.user.description !== "supertenant" &&
-          req.user.description !== "PROCUREMENT"
-            ? [{ createdBy: req.user._id }]
-            : []),
-          { $or: orConditions },
-        ],
-      };
+      matchStage.$and = [...(matchStage.$and || []), { $or: orConditions }];
     }
 
     const salesOrders = await SalesOrder.find(matchStage)
       .populate("customer", "Name No")
-      .select(`${myVendor ? "-price" : "-__v"}`)
-      .lean()
+      .select("-__v")
       .sort({ createdAt: -1 })
-      .skip((page - 1) * 50)
-      .limit(50);
+      .skip((page - 1) * PAGE_SIZE)
+      .limit(PAGE_SIZE)
+      .lean();
 
     const total = await SalesOrder.countDocuments(matchStage);
-    const totalPage = Math.ceil(total / 50);
+    const totalPage = Math.ceil(total / PAGE_SIZE);
 
-    return res.status(200).json({ data: salesOrders, totalPage, total });
+    return res.status(200).json({
+      data: salesOrders,
+      total,
+      totalPage,
+    });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({ message: "Kesalahan Server Internal" });
+    return res.status(500).json({
+      message: "Kesalahan Server Internal",
+    });
   }
 });
 
@@ -718,21 +714,26 @@ router.get("/temp/collect", async (req, res) => {
   }
 });
 
-router.delete("/delete", async (req, res) => {
-  const { id } = req.query;
+router.patch("/cancel", async (req, res) => {
+  const { id } = req.body;
+
+  console.log(id);
   if (!id) return res.status(400).json({ message: "id is required" });
+
   try {
     const so = await SalesOrder.findById(id);
-    const isSentToNAV = so?.isPending == false;
+    const isSentToNAV = so?.status == "completed";
     if (isSentToNAV) {
       return res.status(400).json({
-        message: "Tidak boleh menghapus SO yang sudah dikirim ke NAV",
+        message: "Tidak boleh cancel SO yang sudah dikirim ke NAV",
       });
     }
-    await SalesOrder.findByIdAndDelete(id);
+    await SalesOrder.findByIdAndUpdate(id, {
+      status: "canceled",
+    });
 
     return res.json({
-      message: "Sales Order Berhasil Dihapus",
+      message: "Sales Order Berhasil di cancel",
     });
   } catch (error) {
     return res.status(500).json({ message: error?.message });
