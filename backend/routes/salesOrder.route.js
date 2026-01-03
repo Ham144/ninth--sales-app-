@@ -225,6 +225,12 @@ router.post("/new", async (req, res) => {
       });
     }
 
+    if (SalesLine.length == 0) {
+      return res.status(400).json({
+        message: "Diperlukan minimal 1 barang",
+      });
+    }
+
     //area and location code matching
     let location;
     if (locationCode) {
@@ -256,11 +262,13 @@ router.post("/new", async (req, res) => {
     }
 
     const orderDate = new Date().toISOString().split("T")[0];
+
     const cleanForNAV = (str) => {
       return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
     };
     let salesOrderResponseXml;
-    if (!vendor) {
+
+    if (!vendor || vendor == "PHILIPS") {
       salesOrderResponseXml = await requestSalesOrder({
         DocumentNo: globalIndex,
         ExtDoc: req.user.username,
@@ -282,6 +290,7 @@ router.post("/new", async (req, res) => {
         });
       }
     }
+
     const SalesLineTotal = SalesLine.reduce((total, item) => {
       const lineTotal = (Number(item.UnitPrice) || 0) * (Number(item.Qty) || 0);
       return total + lineTotal;
