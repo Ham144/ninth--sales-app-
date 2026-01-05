@@ -60,11 +60,15 @@ export const requestSalesOrder = async ({
       NoSeries = "SO-SMD";
     }
 
+    //perbaiki date
+    const requestDeliveryDate =
+      formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
+
     const xml = requestSalesOrderXml({
       DocumentNo,
       SellToCustNo,
       ExtDoc,
-      RequestDeliveryDate,
+      RequestDeliveryDate: requestDeliveryDate,
       SalesLine,
       Keterangan,
       LocationCode,
@@ -72,6 +76,8 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_XMLNS,
       NoSeries: NoSeries,
     });
+
+    console.log(xml);
 
     const rawXmlResponse = await fetchData({
       xml: xml,
@@ -267,25 +273,13 @@ router.post("/new", async (req, res) => {
       return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
     };
     let salesOrderResponseXml;
-    let requestDeliveryDateDDMMYYYY;
-
-    //perbaiki format date jika aneh
-    if (requestDeliveryDate) {
-      const date = new Date(requestDeliveryDate);
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, "0");
-      const day = String(date.getDate()).padStart(2, "0");
-
-      requestDeliveryDateDDMMYYYY = `${day}-${month}-${year}`;
-    }
 
     if (!vendor || vendor == "PHILIPS") {
       salesOrderResponseXml = await requestSalesOrder({
         DocumentNo: globalIndex,
         ExtDoc: req.user.username,
         SellToCustNo: customer.No,
-        RequestDeliveryDate:
-          requestDeliveryDateDDMMYYYY ?? getCurrentDateForNAV(),
+        RequestDeliveryDate: requestDeliveryDate,
         Keterangan: cleanForNAV(keterangan),
         LocationCode: location.name,
         AreaCode: after,
@@ -366,9 +360,6 @@ router.post("/confirm", async (req, res) => {
         .json({ message: "Customer untuk Sales Order tidak ditemukan" });
     }
 
-    const requestDeliveryDate =
-      formatDateToDDMMYYYY(pendingSalesOrder.RequestDeliveryDate) ||
-      getCurrentDateForNAV();
     const keterangan = pendingSalesOrder.Keterangan ?? "";
     const SalesLine = pendingSalesOrder.SalesLine ?? [];
     const locationCode =
@@ -392,7 +383,7 @@ router.post("/confirm", async (req, res) => {
       DocumentNo: pendingSalesOrder.DocumentNo,
       ExtDoc: pendingSalesOrder.ExtDoc,
       SellToCustNo: pendingSalesOrder.customer.No,
-      RequestDeliveryDate: requestDeliveryDate,
+      RequestDeliveryDate: pendingSalesOrder.RequestDeliveryDate,
       Keterangan: keterangan,
       LocationCode: locationCode,
       AreaCode: areaCode,
