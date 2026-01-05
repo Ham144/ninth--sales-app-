@@ -267,6 +267,7 @@ router.post("/new", async (req, res) => {
       return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
     };
     let salesOrderResponseXml;
+    let requestDeliveryDateDDMMYYYY;
 
     //perbaiki format date jika aneh
     if (requestDeliveryDate) {
