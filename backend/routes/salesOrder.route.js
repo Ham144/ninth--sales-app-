@@ -268,12 +268,23 @@ router.post("/new", async (req, res) => {
     };
     let salesOrderResponseXml;
 
+    //perbaiki format date jika aneh
+    if (requestDeliveryDate) {
+      const date = new Date(requestDeliveryDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+
+      requestDeliveryDateDDMMYYYY = `${day}-${month}-${year}`;
+    }
+
     if (!vendor || vendor == "PHILIPS") {
       salesOrderResponseXml = await requestSalesOrder({
         DocumentNo: globalIndex,
         ExtDoc: req.user.username,
         SellToCustNo: customer.No,
-        RequestDeliveryDate: requestDeliveryDate ?? getCurrentDateForNAV(),
+        RequestDeliveryDate:
+          requestDeliveryDateDDMMYYYY ?? getCurrentDateForNAV(),
         Keterangan: cleanForNAV(keterangan),
         LocationCode: location.name,
         AreaCode: after,
@@ -750,13 +761,12 @@ router.patch("/cancel", async (req, res) => {
 });
 
 const formatDateToDDMMYYYY = (dateValue) => {
-  if (!dateValue) return null;
   const date = new Date(dateValue);
-  if (Number.isNaN(date.getTime())) return null;
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
   const year = date.getFullYear();
-  return `${day}/${month}/${year}`;
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${day}-${month}-${year}`;
 };
 
 export default router;

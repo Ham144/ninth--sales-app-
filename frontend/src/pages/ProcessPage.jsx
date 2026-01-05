@@ -28,8 +28,8 @@ export function ProcessPage() {
     isLoading: isLoadingList,
     refetch: refetchSalesOrder,
   } = useQuery({
-    queryKey: ["salesOrders", search], // ✅ search dimasukkan agar query auto update
-    queryFn: async () => await SalesOrderApi.getAllSalesOrder(search),
+    queryKey: ["salesOrders", search, page], // ✅ search dimasukkan agar query auto update
+    queryFn: async () => await SalesOrderApi.getAllSalesOrder(search, page),
   });
   const totalPage = salesOrderList?.totalPage;
 

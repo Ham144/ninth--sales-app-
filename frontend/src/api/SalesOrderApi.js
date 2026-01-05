@@ -5,10 +5,13 @@ const SalesOrderApi = {
     const response = await axiosInstance.post(`/api/v1/salesOrder/new`, body);
     return response;
   },
-  getAllSalesOrder: async (searchKey) => {
-    const response = await axiosInstance.get(
-      `/api/v1/salesOrder/list?searchKey=${searchKey}`
-    );
+  getAllSalesOrder: async (searchKey, page) => {
+    let params = new URLSearchParams();
+    if (searchKey) params.set("searchKey", searchKey);
+    if (page) params.set("page", page);
+    const response = await axiosInstance.get(`/api/v1/salesOrder/list`, {
+      params,
+    });
     return response?.data;
   },
   createTempSO: async (body) => {
