@@ -731,6 +731,7 @@ router.get("/temp/collect", async (req, res) => {
 router.patch("/cancel", async (req, res) => {
   const { id } = req.body;
 
+  console.log(id);
   if (!id) return res.status(400).json({ message: "id is required" });
 
   try {
@@ -760,7 +761,7 @@ function formatDateToDDMMYYYY(dateInput) {
   const dd = String(date.getUTCDate()).padStart(2, "0");
   const yyyy = date.getUTCFullYear();
 
-  return `${yyyy}-${mm}-${dd}`;
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 export default router;
