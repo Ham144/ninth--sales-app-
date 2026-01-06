@@ -62,7 +62,7 @@ export const requestSalesOrder = async ({
 
     //perbaiki date
     const requestDeliveryDate =
-      formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
+      formatDateToYYYYMMDD(RequestDeliveryDate) || getCurrentDateForNAV();
 
     const xml = requestSalesOrderXml({
       DocumentNo,
@@ -76,6 +76,8 @@ export const requestSalesOrder = async ({
       SOAP_TRANSACTION_XMLNS,
       NoSeries: NoSeries,
     });
+
+    console.log(xml);
 
     const rawXmlResponse = await fetchData({
       xml: xml,
@@ -754,20 +756,51 @@ router.patch("/cancel", async (req, res) => {
   }
 });
 
-function formatDateToDDMMYYYY(dateInput) {
-  const date = new Date(dateInput);
+function formatDateToYYYYMMDD(dateInput) {
+  if (!dateInput) return null;
 
-  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(date.getUTCDate()).padStart(2, "0");
-  const yyyy = date.getUTCFullYear();
+  // 1️⃣ Jika sudah ISO yyyy-mm-dd
+  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (isoDateRegex.test(dateInput)) {
+    return dateInput;
+  }
 
-  return `${dd}/${mm}/${yyyy}`;
+  // 2️⃣ Jika dd/mm/yyyy → parse manual
+  const dmyRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+  const match = dateInput.match(dmyRegex);
+
+  if (match) {
+    const [, dd, mm, yyyy] = match;
+
+    // Validasi angka dasar
+    const day = Number(dd);
+    const month = Number(mm);
+    const year = Number(yyyy);
+
+    if (month < 1 || month > 12 || day < 1 || day > 31) {
+      throw new Error("Invalid dd/mm/yyyy date value");
+    }
+
+    if (day <= 12 && month <= 12) {
+      throw new Error("Ambiguous date: cannot determine dd/mm or mm/dd");
+    }
+
+    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
+      2,
+      "0"
+    )}`;
+  }
+
+  // 3️⃣ Jika dari MongoDB (Date object)
+  if (dateInput instanceof Date && !isNaN(dateInput)) {
+    const yyyy = dateInput.getUTCFullYear();
+    const mm = String(dateInput.getUTCMonth() + 1).padStart(2, "0");
+    const dd = String(dateInput.getUTCDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  // 4️⃣ Selain itu → TOLAK
+  throw new Error(`Unsupported date format: ${dateInput}`);
 }
 
-export default router;
-
-export const convertToISOConvertableDate = (dateStr) => {
-  // dari DD/MM/YYYY → YYYY-MM-DD
-  const [day, month, year] = dateStr.split("/");
-  return `${year}-${month}-${day}`;
-};
+export default requestSalesOrder;
