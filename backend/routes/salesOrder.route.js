@@ -77,8 +77,6 @@ export const requestSalesOrder = async ({
       NoSeries: NoSeries,
     });
 
-    console.log(xml);
-
     const rawXmlResponse = await fetchData({
       xml: xml,
       username: SOAP_TRANSACTION_USERNAME,
@@ -379,11 +377,15 @@ router.post("/confirm", async (req, res) => {
     );
     req.user = realRequestor;
 
+    const RDDDate = new Date(
+      pendingSalesOrder.RequestDeliveryDate
+    ).toLocaleDateString();
+
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: pendingSalesOrder.DocumentNo,
       ExtDoc: pendingSalesOrder.ExtDoc,
       SellToCustNo: pendingSalesOrder.customer.No,
-      RequestDeliveryDate: pendingSalesOrder.RequestDeliveryDate,
+      RequestDeliveryDate: RDDDate,
       Keterangan: keterangan,
       LocationCode: locationCode,
       AreaCode: areaCode,
@@ -478,8 +480,8 @@ router.get("/download", async (req, res) => {
 
     return res.status(200).json(data);
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: "Kesalahan Server Internal" });
+    console.log(error?.message);
+    return res.status(500).json({ message: JSON.stringify(error?.message) });
   }
 });
 
@@ -665,7 +667,7 @@ router.put("/temp/create", async (req, res) => {
       const day = currentDate.getDate();
       const month = currentDate.getMonth() + 1; // bulan dari 0
       const year = currentDate.getFullYear();
-      const defaultComment = `${hour}-${day}-${month}-${year}-${customerDB.Name}`;
+      const defaultComment = `${hour}-${day}/${month}/${year}-${customerDB.Name}`;
 
       const newTemp = await TemporarySalesOrder.create({
         customer: customerDB._id,
@@ -729,7 +731,6 @@ router.get("/temp/collect", async (req, res) => {
 router.patch("/cancel", async (req, res) => {
   const { id } = req.body;
 
-  console.log(id);
   if (!id) return res.status(400).json({ message: "id is required" });
 
   try {
@@ -752,14 +753,15 @@ router.patch("/cancel", async (req, res) => {
   }
 });
 
-const formatDateToDDMMYYYY = (dateValue) => {
-  const date = new Date(dateValue);
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+function formatDateToDDMMYYYY(dateInput) {
+  const date = new Date(dateInput);
 
-  return `${day}-${month}-${year}`;
-};
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  const yyyy = date.getUTCFullYear();
+
+  return `${yyyy}-${mm}-${dd}`;
+}
 
 export default router;
 

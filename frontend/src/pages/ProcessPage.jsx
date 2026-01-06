@@ -9,6 +9,7 @@ import { placeHolderSearchSalesOrder } from "@/api/constant";
 import { toast } from "sonner";
 import { useUserInfo } from "@/store";
 import { useNavigate } from "react-router";
+import formatDateIndonesian from "@/lib/formatDateIndonesian";
 
 export function ProcessPage() {
   const [active, setActive] = useState(null);
@@ -159,9 +160,7 @@ export function ProcessPage() {
                     <p className="flex items-center space-x-2">
                       <strong className="font-semibold">Order Date:</strong>
                       <span className="text-lg">
-                        {new Date(
-                          salesOrderDetail.data.OrderDate
-                        ).toLocaleDateString()}
+                        {formatDateIndonesian(salesOrderDetail.data.OrderDate)}
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">
@@ -177,9 +176,9 @@ export function ProcessPage() {
                         Request Delivery Date:
                       </strong>
                       <span className="text-lg">
-                        {new Date(
+                        {formatDateIndonesian(
                           salesOrderDetail.data.RequestDeliveryDate
-                        ).toLocaleDateString()}
+                        )}
                       </span>
                     </p>
                     <p className="flex items-center space-x-2">

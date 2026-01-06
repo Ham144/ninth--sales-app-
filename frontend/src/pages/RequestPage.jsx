@@ -12,6 +12,7 @@ import { useUserInfo } from "@/store";
 import locationApi from "@/api/LocationApi";
 import Item from "@/components/Item";
 import { Search } from "lucide-react";
+import DatePickerWithButtons from "@/components/DatePickerWithButton";
 
 const initialSalesOrder = {
   customer: {},
@@ -690,85 +691,36 @@ const RequestPage = () => {
 
           <div>
             <label className="block text-sm font-medium text-indigo-700 mb-1">
-              Request Delivery Date (dd/mm/yyyy)
+              Request Delivery Date{" "}
             </label>
-            <div className="flex flex-col md:flex-row gap-3">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="(dd/mm/yyyy) RDD"
-                  value={salesOrder.requestDeliveryDate}
-                  onChange={(e) =>
-                    setSalesOrder((prev) => ({
-                      ...prev,
-                      requestDeliveryDate: e.target.value,
-                    }))
-                  }
-                  className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 pr-28"
-                />
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const today = new Date();
-                      const day = String(today.getDate()).padStart(2, "0");
-                      const month = String(today.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const year = today.getFullYear();
-                      const formatted = `${day}/${month}/${year}`;
-
-                      setSalesOrder((prev) => ({
-                        ...prev,
-                        requestDeliveryDate: formatted,
-                      }));
-                    }}
-                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs transition"
-                  >
-                    Hari ini
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const tomorrow = new Date();
-                      tomorrow.setDate(tomorrow.getDate() + 1);
-                      const day = String(tomorrow.getDate()).padStart(2, "0");
-                      const month = String(tomorrow.getMonth() + 1).padStart(
-                        2,
-                        "0"
-                      );
-                      const year = tomorrow.getFullYear();
-                      const formatted = `${day}/${month}/${year}`;
-
-                      setSalesOrder((prev) => ({
-                        ...prev,
-                        requestDeliveryDate: formatted,
-                      }));
-                    }}
-                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-3 py-1 rounded-lg text-xs transition"
-                  >
-                    Besok
-                  </button>
-                </div>
-              </div>
-
-              <button
-                onClick={handleRequestSalesOrder}
-                disabled={
-                  !salesOrder.customer?.No ||
-                  salesOrder?.products?.length === 0 ||
-                  isPendingProcessing
-                }
-                className="px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-              >
-                {isPendingProcessing && (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                )}
-                <span>Kirim Sales Order</span>
-              </button>
-            </div>
+            <DatePickerWithButtons
+              value={salesOrder.requestDeliveryDate}
+              onChange={(date) =>
+                setSalesOrder((prev) => ({
+                  ...prev,
+                  requestDeliveryDate: date,
+                }))
+              }
+              placeholder="Pilih tanggal..."
+              minDate={new Date()} // optional
+              maxDate={new Date(new Date().getTime() + 7 * 24 * 60 * 60 * 1000)} // optional
+              disabled={false}
+            />
           </div>
+          <button
+            onClick={handleRequestSalesOrder}
+            disabled={
+              !salesOrder.customer?.No ||
+              salesOrder?.products?.length === 0 ||
+              isPendingProcessing
+            }
+            className="px-8 w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+          >
+            {isPendingProcessing && (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            )}
+            <span>Kirim Sales Order</span>
+          </button>
         </div>
 
         <ModalTempOption
