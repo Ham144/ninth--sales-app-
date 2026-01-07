@@ -85,11 +85,16 @@ app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
 
 //frontend routes
-const __dirname = path.resolve();
-app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+//redirect ke web baru
+app.use((req, res) => {
+  res.redirect(301, "http://s-bit.muara.co.id" + req.originalUrl);
 });
+
+// const __dirname = path.resolve();
+// app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
+// app.get("*", (req, res) => {
+//   res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
+// });
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();
