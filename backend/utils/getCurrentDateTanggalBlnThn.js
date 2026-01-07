@@ -63,7 +63,7 @@ function getCurrentDateForNAV() {
   const month = String(now.getMonth() + 1).padStart(2, "0");
   const year = now.getFullYear();
 
-  return `${year}-${month}-${day}`;
+  return `${day}/${month}/${year}`;
 }
 
 export default getCurrentDateTanggalBlnThn;

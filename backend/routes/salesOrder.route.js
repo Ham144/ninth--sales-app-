@@ -30,6 +30,7 @@ export const requestSalesOrder = async ({
 }) => {
   try {
     // lengkapi requestor asli
+    console.log(req.user);
     const requestor = await UserRefrensi.findById(req.user._id).populate("org");
     if (!requestor) {
       return { error: true, message: "Requestor tidak ditemukan" };
@@ -62,7 +63,7 @@ export const requestSalesOrder = async ({
 
     //perbaiki date
     const requestDeliveryDate =
-      formatDateToYYYYMMDD(RequestDeliveryDate) || getCurrentDateForNAV();
+      formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
 
     const xml = requestSalesOrderXml({
       DocumentNo,
@@ -317,8 +318,8 @@ router.post("/new", async (req, res) => {
       NoSeries: await GetMyOrganizationAbbr({ req }),
       ExtDoc: req.user.username, //nama si user
       RequestDeliveryDate: requestDeliveryDate
-        ? new Date(convertToISOConvertableDate(requestDeliveryDate))
-        : new Date(convertToISOConvertableDate(getCurrentDateForNAV())),
+        ? requestDeliveryDate
+        : new Date(getCurrentDateForNAV()),
       Keterangan: keterangan, //note tambahan dari frontend
       SalesLine: SalesLine,
       SalesLineTotal: SalesLineTotal,
@@ -755,52 +756,60 @@ router.patch("/cancel", async (req, res) => {
     return res.status(500).json({ message: error?.message });
   }
 });
-
-function formatDateToYYYYMMDD(dateInput) {
+function formatDateToDDMMYYYY(dateInput) {
   if (!dateInput) return null;
 
-  // 1️⃣ Jika sudah ISO yyyy-mm-dd
-  const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-  if (isoDateRegex.test(dateInput)) {
-    return dateInput;
+  // 1️⃣ yyyy-mm-dd
+  if (typeof dateInput === "string") {
+    const isoMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch) {
+      const [, yyyy, mm, dd] = isoMatch;
+      return `${dd}/${mm}/${yyyy}`;
+    }
   }
 
-  // 2️⃣ Jika dd/mm/yyyy → parse manual
-  const dmyRegex = /^(\d{2})\/(\d{2})\/(\d{4})$/;
-  const match = dateInput.match(dmyRegex);
+  // 2️⃣ d/m/yyyy atau dd/mm/yyyy (PAKSA JANUARI JIKA AMBIGU)
+  if (typeof dateInput === "string") {
+    const match = dateInput.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (match) {
+      let [, a, b, yyyy] = match;
 
-  if (match) {
-    const [, dd, mm, yyyy] = match;
+      let first = Number(a);
+      let second = Number(b);
 
-    // Validasi angka dasar
-    const day = Number(dd);
-    const month = Number(mm);
-    const year = Number(yyyy);
+      if (first < 1 || first > 31 || second < 1 || second > 12) {
+        throw new Error("Invalid date value");
+      }
 
-    if (month < 1 || month > 12 || day < 1 || day > 31) {
-      throw new Error("Invalid dd/mm/yyyy date value");
+      let day, month;
+
+      // 🔥 ATURAN BISNIS KAMU DI SINI
+      if (first <= 12 && second <= 12) {
+        // AMBIGU → PAKSA mm/dd
+        month = first; // JANUARI kalau first = 1
+        day = second;
+      } else {
+        // TIDAK AMBIGU → dd/mm
+        day = first;
+        month = second;
+      }
+
+      return `${String(day).padStart(2, "0")}/${String(month).padStart(
+        2,
+        "0"
+      )}/${yyyy}`;
     }
-
-    if (day <= 12 && month <= 12) {
-      throw new Error("Ambiguous date: cannot determine dd/mm or mm/dd");
-    }
-
-    return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
-      2,
-      "0"
-    )}`;
   }
 
-  // 3️⃣ Jika dari MongoDB (Date object)
+  // 3️⃣ MongoDB Date
   if (dateInput instanceof Date && !isNaN(dateInput)) {
     const yyyy = dateInput.getUTCFullYear();
     const mm = String(dateInput.getUTCMonth() + 1).padStart(2, "0");
     const dd = String(dateInput.getUTCDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    return `${dd}/${mm}/${yyyy}`;
   }
 
-  // 4️⃣ Selain itu → TOLAK
   throw new Error(`Unsupported date format: ${dateInput}`);
 }
 
-export default requestSalesOrder;
+export default router;
