@@ -161,6 +161,10 @@ router.post("/new", async (req, res) => {
   try {
     // req.user sudah di-set dari middleware authenticate
 
+    if (!requestDeliveryDate) {
+      return res.status(401).json({ error: true, message: "RDD harus diisi" });
+    }
+
     const userInfo = req?.user;
 
     const globalIndex = await generateGlobalIndex(req, "globalIndex");
@@ -326,9 +330,7 @@ router.post("/new", async (req, res) => {
       SalespersonCode: customer.Salesperson_Code || "",
       NoSeries: await GetMyOrganizationAbbr({ req }),
       ExtDoc: req.user.username, //nama si user
-      RequestDeliveryDate: requestDeliveryDate
-        ? requestDeliveryDate
-        : new Date(getCurrentDateForNAV()),
+      RequestDeliveryDate: requestDeliveryDate,
       Keterangan: keterangan, //note tambahan dari frontend
       SalesLine: SalesLine,
       SalesLineTotal: SalesLineTotal,
