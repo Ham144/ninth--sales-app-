@@ -62,8 +62,14 @@ export const requestSalesOrder = async ({
     }
 
     //perbaiki date
-    const requestDeliveryDate =
-      formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
+    let requestDeliveryDate;
+
+    try {
+      requestDeliveryDate =
+        formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
+    } catch (error) {
+      throw Error(error);
+    }
 
     const xml = requestSalesOrderXml({
       DocumentNo,
@@ -137,8 +143,7 @@ export const requestSalesOrder = async ({
       salesHeader: result?.xML_Sales?.SalesHeader || null,
     };
   } catch (error) {
-    console.log("Terjadi error:", error);
-    return null;
+    throw Error(error);
   }
 };
 
@@ -271,22 +276,26 @@ router.post("/new", async (req, res) => {
     const orderDate = new Date().toISOString().split("T")[0];
 
     const cleanForNAV = (str) => {
-      return str.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
+      return str?.replace(/[&<>"'*%?\/\\|\{\}\[\]=#@~^;:\u0000-\u001F]/g, "-");
     };
     let salesOrderResponseXml;
 
     if (!vendor || vendor == "PHILIPS") {
-      salesOrderResponseXml = await requestSalesOrder({
-        DocumentNo: globalIndex,
-        ExtDoc: req.user.username,
-        SellToCustNo: customer.No,
-        RequestDeliveryDate: requestDeliveryDate,
-        Keterangan: cleanForNAV(keterangan),
-        LocationCode: location.name,
-        AreaCode: after,
-        SalesLine: SalesLine,
-        req,
-      });
+      try {
+        salesOrderResponseXml = await requestSalesOrder({
+          DocumentNo: globalIndex,
+          ExtDoc: req.user.username,
+          SellToCustNo: customer.No,
+          RequestDeliveryDate: requestDeliveryDate,
+          Keterangan: cleanForNAV(keterangan),
+          LocationCode: location.name,
+          AreaCode: after,
+          SalesLine: SalesLine,
+          req,
+        });
+      } catch (error) {
+        return res.status(403).json({ message: error.message });
+      }
 
       if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
         console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
@@ -380,15 +389,11 @@ router.post("/confirm", async (req, res) => {
     );
     req.user = realRequestor;
 
-    const RDDDate = new Date(
-      pendingSalesOrder.RequestDeliveryDate
-    ).toLocaleDateString();
-
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: pendingSalesOrder.DocumentNo,
       ExtDoc: pendingSalesOrder.ExtDoc,
       SellToCustNo: pendingSalesOrder.customer.No,
-      RequestDeliveryDate: RDDDate,
+      RequestDeliveryDate: pendingSalesOrder.RequestDeliveryDate,
       Keterangan: keterangan,
       LocationCode: locationCode,
       AreaCode: areaCode,
@@ -756,10 +761,11 @@ router.patch("/cancel", async (req, res) => {
     return res.status(500).json({ message: error?.message });
   }
 });
+
 function formatDateToDDMMYYYY(dateInput) {
   if (!dateInput) return null;
 
-  // 1️⃣ yyyy-mm-dd
+  // yyyy-mm-dd
   if (typeof dateInput === "string") {
     const isoMatch = dateInput.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     if (isoMatch) {
@@ -768,40 +774,7 @@ function formatDateToDDMMYYYY(dateInput) {
     }
   }
 
-  // 2️⃣ d/m/yyyy atau dd/mm/yyyy (PAKSA JANUARI JIKA AMBIGU)
-  if (typeof dateInput === "string") {
-    const match = dateInput.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (match) {
-      let [, a, b, yyyy] = match;
-
-      let first = Number(a);
-      let second = Number(b);
-
-      if (first < 1 || first > 31 || second < 1 || second > 12) {
-        throw new Error("Invalid date value");
-      }
-
-      let day, month;
-
-      // 🔥 ATURAN BISNIS KAMU DI SINI
-      if (first <= 12 && second <= 12) {
-        // AMBIGU → PAKSA mm/dd
-        month = first; // JANUARI kalau first = 1
-        day = second;
-      } else {
-        // TIDAK AMBIGU → dd/mm
-        day = first;
-        month = second;
-      }
-
-      return `${String(day).padStart(2, "0")}/${String(month).padStart(
-        2,
-        "0"
-      )}/${yyyy}`;
-    }
-  }
-
-  // 3️⃣ MongoDB Date
+  // MongoDB Date
   if (dateInput instanceof Date && !isNaN(dateInput)) {
     const yyyy = dateInput.getUTCFullYear();
     const mm = String(dateInput.getUTCMonth() + 1).padStart(2, "0");
@@ -809,7 +782,9 @@ function formatDateToDDMMYYYY(dateInput) {
     return `${dd}/${mm}/${yyyy}`;
   }
 
-  throw new Error(`Unsupported date format: ${dateInput}`);
+  throw new Error(
+    `Unsupported date format, only suport ISO 8601 ex: yyyy-mm-dd but received ${dateInput}`
+  );
 }
 
 export default router;

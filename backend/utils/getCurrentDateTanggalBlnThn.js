@@ -22,18 +22,6 @@ function getCurrentDateISO() {
   return formattedDate;
 }
 
-function getCurrentDateNAV() {
-  const today = new Date();
-  const day = String(today.getDate()).padStart(2, "0");
-  const month = String(today.getMonth() + 1).padStart(2, "0"); // bulan dari 0
-  const year = today.getFullYear();
-
-  // Format MM/DD/YYYY yang mungkin lebih kompatibel dengan NAV
-  const formattedDate = `${month}/${day}/${year}`;
-
-  return formattedDate;
-}
-
 /*
 /*Kalau lewat jam 14:00 (2 siang) → tanggal geser ke besok.
 /*Kalau lewat jam 14:00 dan hari ini Sabtu → tanggal geser ke Senin (skip Minggu).
@@ -67,4 +55,4 @@ function getCurrentDateForNAV() {
 }
 
 export default getCurrentDateTanggalBlnThn;
-export { getCurrentDateISO, getCurrentDateNAV, getCurrentDateForNAV };
+export { getCurrentDateISO, getCurrentDateForNAV };
