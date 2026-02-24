@@ -191,7 +191,7 @@ router.post("/new", async (req, res) => {
         const product = await Product.findOne({ No: item.No });
         if (!product) {
           throw new Error(
-            `Product dengan No '${item.No}' tidak ditemukan di database`
+            `Product dengan No '${item.No}' tidak ditemukan di database`,
           );
         }
 
@@ -207,7 +207,7 @@ router.post("/new", async (req, res) => {
             acc[key.toUpperCase()] = value;
             return acc;
           },
-          {}
+          {},
         );
 
         const matchedPrice = normalizedProduct[targetKey];
@@ -215,7 +215,7 @@ router.post("/new", async (req, res) => {
         // Validasi harga
         if (matchedPrice == null || Number(matchedPrice) === 0) {
           throw new Error(
-            `Harga untuk Customer_Price_Group '${targetKey}' tidak ditemukan atau 0 untuk product '${item.No}'`
+            `Harga untuk Customer_Price_Group '${targetKey}' tidak ditemukan atau 0 untuk product '${item.No}'`,
           );
         }
 
@@ -225,7 +225,7 @@ router.post("/new", async (req, res) => {
           price: Number(matchedPrice),
           priceGroupKey: targetKey,
         };
-      })
+      }),
     );
 
     let SalesLine = [];
@@ -305,7 +305,7 @@ router.post("/new", async (req, res) => {
         console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
         return res.status(500).json({
           message: JSON.stringify(
-            salesOrderResponseXml?.message || salesOrderResponseXml
+            salesOrderResponseXml?.message || salesOrderResponseXml,
           ),
         });
       }
@@ -357,7 +357,7 @@ router.post("/confirm", async (req, res) => {
   try {
     const pendingSalesOrder = await SalesOrder.findById(id).populate(
       "customer",
-      "No Location_Code"
+      "No Location_Code",
     );
 
     if (!pendingSalesOrder) {
@@ -387,7 +387,7 @@ router.post("/confirm", async (req, res) => {
     }
 
     const realRequestor = await UserRefrensi.findById(
-      pendingSalesOrder.createdBy
+      pendingSalesOrder.createdBy,
     );
     req.user = realRequestor;
 
@@ -407,7 +407,7 @@ router.post("/confirm", async (req, res) => {
       console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
       return res.status(500).json({
         message: JSON.stringify(
-          salesOrderResponseXml?.message || salesOrderResponseXml
+          salesOrderResponseXml?.message || salesOrderResponseXml,
         ),
       });
     }
@@ -764,6 +764,57 @@ router.patch("/cancel", async (req, res) => {
   }
 });
 
+router.get("/my-stats-so", async (req, res) => {
+  const { startDate, endDate } = req.query;
+
+  let start, end;
+
+  start = new Date(startDate);
+  end = new Date(endDate);
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(23, 59, 59, 999);
+
+  try {
+    const username = req.user.username;
+
+    const data = await SalesOrder.aggregate([
+      {
+        $match: {
+          // Gunakan ID, karena field createdBy di DB tipenya ObjectId
+          createdBy: new mongoose.Types.ObjectId(req.user._id),
+          createdAt: { $gte: start, $lte: end },
+        },
+      },
+      {
+        $group: {
+          // Karena Anda ingin _id outputnya tetap username (reno.sanex),
+          // kita hardcode dari variabel username req.user
+          _id: username,
+          "Total Aktivitas": { $sum: 1 },
+          "Jam Aktifitas Terakhir": { $max: "$createdAt" },
+          completed: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+          pending: { $sum: { $cond: [{ $eq: ["$status", "pending"] }, 1, 0] } },
+          canceled: {
+            $sum: { $cond: [{ $eq: ["$status", "canceled"] }, 1, 0] },
+          },
+        },
+      },
+    ]);
+    console.log(data);
+
+    // Kembalikan data pertama karena aggregate mengembalikan array
+    // Jika data kosong, beri respon yang sesuai
+    res
+      .status(200)
+      .json(data.length > 0 ? data[0] : { message: "No data found" });
+  } catch (error) {
+    return res.status(500).json({ message: error?.message });
+  }
+});
+
 function formatDateToDDMMYYYY(dateInput) {
   if (!dateInput) return null;
 
@@ -785,7 +836,7 @@ function formatDateToDDMMYYYY(dateInput) {
   }
 
   throw new Error(
-    `Unsupported date format, only suport ISO 8601 ex: yyyy-mm-dd but received ${dateInput}`
+    `Unsupported date format, only suport ISO 8601 ex: yyyy-mm-dd but received ${dateInput}`,
   );
 }
 

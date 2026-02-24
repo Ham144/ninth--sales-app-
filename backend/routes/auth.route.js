@@ -492,7 +492,7 @@ router.post(
           httpOnly: true,
           secure: false,
           sameSite: "Lax",
-          maxAge: 7 * 24 * 60 * 60 * 1000,
+          maxAge: 30 * 24 * 60 * 60 * 1000,
         });
         userDB.refreshToken = refresh_token;
       // }
@@ -709,7 +709,7 @@ router.post("/login/app", async (req, res) => {
     httpOnly: true,
     secure: false,
     sameSite: "Lax",
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: 30 * 24 * 60 * 60 * 1000,
   });
 
   userDB.refreshToken = refreshToken;
