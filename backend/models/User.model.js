@@ -44,8 +44,12 @@ const userSchema = new mongoose.Schema(
     otp: String, //otp untuk login whatsapp bukan 2fa
     otpExpired: Date,
     otpTried: Number, //maks 5 percobaan
+    location: {
+      type: String,
+      default: "",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const UserRefrensi = new mongoose.model("UserRefrensi", userSchema);

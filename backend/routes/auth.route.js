@@ -265,7 +265,7 @@ router.post(
             headers: {
               "Content-Type": "application/x-www-form-urlencoded",
             },
-          }
+          },
         );
 
         if (!result.data.success) {
@@ -342,17 +342,13 @@ router.post(
         org: selectedOrg,
         authMethod: "ldap",
       }).select(
-        "-password -createdAt -email -otp -refreshToken -role -otpExpired -_2faSecret  -updatedAt -__v"
+        "-password -createdAt -email -otp -refreshToken -role -otpExpired -_2faSecret  -updatedAt -__v",
       );
 
-      if (
-        !userLDAP?.description.startsWith("SALES") &&
-        userLDAP.description !== "OVERDUE" &&
-        userLDAP.description !== "IT" &&
-        userLDAP.description !== "PROCUREMENT"
-      ) {
+      if (!userLDAP?.description) {
         return res.status(400).json({
-          message: "User tidak diizinkan, description belum didaftarkan.",
+          message:
+            "user tidak memiliki description, hubungi IT untuk update description.",
         });
       }
 
@@ -387,21 +383,21 @@ router.post(
       if (userDB.email !== userLDAP["description"]) {
         await UserRefrensi.findOneAndUpdate(
           { username },
-          { $set: { description: userLDAP["description"] } }
+          { $set: { description: userLDAP["description"] } },
         );
       }
       //jika user ada cek apakah email dan physicalDeliveryOfficeName diubah di AD maka update
       if (userDB.email !== userLDAP["mail"]) {
         await UserRefrensi.findOneAndUpdate(
           { username },
-          { $set: { email: userLDAP["mail"] } }
+          { $set: { email: userLDAP["mail"] } },
         );
       }
 
       if (userDB.displayName !== userLDAP["displayName"]) {
         await UserRefrensi.findOneAndUpdate(
           { username },
-          { $set: { displayName: userLDAP["displayName"] } }
+          { $set: { displayName: userLDAP["displayName"] } },
         );
       }
 
@@ -416,7 +412,7 @@ router.post(
             stage: "pending",
           },
           process.env.JWT_SECRET,
-          { expiresIn: "5m" }
+          { expiresIn: "5m" },
         );
 
         return res.json({
@@ -452,7 +448,7 @@ router.post(
             stage: "pending",
           },
           process.env.JWT_SECRET,
-          { expiresIn: "5m" }
+          { expiresIn: "5m" },
         );
 
         return res.json({
@@ -481,29 +477,26 @@ router.post(
       // const refresh_token =
       //   myVendor === "PHILIPS" ? null : await generateRefreshToken(payload);
 
-      const access_token =
-         await generateTokenJWT(payload);
-      const refresh_token =
-         await generateRefreshToken(payload);
+      const access_token = await generateTokenJWT(payload);
+      const refresh_token = await generateRefreshToken(payload);
 
-      
       // if (myVendor !== "PHILIPS") {
-        res.cookie("refresh_token", refresh_token, {
-          httpOnly: true,
-          secure: false,
-          sameSite: "Lax",
-          maxAge: 30 * 24 * 60 * 60 * 1000,
-        });
-        userDB.refreshToken = refresh_token;
+      res.cookie("refresh_token", refresh_token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+      userDB.refreshToken = refresh_token;
       // }
 
       // if (myVendor !== "PHILIPS") {
-        res.cookie("access_token", access_token, {
-          httpOnly: true,
-          secure: false,
-          sameSite: "Lax",
-          maxAge: 5 * 60 * 1000,
-        });
+      res.cookie("access_token", access_token, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "Lax",
+        maxAge: 5 * 60 * 1000,
+      });
       // }
 
       await userDB.save();
@@ -523,7 +516,7 @@ router.post(
         message: error.message,
       });
     }
-  })
+  }),
 );
 
 // login app ✅
@@ -561,7 +554,7 @@ router.post("/login/app", async (req, res) => {
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-        }
+        },
       );
 
       if (!result.data.success) {
@@ -624,7 +617,7 @@ router.post("/login/app", async (req, res) => {
   if (username == "SUPERTENANT" && OrgDB._id != selectedOrg) {
     await UserRefrensi.findOneAndUpdate(
       { username },
-      { $set: { org: OrgDB._id } }
+      { $set: { org: OrgDB._id } },
     );
     console.log("org terhubung ke supertenant telah berganti");
   }
@@ -640,7 +633,7 @@ router.post("/login/app", async (req, res) => {
         stage: "pending",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "5m" }
+      { expiresIn: "5m" },
     );
 
     const { password: _pw, ...userWithoutPassword } = userDB.toObject();
@@ -677,7 +670,7 @@ router.post("/login/app", async (req, res) => {
         stage: "pending",
       },
       process.env.JWT_SECRET,
-      { expiresIn: "5m" }
+      { expiresIn: "5m" },
     );
 
     return res.json({
@@ -877,7 +870,7 @@ router.put(
     } else if (role === "member") {
       // Hapus dari owners jika ada
       orgDB.owners = orgDB.owners.filter(
-        (ownerId) => ownerId.toString() !== user._id.toString()
+        (ownerId) => ownerId.toString() !== user._id.toString(),
       );
     }
 
@@ -895,7 +888,7 @@ router.put(
       success: true,
       message: "User berhasil diperbarui.",
     });
-  })
+  }),
 );
 
 router.put("/update/my-profile", authenticate, async (req, res) => {
@@ -951,7 +944,7 @@ router.get(
       org: req.user.org,
     })
       .select(
-        "-password -refreshToken -_2faSecret -otp -createdAt -otpTried -updatedAt -__v"
+        "-password -refreshToken -_2faSecret -otp -createdAt -otpTried -updatedAt -__v",
       )
       .lean();
 
@@ -970,7 +963,7 @@ router.get(
       success: true,
       userInfo: userDB,
     });
-  })
+  }),
 );
 
 //get user info complete ✅
@@ -1001,7 +994,7 @@ router.get(
       message: "Informasi user lengkap berhasil diambil.",
       data: userDB,
     });
-  })
+  }),
 );
 
 //ini memang untuk mengambil semua akun jangan difitler nanti banyak fitur rusak
@@ -1012,14 +1005,14 @@ router.get(
     console.log(req.user.org);
     const userDBs = await UserRefrensi.find({
       org: req.user.org,
-    }).select("-password -refreshToken -_2faSecret -otp"); 
+    }).select("-password -refreshToken -_2faSecret -otp");
 
     return res.json({
       success: true,
       message: "Semua akun berhasil diambil.",
       data: userDBs,
     });
-  })
+  }),
 );
 
 //ini untuk search akun
@@ -1048,7 +1041,7 @@ router.get(
     } catch (err) {
       return res.status(500).json({ message: err.message });
     }
-  })
+  }),
 );
 
 //ini untuk membuat user yang tidak terikat dengan LDAP
@@ -1527,7 +1520,7 @@ router.post("/2fa/login-complete", async (req, res) => {
           stage: "pending",
         },
         process.env.JWT_SECRET,
-        { expiresIn: "5m" }
+        { expiresIn: "5m" },
       );
 
       return res.json({
@@ -1710,13 +1703,13 @@ router.delete(
         $set: {
           refreshToken: null,
         },
-      }
+      },
     );
 
     return res.json({
       message: "User akan segera logout.",
     });
-  }
+  },
 );
 
 router.delete("/deleteAppUser/:id", authenticate, async (req, res) => {
@@ -1764,7 +1757,7 @@ router.delete(
       access_token: "",
       message: "Berhasil logout.",
     });
-  })
+  }),
 );
 
 export default router;

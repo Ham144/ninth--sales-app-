@@ -72,7 +72,7 @@ const LevelWrapper = () => {
     // Tapi jangan redirect jika sudah di halaman login (untuk mencegah infinite loop)
     if (!isLoading && !userInfo && !isPublicPath && currentPath !== "/login") {
       console.log(
-        "Redirecting to login: User not authenticated for protected path."
+        "Redirecting to login: User not authenticated for protected path.",
       );
       navigate("/login", { replace: true });
       return;
@@ -82,7 +82,7 @@ const LevelWrapper = () => {
     // Ini mencegah user yang sudah login melihat halaman login/about/dokumentasi
     if (!isLoading && userInfo && isPublicPath && currentPath !== "/") {
       console.log(
-        "Redirecting from public path to home: User already authenticated."
+        "Redirecting from public path to home: User already authenticated.",
       );
       navigate("/", { replace: true });
       return;
@@ -99,7 +99,7 @@ const LevelWrapper = () => {
       console.log(
         "Redirecting due to insufficient role:",
         userInfo.role,
-        currentPath
+        currentPath,
       );
       toast.error("Anda tidak memiliki izin untuk mengakses halaman ini.");
       navigate("/not-found"); //jangan -1 potensi di akalin dari history

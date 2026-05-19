@@ -774,7 +774,7 @@ router.get("/my-stats-so", async (req, res) => {
 
   start.setHours(0, 0, 0, 0);
   end.setHours(23, 59, 59, 999);
-
+  
   try {
     const username = req.user.username;
 

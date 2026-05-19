@@ -28,7 +28,7 @@ const customerSchema = new mongoose.Schema(
     Remaining_AR_Amount: String,
     hash: String, //ini untuk optimasi super, mencegah update data yg sama
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 customerSchema.index({ No: 1 }, { unique: true });
