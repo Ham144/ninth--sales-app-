@@ -10,7 +10,7 @@ const salesLineSchema = new mongoose.Schema(
     LineDiscountAmount: { type: Number, default: 0 },
     PromoCode: { type: String, default: "" },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const salesOrderSchema = new mongoose.Schema(
@@ -50,7 +50,7 @@ const salesOrderSchema = new mongoose.Schema(
       default: "completed",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const SalesOrder = mongoose.model("SalesOrder", salesOrderSchema);

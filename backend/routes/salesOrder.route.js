@@ -16,6 +16,14 @@ import redisService from "../utils/redisService.js";
 
 const router = Router();
 
+const navErrorToJson = (result) =>
+  JSON.stringify(
+    result ?? {
+      error: true,
+      message: "Tidak ada response dari NAV",
+    },
+  );
+
 //hanya butuh req.user._id requestor
 export const requestSalesOrder = async ({
   DocumentNo,
@@ -29,8 +37,6 @@ export const requestSalesOrder = async ({
   req,
 }) => {
   try {
-    // lengkapi requestor asli
-    console.log(req.user);
     const requestor = await UserRefrensi.findById(req.user._id).populate("org");
     if (!requestor) {
       return { error: true, message: "Requestor tidak ditemukan" };
@@ -50,8 +56,10 @@ export const requestSalesOrder = async ({
       !SOAP_TRANSACTION_PASSWORD ||
       !SOAP_TRANSACTION_SOAPACTION
     ) {
-      console.log("konfigurasi SOAP Transaction tidak lengkap");
-      return null;
+      return {
+        error: true,
+        message: "Konfigurasi SOAP Transaction tidak lengkap",
+      };
     }
 
     //penentuan noseries
@@ -68,7 +76,10 @@ export const requestSalesOrder = async ({
       requestDeliveryDate =
         formatDateToDDMMYYYY(RequestDeliveryDate) || getCurrentDateForNAV();
     } catch (error) {
-      throw Error(error);
+      return {
+        error: true,
+        message: `Format RequestDeliveryDate tidak valid: ${error?.message || error}`,
+      };
     }
 
     const xml = requestSalesOrderXml({
@@ -84,8 +95,6 @@ export const requestSalesOrder = async ({
       NoSeries: NoSeries,
     });
 
-    console.log(xml);
-
     const rawXmlResponse = await fetchData({
       xml: xml,
       username: SOAP_TRANSACTION_USERNAME,
@@ -95,8 +104,7 @@ export const requestSalesOrder = async ({
     });
 
     if (!rawXmlResponse) {
-      console.log("Response kosong");
-      return { error: true, message: "Response kosong" };
+      return { error: true, message: "Response kosong dari NAV Transaction" };
     }
 
     let parsed;
@@ -107,11 +115,13 @@ export const requestSalesOrder = async ({
         tagNameProcessors: [xml2js.processors.stripPrefix],
       });
     } catch (err) {
-      console.error("Gagal parse XML:", err);
-      return { error: true, message: "Gagal parse XML" };
+      return {
+        error: true,
+        message: `Gagal parse XML response: ${err?.message || err}`,
+      };
     }
 
-    // 🔹 Cek kalau respons berisi error SOAP
+    // ðŸ”¹ Cek kalau respons berisi error SOAP
     const fault = parsed?.Envelope?.Body?.Fault;
     if (fault) {
       return {
@@ -121,7 +131,7 @@ export const requestSalesOrder = async ({
       };
     }
 
-    // 🔹 Ambil node utama secara dinamis
+    // ðŸ”¹ Ambil node utama secara dinamis
     const body = parsed?.Envelope?.Body;
     const key = body
       ? Object.keys(body).find((k) => k.includes("SalesMobileInsert"))
@@ -129,21 +139,23 @@ export const requestSalesOrder = async ({
     const result = key ? body[key] : null;
 
     if (!result) {
-      console.log("Tidak bisa mendapatkan response transaction");
       return {
         error: true,
-        message: "Tidak bisa mendapatkan response transaction",
+        message: "Tidak bisa mendapatkan response SalesMobileInsert dari NAV",
+        rawBodyKeys: body ? Object.keys(body) : [],
       };
     }
 
-    // 🔹 Normalisasi response
     return {
       error: false,
       return_value: result?.return_value || null,
       salesHeader: result?.xML_Sales?.SalesHeader || null,
     };
   } catch (error) {
-    throw Error(error);
+    return {
+      error: true,
+      message: error?.message || String(error),
+    };
   }
 };
 
@@ -160,7 +172,6 @@ router.post("/new", async (req, res) => {
 
   try {
     // req.user sudah di-set dari middleware authenticate
-
     if (!requestDeliveryDate) {
       return res.status(401).json({ error: true, message: "RDD harus diisi" });
     }
@@ -285,28 +296,22 @@ router.post("/new", async (req, res) => {
     let salesOrderResponseXml;
 
     if (!vendor || vendor == "PHILIPS") {
-      try {
-        salesOrderResponseXml = await requestSalesOrder({
-          DocumentNo: globalIndex,
-          ExtDoc: req.user.username,
-          SellToCustNo: customer.No,
-          RequestDeliveryDate: requestDeliveryDate,
-          Keterangan: cleanForNAV(keterangan),
-          LocationCode: location.name,
-          AreaCode: after,
-          SalesLine: SalesLine,
-          req,
-        });
-      } catch (error) {
-        return res.status(403).json({ message: error.message });
-      }
+      salesOrderResponseXml = await requestSalesOrder({
+        DocumentNo: globalIndex,
+        ExtDoc: req.user.username,
+        SellToCustNo: customer.No,
+        RequestDeliveryDate: requestDeliveryDate,
+        Keterangan: cleanForNAV(keterangan),
+        LocationCode: location.name,
+        AreaCode: after,
+        SalesLine: SalesLine,
+        req,
+      });
 
       if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
-        console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
         return res.status(500).json({
-          message: JSON.stringify(
-            salesOrderResponseXml?.message || salesOrderResponseXml,
-          ),
+          error: true,
+          message: navErrorToJson(salesOrderResponseXml),
         });
       }
     }
@@ -346,8 +351,13 @@ router.post("/new", async (req, res) => {
 
     return res.status(200).json(generatedSalesOrder);
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({ message: error.message });
+    return res.status(500).json({
+      error: true,
+      message: navErrorToJson({
+        error: true,
+        message: error?.message || String(error),
+      }),
+    });
   }
 });
 
@@ -404,11 +414,9 @@ router.post("/confirm", async (req, res) => {
     });
 
     if (salesOrderResponseXml?.error || !salesOrderResponseXml) {
-      console.log("Request Sales Order Gagal: ", salesOrderResponseXml);
       return res.status(500).json({
-        message: JSON.stringify(
-          salesOrderResponseXml?.message || salesOrderResponseXml,
-        ),
+        error: true,
+        message: navErrorToJson(salesOrderResponseXml),
       });
     }
 
@@ -774,7 +782,7 @@ router.get("/my-stats-so", async (req, res) => {
 
   start.setHours(0, 0, 0, 0);
   end.setHours(23, 59, 59, 999);
-  
+
   try {
     const username = req.user.username;
 
@@ -803,7 +811,6 @@ router.get("/my-stats-so", async (req, res) => {
         },
       },
     ]);
-    console.log(data);
 
     // Kembalikan data pertama karena aggregate mengembalikan array
     // Jika data kosong, beri respon yang sesuai

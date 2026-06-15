@@ -8,7 +8,6 @@ const organizationSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-
     owners: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -32,7 +31,6 @@ const organizationSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-
     // start Active Directory---------------
     AD_HOST: {
       type: String,
@@ -96,6 +94,7 @@ const organizationSchema = new mongoose.Schema(
     SOAP_CUSTOMER_SOAPACTION: String,
     SOAP_CUSTOMER_XMLNS: String,
 
+    // sales order pending released
     SOAP_TRANSACTION_URL: String,
     SOAP_TRANSACTION_USERNAME: String,
     SOAP_TRANSACTION_PASSWORD: String,
@@ -118,7 +117,7 @@ const organizationSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Org = new mongoose.model("Org", organizationSchema);

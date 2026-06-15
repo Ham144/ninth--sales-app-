@@ -26,6 +26,10 @@ const customerSchema = new mongoose.Schema(
     Customer_Disc_Group: String,
     CRM_ID: String,
     Remaining_AR_Amount: String,
+    customerDetailExternalId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CustomerDetailExternal",
+    },
     hash: String, //ini untuk optimasi super, mencegah update data yg sama
   },
   { timestamps: true },

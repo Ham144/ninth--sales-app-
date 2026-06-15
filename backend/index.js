@@ -28,18 +28,8 @@ import salesOrderNav from "./routes/SalesOrderNav.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
-  ? [
-      "http://midcsi.muara.co.id:7047",
-      "https://s-bit.muara.co.id",
-      "http://192.168.169.12:1991",
-    ]
-  : [
-      "http://192.168.169.12:5173",
-      "http://midcsi.muara.co.id:7047",
-      "http://192.168.169.12:1991",
-      "http://192.168.169.24:3000",
-      "https://s-bit.muara.co.id",
-    ];
+  ? ["https://s-bit2.muara.co.id"]
+  : ["http://192.168.169.12:1991"];
 
 const app = express();
 
@@ -51,7 +41,7 @@ app.use(
   cors({
     origin: corsOrigin,
     credentials: true,
-  })
+  }),
 );
 
 // Serve static files from uploads directory
@@ -70,12 +60,13 @@ app.use(
   "/api/asThirdParty",
   authenticate,
   // authorizeSupertenant,
-  integrationRoutes
+  integrationRoutes,
 );
 
 //routes project utama
 app.use("/api/v1/product", authenticate, productRoutes);
 app.use("/api/v1/customer", authenticate, customerRoutes);
+// app.use("/api/v1/customer", authenticate, customerDetailExternalRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderRoutes);
 app.use("/api/v1/salesOrder", authenticate, salesOrderNav);
 app.use("/api/v1/overdue", authenticate, overdueRoutes);
@@ -83,12 +74,6 @@ app.use("/api/v1/location", authenticate, locationRoutes);
 // source of truth endpoint (pakai x-api-key krn Backend to Backend)
 app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
-
-//frontend routes
-//redirect ke web baru
-app.use((req, res) => {
-  res.redirect(301, "http://s-bit.muara.co.id" + req.originalUrl);
-});
 
 // const __dirname = path.resolve();
 // app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));

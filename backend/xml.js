@@ -81,7 +81,7 @@ export const requestSalesOrderXml = ({
             <UnitPrice></UnitPrice>
             <LineDiscountAmount></LineDiscountAmount>
             <PromoCode></PromoCode>
-          </SalesLine>`
+          </SalesLine>`,
           ).join("")}
         </SalesHeader>
       </xML_Sales>
@@ -90,30 +90,66 @@ export const requestSalesOrderXml = ({
 </Envelope>`;
 };
 
-/*
-              YG tidak ada maka tidak perlu diisi (opsional)
-                    <DocumentNo> = is nama sales beserta increment dari backend
-                    <SellToCustNo> = customer no
-                    <ShiptToCode>[string]</ShiptToCode> //optional
-                    <OrderDate>[string]</OrderDate> //optional
-                    <LocationCode> = //Location_Code
-                    <Dim1>[string]</Dim1> //optional
-                    <CustomerPriceGrp> = customer.Customer_Price_Group
-                    <SalespersonCode>[string]</SalespersonCode> //optional
-                    <SellToContact>[string]</SellToContact> //optional
-                    <NoSeries> = ?? 
-                    <ExtDoc> //isi nomor invoice generate by backend
-                    <RequestDeliveryDate> = contoh: 09/08/2025
-                    <SalesLine>
-                        <DocumentNo> sama dengan DocumentNo diatas
-                        <LineNo> //1000 jika sales Line ada 2 maka yg kedua 2000
-                        <ItemNo></ItemNo> //  sku
-                        <Qty>[decimal]</Qty> //1
-                        <UnitPrice>[decimal]</UnitPrice> //optional
-                        <LineDiscountAmount>[decimal]</LineDiscountAmount> //optional
-                        <PromoCode>[string]</PromoCode> //optional
-                    </SalesLine>
-*/
+export const requestSalesOrderAutoReleasedXml = ({
+  DocumentNo,
+  SellToCustNo,
+  ShiptToCode = "",
+  OrderDate = "",
+  ExtDoc,
+  RequestDeliveryDate,
+  SalesLine,
+  LocationCode,
+  AreaCode,
+  CustomerPriceGrp = "",
+  SalespersonCode = "",
+  SellToContact = "",
+  SOAP_SALESORDER_AUTORELEASED_XMLNS,
+  NoSeries,
+}) => {
+  return `
+<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+  <Body>
+    <SalesMobileInsertAuto xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
+      <xML_Sales>
+        <SalesHeader xmlns="${SOAP_SALESORDER_AUTORELEASED_XMLNS}">
+          <DocumentNo>${DocumentNo}</DocumentNo>
+          <SellToCustNo>${SellToCustNo}</SellToCustNo>
+          <ShiptToCode>${ShiptToCode}</ShiptToCode>
+          <OrderDate>${OrderDate}</OrderDate>
+          <LocationCode>${LocationCode}</LocationCode>
+          <Dim1>${AreaCode}</Dim1>
+          <CustomerPriceGrp>${CustomerPriceGrp}</CustomerPriceGrp>
+          <SalespersonCode>${SalespersonCode}</SalespersonCode>
+          <SellToContact>${SellToContact}</SellToContact>
+          <NoSeries>${NoSeries}</NoSeries>
+          <ExtDoc>${ExtDoc || ""}</ExtDoc>
+          <RequestDeliveryDate>${RequestDeliveryDate}</RequestDeliveryDate>
+          ${SalesLine.map(
+            ({
+              DocumentNo,
+              LineNo,
+              ItemNo,
+              Qty,
+              UnitPrice = "",
+              LineDiscountAmount = "",
+              PromoCode = "",
+            }) => `
+          <SalesLine>
+            <DocumentNo>${DocumentNo}</DocumentNo>
+            <LineNo>${LineNo}</LineNo>
+            <ItemNo>${ItemNo}</ItemNo>
+            <Qty>${Qty}</Qty>
+            <UnitPrice>${UnitPrice}</UnitPrice>
+            <LineDiscountAmount>${LineDiscountAmount}</LineDiscountAmount>
+            <PromoCode>${PromoCode}</PromoCode>
+          </SalesLine>`,
+          ).join("")}
+        </SalesHeader>
+      </xML_Sales>
+    </SalesMobileInsertAuto>
+  </Body>
+</Envelope>`;
+};
 
 export const cekPembayaranTertundaXml = ({
   customerNo,
