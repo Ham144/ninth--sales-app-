@@ -22,7 +22,7 @@ const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next); // Meneruskan error ke next()
 };
 
-//login LDAP 
+//login LDAP
 router.post(
   "/login/ldap",
   asyncHandler(async (req, res) => {
@@ -32,8 +32,9 @@ router.post(
       selectedOrg,
       captchaToken,
       BYPASS_TURNSTILE_KEY,
+      BYPASS_OTP_KEY,
     } = req.body;
-      if (!usernameRaw || !password || !selectedOrg) {
+    if (!usernameRaw || !password || !selectedOrg) {
       return res.status(400).json({
         success: false,
         message: "perlu melengkapi semua credentials",
@@ -98,12 +99,25 @@ router.post(
 
     if (BYPASS_TURNSTILE_KEY) {
       if (process.env.BYPASS_TURNSTILE_KEY != BYPASS_TURNSTILE_KEY) {
-        console.log(process.env.BYPASS_TURNSTILE_KEY, BYPASS_TURNSTILE_KEY);
         return res.status(403).json({
           success: false,
           message: "BYPASS_TURNSTILE_KEY tidak valid.",
         });
       }
+    }
+
+    let isOtpBypassValid = false;
+    if (BYPASS_OTP_KEY) {
+      if (
+        !process.env.BYPASS_OTP_KEY ||
+        process.env.BYPASS_OTP_KEY !== BYPASS_OTP_KEY
+      ) {
+        return res.status(403).json({
+          success: false,
+          message: "BYPASS_OTP_KEY tidak valid.",
+        });
+      }
+      isOtpBypassValid = true;
     }
 
     const OrgDB = await Org.findById(selectedOrg);
@@ -139,9 +153,17 @@ router.post(
         const result = await client.search(baseDN, {
           scope: "sub",
           filter: `(sAMAccountName=${username})`, // ganti dengan user yang kamu tahu
-          attributes: ["description", "displayName", "mail", "telephoneNumber"],
+          attributes: [
+            "description",
+            "displayName",
+            "mail",
+            "telephoneNumber",
+            "physicalDeliveryOfficeName",
+          ],
         });
         userLDAP = result[0];
+        userLDAP.office = userLDAP.physicalDeliveryOfficeName;
+        delete userLDAP.physicalDeliveryOfficeName;
       } catch (error) {
         return res.status(400).json({
           message:
@@ -177,6 +199,7 @@ router.post(
           displayName: userLDAP["displayName"],
           email: userLDAP["mail"],
           description: userLDAP["description"],
+          office: userLDAP["office"],
         });
 
         await userDB.save();
@@ -215,8 +238,15 @@ router.post(
         );
       }
 
+      if (userDB.office !== userLDAP["office"]) {
+        await UserRefrensi.findOneAndUpdate(
+          { username },
+          { $set: { office: userLDAP["office"] } },
+        );
+      }
+
       // 2FA pending flow: if user has 2FA enabled, do not issue cookies yet
-      if (userDB?._2faIsVerified) {
+      if (userDB?._2faIsVerified && !isOtpBypassValid) {
         const pendingToken = jwt.sign(
           {
             _id: userDB._id,
@@ -238,14 +268,13 @@ router.post(
       }
 
       // If whatsappOtpIsVerified is enabled for the user, return pending token and skip cookies
-      if (userDB?.whatsappOtpIsVerified && userDB?.phone) {
+      if (userDB?.whatsappOtpIsVerified && userDB?.phone && !isOtpBypassValid) {
         const otp = Math.floor(100000 + Math.random() * 900000);
         const isSuccess = await sendWa({ message: otp, phone: userDB.phone });
         if (isSuccess) {
           userDB.otp = otp;
           userDB.otpExpiresAt = new Date(Date.now() + 2 * 60 * 1000); // 2 minutes
           userDB.otpTried = 0;
-          console.log(userDB);
           await userDB.save();
         } else {
           return res.status(400).json({
@@ -257,7 +286,7 @@ router.post(
           {
             _id: userDB._id,
             org: OrgDB._id,
-            method: "app",
+            method: "ldap",
             whatsappOtp: true,
             stage: "pending",
           },
@@ -322,6 +351,7 @@ router.post(
         refresh_token: refresh_token,
         access_token: access_token,
         _2faIsVerified: userDB._2faIsVerified,
+        office: userDB.office,
       });
     } catch (error) {
       console.log(error);
@@ -333,7 +363,7 @@ router.post(
   }),
 );
 
-// login app ✅
+// login app âœ…
 router.post("/login/app", async (req, res) => {
   const { username, password, selectedOrg, captchaToken } = req.body;
 
@@ -599,7 +629,7 @@ router.post("/refresh-token", async (req, res) => {
   }
 });
 
-//update user ✅
+//update user âœ…
 router.put(
   "/updateUser",
   authenticate,
@@ -780,7 +810,7 @@ router.get(
   }),
 );
 
-//get user info complete ✅
+//get user info complete âœ…
 router.get(
   "/getUserInfoComplete",
   authenticate, // Asumsi middleware authorize akan mengisi req.userId
@@ -900,7 +930,7 @@ router.post("/createAppUser", authenticate, async (req, res) => {
       message: "User berhasil dibuat.",
     });
   } catch (error) {
-    console.error("❌ Create App User Error:", error);
+    console.error("âŒ Create App User Error:", error);
     return res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server.",

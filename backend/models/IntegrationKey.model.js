@@ -9,5 +9,4 @@ const IntegrationKeySchema = new mongoose.Schema({
   seen: Boolean,
 });
 
-
 export default mongoose.model("IntegrationKey", IntegrationKeySchema);

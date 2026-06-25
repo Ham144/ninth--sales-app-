@@ -82,3 +82,4 @@ pergi ke > settings > actions > runner > new self-hosted runner
 auto run : 
 sudo ./svc.sh install
 sudo ./svc.sh start
+[] fix: cron job gagal mengambil config smtp
