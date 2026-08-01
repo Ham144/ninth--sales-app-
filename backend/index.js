@@ -25,6 +25,7 @@ import apiKeyAuth from "./middlewares/apiKeyAuth.js";
 import userRoutes from "./routes/user.routes.js";
 import organizationRoutes from "./routes/organization.route.js";
 import salesOrderNav from "./routes/SalesOrderNav.route.js";
+import inventoryRoutes from "./routes/inventory.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 const corsOrigin = isProduction
@@ -74,12 +75,7 @@ app.use("/api/v1/location", authenticate, locationRoutes);
 // source of truth endpoint (pakai x-api-key krn Backend to Backend)
 app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
-
-// const __dirname = path.resolve();
-// app.use(express.static(path.join(__dirname, "..", "frontend", "dist")));
-// app.get("*", (req, res) => {
-//   res.sendFile(path.join(__dirname, "..", "frontend", "dist", "index.html"));
-// });
+app.use("/api/v1/inventory", authenticate, inventoryRoutes);
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();

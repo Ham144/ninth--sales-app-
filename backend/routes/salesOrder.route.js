@@ -13,6 +13,7 @@ import Location from "../models/Location.model.js";
 import UserRefrensi from "../models/User.model.js";
 import Product from "../models/product.model.js";
 import redisService from "../utils/redisService.js";
+import escapeRegex from "../utils/excapeRegexInject.js";
 
 const router = Router();
 
@@ -82,13 +83,15 @@ export const requestSalesOrder = async ({
       };
     }
 
+    const escapedKeterangan = escapeRegex(Keterangan);
+
     const xml = requestSalesOrderXml({
       DocumentNo,
       SellToCustNo,
       ExtDoc,
       RequestDeliveryDate: requestDeliveryDate,
       SalesLine,
-      Keterangan,
+      Keterangan: escapedKeterangan,
       LocationCode,
       AreaCode,
       SOAP_TRANSACTION_XMLNS,

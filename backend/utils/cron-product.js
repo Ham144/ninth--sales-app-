@@ -1,7 +1,7 @@
 import { connectDB } from "./connectDB.js";
 import "dotenv/config";
 import cron from "node-cron";
-import { checkStockXML, productXml } from "../xml.js";
+import { checkInventoryXML, checkStockXML, productXml } from "../xml.js";
 import { fetchData } from "./soap-util.js";
 import "dotenv/config";
 import xml2js from "xml2js";
@@ -16,7 +16,7 @@ function hashProductData(data) {
 export const fetchingSoapToGetStock = async (No, locationCode, req) => {
   try {
     const org = await Org.findOne().select(
-      "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION SOAP_STOCK_XMLNS"
+      "SOAP_STOCK_URL SOAP_STOCK_USERNAME SOAP_STOCK_PASSWORD SOAP_STOCK_SOAPACTION SOAP_STOCK_XMLNS",
     );
 
     const {
@@ -71,11 +71,70 @@ export const fetchingSoapToGetStock = async (No, locationCode, req) => {
   }
 };
 
+export const fetchingSoapToGetInventory = async (No, locationCode, req) => {
+  try {
+    const org = await Org.findOne().select(
+      "SOAP_INVENTORY_URL SOAP_INVENTORY_USERNAME SOAP_INVENTORY_PASSWORD SOAP_INVENTORY_SOAPACTION SOAP_INVENTORY_XMLNS",
+    );
+
+    const {
+      SOAP_INVENTORY_URL,
+      SOAP_INVENTORY_USERNAME,
+      SOAP_INVENTORY_PASSWORD,
+      SOAP_INVENTORY_SOAPACTION,
+      SOAP_INVENTORY_XMLNS,
+    } = org;
+
+    if (
+      !SOAP_INVENTORY_URL ||
+      !SOAP_INVENTORY_USERNAME ||
+      !SOAP_INVENTORY_PASSWORD ||
+      !SOAP_INVENTORY_SOAPACTION ||
+      !SOAP_INVENTORY_XMLNS
+    ) {
+      console.log("Konfigurasi soap inventory tidak lengkap");
+      return null;
+    }
+
+    const rawXmlResponse = await fetchData({
+      xml: checkInventoryXML(No, locationCode), // <-- XML generator khusus produk
+      username: SOAP_INVENTORY_USERNAME,
+      password: SOAP_INVENTORY_PASSWORD,
+      url: SOAP_INVENTORY_URL,
+      SOAPAction: SOAP_INVENTORY_SOAPACTION,
+    });
+    console.log(rawXmlResponse);
+    if (!rawXmlResponse) {
+      console.log("Response kosong");
+      return null;
+    }
+
+    const parsed = await xml2js.parseStringPromise(rawXmlResponse, {
+      explicitArray: false,
+      trim: true,
+    });
+
+    const body = parsed?.["Soap:Envelope"]?.["Soap:Body"];
+
+    if (!body) {
+      console.log("Tidak bisa menemukan data hasil");
+      return null;
+    }
+
+    const inventoryValue = body?.GetInventoryByLocation_Result?.inventory;
+
+    return inventoryValue !== undefined ? Number(inventoryValue) : null;
+  } catch (error) {
+    console.log("Terjadi error:", error);
+    return null;
+  }
+};
+
 export const fetchingSoap = async () => {
   try {
     const org = await Org.findOne()
       .select(
-        "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION SOAP_PRODUCT_XMLNS"
+        "SOAP_PRODUCT_URL SOAP_PRODUCT_USERNAME SOAP_PRODUCT_PASSWORD SOAP_PRODUCT_SOAPACTION SOAP_PRODUCT_XMLNS",
       )
       .lean();
 
@@ -176,7 +235,7 @@ const reinitilizeProductFromSoap = async () => {
     // Step 1: Ambil existing hash dari DB berdasarkan No
     const existingProduct = await Product.find(
       { No: { $in: productJSON.map((c) => c?.No) } },
-      { No: 1, hash: 1 }
+      { No: 1, hash: 1 },
     ).lean();
 
     const existingMap = new Map();

@@ -930,10 +930,10 @@ router.post("/createAppUser", authenticate, async (req, res) => {
       message: "User berhasil dibuat.",
     });
   } catch (error) {
-    console.error("âŒ Create App User Error:", error);
+    console.error(" Create App User Error:", error);
     return res.status(500).json({
       success: false,
-      message: "Terjadi kesalahan server.",
+      message: JSON.stringify(error.message),
     });
   }
 });

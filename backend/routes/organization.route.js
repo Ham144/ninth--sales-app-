@@ -76,7 +76,9 @@ router.get("/smtpConfig/:id", async (req, res) => {
 
     return res.json(payload);
   } catch (error) {
-    return res.status(500).json({ message: "Gagal mengambil konfigurasi SMTP." });
+    return res
+      .status(500)
+      .json({ message: "Gagal mengambil konfigurasi SMTP." });
   }
 });
 
@@ -101,7 +103,9 @@ router.get("/getAllOrg", async (_req, res) => {
     const orgs = await Org.find().lean();
     return res.json(orgs);
   } catch (error) {
-    return res.status(500).json({ message: "Gagal mengambil daftar organisasi." });
+    return res
+      .status(500)
+      .json({ message: "Gagal mengambil daftar organisasi." });
   }
 });
 

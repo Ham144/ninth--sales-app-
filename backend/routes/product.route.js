@@ -35,7 +35,7 @@ router.get("/list", async (req, res) => {
   if (myVendor) {
     andConditions.push(
       { Brand: { $regex: myVendor, $options: "i" } }, // cocok dengan vendor
-      { Brand: { $exists: true } } // field harus ada
+      { Brand: { $exists: true } }, // field harus ada
     );
   }
 
@@ -84,15 +84,10 @@ router.get("/getStock", async (req, res) => {
       .json({ message: "No dan locationCode harus diisi." });
   }
 
+  console.log("check stock ", No, locationCode);
+
   try {
     const stockResult = await fetchingSoapToGetStock(No, locationCode, req);
-
-    console.log("stockResult,: ", stockResult);
-    //jika SMD sensor stock
-    // const vendor = req?.user?.description?.split("_")[1];
-    // if (vendor) {
-    //   return res.json({ stockResult: "SMD NOT GRANTED" });
-    // }
 
     return res.json({ stockResult });
   } catch (err) {
