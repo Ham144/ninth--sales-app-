@@ -11,8 +11,6 @@ router.get("/count", async (req, res) => {
       .json({ message: "No dan locationCode harus diisi." });
   }
 
-  console.log("inventory route: ", No, locationCode);
-
   try {
     const inventoryResult = await fetchingSoapToGetInventory(
       No,
@@ -27,4 +25,5 @@ router.get("/count", async (req, res) => {
     res.status(500).json({ message: "Terjadi kesalahan server." });
   }
 });
+
 export default router;

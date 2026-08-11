@@ -19,6 +19,7 @@ router.get("/list", async (req, res) => {
     userInfo?.description?.startsWith("SALES") &&
     userInfo?.description?.split("_")[1];
 
+
   let query = {};
   if (vendor) {
     query = {

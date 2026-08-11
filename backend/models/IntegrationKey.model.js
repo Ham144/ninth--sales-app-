@@ -7,6 +7,7 @@ const IntegrationKeySchema = new mongoose.Schema({
   status: { type: String, enum: ["active", "revoked"], default: "active" },
   createdAt: { type: Date, default: Date.now },
   seen: Boolean,
+  appSource: { type : String, required: true} // untuk menandakan input dari frontend mana
 });
 
 export default mongoose.model("IntegrationKey", IntegrationKeySchema);

@@ -31,6 +31,11 @@ const temporarySalesOrderSchema = new mongoose.Schema(
       ref: "UserRefrensi",
       required: true,
     },
+    appSource: {
+      type: String,
+      required: true,
+      default: "unknown"
+    }
   },
   { timestamps: true }
 );

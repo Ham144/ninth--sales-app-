@@ -14,6 +14,9 @@ import UserRefrensi from "../models/User.model.js";
 import Product from "../models/product.model.js";
 import redisService from "../utils/redisService.js";
 import escapeRegex from "../utils/excapeRegexInject.js";
+import IntegrationKeyModel from "../models/IntegrationKey.model.js";
+
+
 
 const router = Router();
 
@@ -161,7 +164,7 @@ export const requestSalesOrder = async ({
     };
   }
 };
-
+//main
 router.post("/new", async (req, res) => {
   const {
     customer: customerObj,
@@ -324,6 +327,17 @@ router.post("/new", async (req, res) => {
       return total + lineTotal;
     }, 0);
 
+    // identify darimana api di hit pakai Header[x-api-key]
+    let appSource = "unknown";
+    if (req.headers["x-api-key"]) {
+      appSource = req.integrationKey?.appSource;
+      if (!appSource) {
+        return res.status(400).json({
+          message: "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
+        });
+      }
+    }
+
     const generatedSalesOrder = await SalesOrder.create({
       return_value:
         salesOrderResponseXml?.return_value ??
@@ -344,6 +358,7 @@ router.post("/new", async (req, res) => {
       SalesLineTotal: SalesLineTotal,
       org: req.user.org,
       createdBy: req.user._id,
+      appSource,
       status: salesOrderResponseXml?.return_value ? "completed" : "pending",
     });
 
@@ -403,7 +418,11 @@ router.post("/confirm", async (req, res) => {
       pendingSalesOrder.createdBy,
     );
     req.user = realRequestor;
-
+    
+    
+    // sumber input, identify dari integration key (api key)
+    const appSource = pendingSalesOrder.appSource || req.integrationKey?.appSource || "unknown";
+    
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: pendingSalesOrder.DocumentNo,
       ExtDoc: pendingSalesOrder.ExtDoc,
@@ -413,6 +432,7 @@ router.post("/confirm", async (req, res) => {
       LocationCode: locationCode,
       AreaCode: areaCode,
       SalesLine: SalesLine,
+      appSource,
       req,
     });
 
@@ -690,6 +710,17 @@ router.put("/temp/create", async (req, res) => {
       const year = currentDate.getFullYear();
       const defaultComment = `${hour}-${day}/${month}/${year}-${customerDB.Name}`;
 
+      // identify darimana api di hit pakai Header[x-api-key]
+      let appSource = "unknown";
+      if (req.headers["x-api-key"]) {
+        appSource = req.integrationKey?.appSource;
+        if (!appSource) {
+          return res.status(400).json({
+            message: "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
+          });
+        }
+      }
+
       const newTemp = await TemporarySalesOrder.create({
         customer: customerDB._id,
         comment: comment ?? defaultComment,
@@ -697,6 +728,7 @@ router.put("/temp/create", async (req, res) => {
         products,
         frontendSession,
         createdBy: req.user._id,
+        appSource,
       });
 
       return res.json({

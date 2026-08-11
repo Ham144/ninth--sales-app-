@@ -49,6 +49,11 @@ const salesOrderSchema = new mongoose.Schema(
       enum: ["pending", "completed", "canceled"],
       default: "completed",
     },
+    appSource: {
+      type: String,
+      required: true,
+      default: "unknown"
+    }
   },
   { timestamps: true },
 );

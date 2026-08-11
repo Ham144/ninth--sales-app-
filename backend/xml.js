@@ -207,11 +207,11 @@ export const checkStatusSONAVXml = ({ return_value, xmlns }) => {
 export const checkInventoryXML = (No, locationCode) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
-        <GetInventoryByLocation xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
+        <GetInventoryOnlyByLocation xmlns="urn:microsoft-dynamics-schemas/codeunit/WSNav">
             <itemNo>${No}</itemNo>
             <locationCode>${locationCode}</locationCode>
             <inventory>0</inventory>
-        </GetInventoryByLocation>
+        </GetInventoryOnlyByLocation>
     </Body>
 </Envelope>`;
 };

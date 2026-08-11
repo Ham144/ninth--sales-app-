@@ -63,7 +63,7 @@ export const fetchingSoapToGetStock = async (No, locationCode, req) => {
     }
 
     const inventoryValue = body?.GetInventoryByLocation_Result?.inventory;
-
+    console.log("body?.GetInventoryByLocation_Result?.inventory: ", body?.GetInventoryByLocation_Result?.inventory)
     return inventoryValue !== undefined ? Number(inventoryValue) : null;
   } catch (error) {
     console.log("Terjadi error:", error);

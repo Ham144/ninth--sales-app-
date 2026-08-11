@@ -32,8 +32,7 @@ const authenticate = async (req, res, next) => {
     return;
   }
 
-  const token =
-    req?.cookies?.access_token || req.headers.authorization?.split(" ")[1];
+    const token =req?.cookies?.access_token || req.headers.authorization?.split(" ")[1];
 
   if (!token) {
     console.log("authentication failed : ", req.originalUrl);
@@ -47,10 +46,6 @@ const authenticate = async (req, res, next) => {
     // Verify web token
     decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
-    console.log(
-      "authenticated ✅ : ",
-      `${req.user.username}-${req.originalUrl}`
-    );
     next();
   } catch (error) {
     console.log(
