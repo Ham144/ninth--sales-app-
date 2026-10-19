@@ -62,63 +62,7 @@ router.post(
     } else {
       console.log("Login dari web atau lainnya");
     }
-    //turnstile
-    if (
-      process.env.NODE_ENV === "production" &&
-      !isMobileClient &&
-      !BYPASS_TURNSTILE_KEY
-    ) {
-      try {
-        const result = await axios.post(
-          "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-          new URLSearchParams({
-            secret: process.env.TURNSTILE_SECRET_KEY,
-            response: captchaToken,
-            remoteip: req.ip,
-          }),
-          {
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-          },
-        );
 
-        if (!result.data.success) {
-          return res
-            .status(403)
-            .json({ success: false, message: "Verifikasi CAPTCHA gagal." });
-        }
-        console.log("berhasil verifikasi turnstile");
-      } catch (error) {
-        console.error("Turnstile error:", error.message);
-        return res
-          .status(500)
-          .json({ success: false, message: "Gagal memverifikasi CAPTCHA." });
-      }
-    }
-
-    if (BYPASS_TURNSTILE_KEY) {
-      if (process.env.BYPASS_TURNSTILE_KEY != BYPASS_TURNSTILE_KEY) {
-        return res.status(403).json({
-          success: false,
-          message: "BYPASS_TURNSTILE_KEY tidak valid.",
-        });
-      }
-    }
-
-    let isOtpBypassValid = false;
-    if (BYPASS_OTP_KEY) {
-      if (
-        !process.env.BYPASS_OTP_KEY ||
-        process.env.BYPASS_OTP_KEY !== BYPASS_OTP_KEY
-      ) {
-        return res.status(403).json({
-          success: false,
-          message: "BYPASS_OTP_KEY tidak valid.",
-        });
-      }
-      isOtpBypassValid = true;
-    }
 
     const OrgDB = await Org.findById(selectedOrg);
     if (!OrgDB) {
@@ -365,7 +309,13 @@ router.post(
 
 // login app âœ…
 router.post("/login/app", async (req, res) => {
-  const { username, password, selectedOrg, captchaToken } = req.body;
+  const {
+    username,
+    password,
+    selectedOrg,
+    captchaToken,
+    BYPASS_TURNSTILE_KEY,
+  } = req.body;
 
   if (!username || !password || !selectedOrg) {
     return res.status(400).json({
@@ -385,35 +335,16 @@ router.post("/login/app", async (req, res) => {
   } else {
     console.log("Login dari web atau lainnya");
   }
-  if (process.env.NODE_ENV == "production" && !isMobileClient) {
-    try {
-      const result = await axios.post(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        new URLSearchParams({
-          secret: process.env.TURNSTILE_SECRET_KEY,
-          response: captchaToken,
-          remoteip: req.ip,
-        }),
-        {
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-        },
-      );
 
-      if (!result.data.success) {
-        return res
-          .status(403)
-          .json({ success: false, message: "Verifikasi CAPTCHA gagal." });
-      }
-      console.log("berhasil verifikasi turnstile");
-    } catch (error) {
-      console.error("Turnstile error:", error.message);
-      return res
-        .status(500)
-        .json({ success: false, message: "Gagal memverifikasi CAPTCHA." });
+  if (BYPASS_TURNSTILE_KEY) {
+    if (process.env.BYPASS_TURNSTILE_KEY != BYPASS_TURNSTILE_KEY) {
+      return res.status(403).json({
+        success: false,
+        message: "BYPASS_TURNSTILE_KEY tidak valid.",
+      });
     }
   }
+
 
   const OrgDB = await Org.findById(selectedOrg);
   if (!OrgDB) {
@@ -731,6 +662,48 @@ router.put(
     return res.json({
       success: true,
       message: "User berhasil diperbarui.",
+    });
+  }),
+);
+
+router.put(
+  "/resetPassword/:username",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const { username } = req.params;
+    const { newPassword } = req.body;
+
+    if (!username?.trim() || !newPassword?.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "username dan newPassword wajib diisi",
+      });
+    }
+
+    const users = await UserRefrensi.find({
+      username: username.trim(),
+      authMethod: "app",
+    });
+
+    if (!users.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Tidak ditemukan user app dengan username tersebut",
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword.trim(), salt);
+    await Promise.all(
+      users.map(async (user) => {
+        user.password = hashedPassword;
+        await user.save();
+      }),
+    );
+
+    return res.json({
+      success: true,
+      message: `Password ${users.length} user berhasil diperbarui.`,
     });
   }),
 );

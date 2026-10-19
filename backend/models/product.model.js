@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 
+//csi
 const productSchema = new mongoose.Schema(
   {
     No: { type: String, required: true }, // Gunakan No sebagai unique identifier
@@ -45,12 +46,13 @@ const productSchema = new mongoose.Schema(
     Inv_pmrn: String,
     Inv_cjrh: String,
     Inv_Gab4Loc: String,
+    organization: { type: String, enum: ["csi", "ril"], default: "csi" },
     hash: String, //ini untuk optimasi super, mencegah update data yg sama
   },
   { timestamps: true }
 );
 
-productSchema.index({ No: 1 }, { unique: true });
+productSchema.index({ No: 1, organization: 1 }, { unique: true });
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;

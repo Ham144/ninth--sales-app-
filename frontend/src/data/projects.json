@@ -1,0 +1,98 @@
+[
+  {
+    "id": "invoice-csi",
+    "title": "invoice CSI",
+    "description": "Scan Invoice CSI — mencatat barang masuk/keluar gudang",
+    "url": "http://192.168.169.6"
+  },
+  {
+    "id": "invoice-ril",
+    "title": "invoice RIL",
+    "description": "Scan Invoice RIL — mencatat barang masuk/keluar gudang",
+    "url": "http://192.168.169.8"
+  },
+  {
+    "id": "catur-pos",
+    "title": "catur pos",
+    "description": "Point of sale event (FE+BE+DB, tidak pindah)",
+    "url": "http://8.215.63.141"
+  },
+  {
+    "id": "service-log-ril",
+    "title": "service log RIL",
+    "description": "Service Log App — input barang return/service RIL",
+    "url": "http://192.168.169.44"
+  },
+  {
+    "id": "e-form",
+    "title": "e-form",
+    "description": "Workflow tracking & form approval builder",
+    "url": "http://192.168.169.24"
+  },
+  {
+    "id": "midcsi",
+    "title": "midcsi",
+    "description": "SOAP, N8N, faktur automation (Sales Order Master backend)",
+    "url": "http://192.168.169.4"
+  },
+  {
+    "id": "s-bit",
+    "title": "s-bit",
+    "description": "Sales Force Automation",
+    "url": "http://192.168.169.3"
+  },
+  {
+    "id": "petty-cash",
+    "title": "petty cash",
+    "description": "Warehouse Petty Cash Flow — cashflow kas kecil",
+    "url": "http://192.168.169.20"
+  },
+  {
+    "id": "antrian",
+    "title": "antrian",
+    "description": "Sistem antrian gudang",
+    "url": "http://192.168.169.11"
+  },
+  {
+    "id": "n8n-email-formater",
+    "title": "N8N email formater/faktur",
+    "description": "N8N workflow formatting email / faktur",
+    "url": "http://192.168.169.3:5679"
+  },
+  {
+    "id": "n8n-penggunaan-app",
+    "title": "N8N penggunaan app",
+    "description": "N8N rangkuman penggunaan aplikasi",
+    "url": "http://192.168.169.3:5678"
+  },
+  {
+    "id": "claim-service",
+    "title": "claim service",
+    "description": "Claim service FE/cache — Service Log App",
+    "url": "http://192.168.169.26:8080"
+  },
+  {
+    "id": "stok-opname",
+    "title": "stok opname",
+    "description": "Mencatat stok opname gudang",
+    "url": "http://192.168.169.26"
+  },
+  {
+    "id": "csi-hub",
+    "title": "csi hub",
+    "description": "Project library / system hub (FE)",
+    "url": "https://s-bit2.muara.co.id/project-library"
+  },
+  {
+    "id": "bukti-scan",
+    "title": "buktiScan",
+    "description": "BuktiScan — Catur Sukses Internasional",
+    "url": "http://192.168.169.27"
+  },
+  {
+    "id": "csi-super-pos",
+    "title": "csi super pos",
+    "description": "CSI Super POS",
+    "url": "http://192.168.169.35"
+  }
+]

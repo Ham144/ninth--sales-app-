@@ -5,8 +5,9 @@
   "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "be": "nodemon index.js",
-    "start": "node index.js"
+    "dev": "nodemon index.js",
+    "start": "node index.js",
+    "build:hub": "cd ../frontend && ./node_modules/.bin/vite build"
   },
   "author": "yafizham",
   "license": "ISC",

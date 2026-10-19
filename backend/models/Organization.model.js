@@ -82,6 +82,12 @@ const organizationSchema = new mongoose.Schema(
     SOAP_PRODUCT_SOAPACTION: String,
     SOAP_PRODUCT_XMLNS: String,
 
+    SOAP_PRODUCT_RIL_URL: String,
+    SOAP_PRODUCT_RIL_USERNAME: String,
+    SOAP_PRODUCT_RIL_PASSWORD: String,
+    SOAP_PRODUCT_RIL_SOAPACTION: String,
+    SOAP_PRODUCT_RIL_XMLNS: String,
+
     SOAP_CUSTOMER_URL: String,
     SOAP_CUSTOMER_USERNAME: String,
     SOAP_CUSTOMER_PASSWORD: String,
@@ -120,6 +126,9 @@ const organizationSchema = new mongoose.Schema(
     SOAP_INVENTORY_PASSWORD: String,
     SOAP_INVENTORY_SOAPACTION: String,
     SOAP_INVENTORY_XMLNS: String,
+
+    // ini refrensi 
+
     //END SOAP---------------
   },
   {

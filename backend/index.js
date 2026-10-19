@@ -1,5 +1,6 @@
 import express from "express";
 import "dotenv/config";
+import fs from "fs";
 import { connectDB } from "./utils/connectDB.js";
 import cors from "cors";
 import auhtRoutes from "./routes/auth.route.js";
@@ -26,11 +27,22 @@ import userRoutes from "./routes/user.routes.js";
 import organizationRoutes from "./routes/organization.route.js";
 import salesOrderNav from "./routes/SalesOrderNav.route.js";
 import inventoryRoutes from "./routes/inventory.route.js";
+import hubRoutes from "./routes/hub.route.js";
 
 const isProduction = process.env.NODE_ENV === "production";
+// Same-origin hub (API + static on one PORT) needs no CORS.
+// Keep list for separate frontends still hitting this API.
 const corsOrigin = isProduction
   ? ["https://s-bit2.muara.co.id"]
-  : ["http://192.168.169.12:1991"];
+  : [
+      "http://192.168.169.12:1991",
+      "http://192.168.169.12:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:5173",
+      "http://192.168.169.12:7047",
+      "http://127.0.0.1:7047",
+      "http://localhost:7047",
+    ];
 
 const app = express();
 
@@ -76,10 +88,34 @@ app.use("/api/v1/location", authenticate, locationRoutes);
 app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
 app.use("/api/v1/inventory", authenticate, inventoryRoutes);
+// System Hub: updates + knowledge docs (public read, auth write)
+app.use("/api/v1/hub", hubRoutes);
+
+/**
+ * Serve System Hub SPA from ./public (vite build outDir).
+ * No nginx required: API + static on the same PORT.
+ * Build: `cd frontend && pnpm build` → backend/public
+ */
+const publicDir = path.join(process.cwd(), "public");
+const hubIndex = path.join(publicDir, "index.html");
+if (fs.existsSync(hubIndex)) {
+  app.use(express.static(publicDir, { index: false, maxAge: isProduction ? "1d" : 0 }));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api") || req.path.startsWith("/uploads")) {
+      return next();
+    }
+    return res.sendFile(hubIndex);
+  });
+  console.log("System Hub static UI: enabled (backend/public)");
+} else {
+  console.log(
+    "System Hub static UI: skipped (run `cd frontend && pnpm build` first)",
+  );
+}
 
 if (process.env.NODE_ENV === "production") {
   startCronCustomer();
-  startCronProduct();
+  startCronProduct(); //csi+ril
   startCronOverdue();
 }
 

@@ -2,17 +2,35 @@ import { Router } from "express";
 import Product from "../models/product.model.js";
 import escapeRegex from "../utils/excapeRegexInject.js";
 import { fetchingSoapToGetStock } from "../utils/cron-product.js";
+import {
+  normalizeProductOrganization,
+  productOrganizationQuery,
+} from "../utils/productOrganization.js";
 
 const router = Router();
 
+const readOrganization = (req, res) => {
+  const organization = normalizeProductOrganization(
+    req.query.organization ?? req.body?.organization,
+  );
+  if (!organization) {
+    res.status(400).json({ message: "organization harus csi atau ril" });
+    return null;
+  }
+  return organization;
+};
+
 //ini untuk search sekalian menampilkan detail
 router.get("/list", async (req, res) => {
+  const organization = readOrganization(req, res);
+  if (!organization) return;
+
   const searchKey = req.query.searchKey || "";
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
 
   let query = { Blocked_MA: false };
-  let andConditions = [];
+  let andConditions = [productOrganizationQuery(organization)];
 
   if (searchKey) {
     const escaped = escapeRegex(searchKey);
@@ -98,8 +116,13 @@ router.get("/getStock", async (req, res) => {
 
 //sot
 router.get("/sot/getByNo:no", async (req, res) => {
+  const organization = readOrganization(req, res);
+  if (!organization) return;
+
   const no = req.params?.no;
-  const product = await Product.findOne({ No: no });
+  const product = await Product.findOne({
+    $and: [{ No: no }, productOrganizationQuery(organization)],
+  });
   return res.json(product);
 });
 
@@ -110,8 +133,14 @@ router.get("/sot/getById/:id", async (req, res) => {
 });
 
 router.post("/sot/geByNos", async (req, res) => {
+  const organization = readOrganization(req, res);
+  if (!organization) return;
+
   const nos = req.body?.nos;
-  return await Product.find({ No: { $in: nos } });
+  const products = await Product.find({
+    $and: [{ No: { $in: nos } }, productOrganizationQuery(organization)],
+  });
+  return res.json(products);
 });
 
 export default router;

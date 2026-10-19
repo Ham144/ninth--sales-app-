@@ -12,11 +12,9 @@ import mongoose from "mongoose";
 import Location from "../models/Location.model.js";
 import UserRefrensi from "../models/User.model.js";
 import Product from "../models/product.model.js";
+import { productOrganizationQuery } from "../utils/productOrganization.js";
 import redisService from "../utils/redisService.js";
 import escapeRegex from "../utils/excapeRegexInject.js";
-import IntegrationKeyModel from "../models/IntegrationKey.model.js";
-
-
 
 const router = Router();
 
@@ -205,7 +203,9 @@ router.post("/new", async (req, res) => {
         }
 
         // Ambil data lengkap dari database
-        const product = await Product.findOne({ No: item.No });
+        const product = await Product.findOne({
+          $and: [{ No: item.No }, productOrganizationQuery("csi")],
+        });
         if (!product) {
           throw new Error(
             `Product dengan No '${item.No}' tidak ditemukan di database`,
@@ -333,7 +333,8 @@ router.post("/new", async (req, res) => {
       appSource = req.integrationKey?.appSource;
       if (!appSource) {
         return res.status(400).json({
-          message: "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
+          message:
+            "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
         });
       }
     }
@@ -418,11 +419,11 @@ router.post("/confirm", async (req, res) => {
       pendingSalesOrder.createdBy,
     );
     req.user = realRequestor;
-    
-    
+
     // sumber input, identify dari integration key (api key)
-    const appSource = pendingSalesOrder.appSource || req.integrationKey?.appSource || "unknown";
-    
+    const appSource =
+      pendingSalesOrder.appSource || req.integrationKey?.appSource || "unknown";
+
     const salesOrderResponseXml = await requestSalesOrder({
       DocumentNo: pendingSalesOrder.DocumentNo,
       ExtDoc: pendingSalesOrder.ExtDoc,
@@ -716,7 +717,8 @@ router.put("/temp/create", async (req, res) => {
         appSource = req.integrationKey?.appSource;
         if (!appSource) {
           return res.status(400).json({
-            message: "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
+            message:
+              "terdapat pembaruan x-api-key, versi lama belum memiliki sumber, hubungi admin",
           });
         }
       }
