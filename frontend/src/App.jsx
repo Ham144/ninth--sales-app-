@@ -7,6 +7,9 @@ import TechnicalPage from "./pages/TechnicalPage";
 import ApiKeysPage from "./pages/ApiKeysPage";
 import ConfigPage from "./pages/ConfigPage";
 import LoginPage from "./pages/LoginPage";
+import PlaygroundPage from "./pages/PlaygroundPage";
+import AgentConfigPage from "./pages/AgentConfigPage";
+import AgentDocsPage from "./pages/AgentDocsPage";
 import { useAuthStore } from "./store/authStore";
 
 function RequireAuth({ user, children }) {
@@ -43,7 +46,19 @@ function RouteView({ path, user }) {
     );
   }
   if (path.startsWith("/login")) return <LoginPage />;
-  return <AppsPage />;
+  if (path.startsWith("/apps")) return <AppsPage />;
+  if (path.startsWith("/agent/config")) {
+    return (
+      <RequireAuth user={user}>
+        <AgentConfigPage />
+      </RequireAuth>
+    );
+  }
+  if (path === "/" || path === "/agent" || path.startsWith("/playground")) {
+    return <PlaygroundPage />;
+  }
+  if (path.startsWith("/agent-docs")) return <AgentDocsPage />;
+  return <PlaygroundPage />;
 }
 
 export default function App() {
@@ -55,8 +70,10 @@ export default function App() {
     return <RouteView path={path} user={user} />;
   }
 
+  const chat = path === "/" || path === "/agent" || path.startsWith("/playground");
+
   return (
-    <Shell user={user} onLogout={clearSession}>
+    <Shell user={user} onLogout={clearSession} chat={chat}>
       <RouteView path={path} user={user} />
     </Shell>
   );

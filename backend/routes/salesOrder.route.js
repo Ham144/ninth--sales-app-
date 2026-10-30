@@ -125,7 +125,7 @@ export const requestSalesOrder = async ({
       };
     }
 
-    // ðŸ”¹ Cek kalau respons berisi error SOAP
+    // Cek kalau respons berisi error SOAP
     const fault = parsed?.Envelope?.Body?.Fault;
     if (fault) {
       return {
@@ -135,7 +135,7 @@ export const requestSalesOrder = async ({
       };
     }
 
-    // ðŸ”¹ Ambil node utama secara dinamis
+    //Ambil node utama secara dinamis 
     const body = parsed?.Envelope?.Body;
     const key = body
       ? Object.keys(body).find((k) => k.includes("SalesMobileInsert"))

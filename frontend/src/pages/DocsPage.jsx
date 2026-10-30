@@ -5,7 +5,8 @@ export default function DocsPage() {
     <BlogDocsPage
       docType="howto"
       heading="How to use"
-      description="Panduan pemakaian bergaya blog — tulis artikel, tag ke aplikasi atau Others, sisipkan gambar."
+      description="Panduan pemakaian. Jatuhkan PDF untuk membuat draf, periksa aplikasi dan visibility, lalu simpan."
+      showRag
     />
   );
 }

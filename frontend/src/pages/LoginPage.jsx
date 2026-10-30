@@ -6,29 +6,48 @@ import { useAuthStore } from "../store/authStore";
 
 export default function LoginPage() {
   const setSession = useAuthStore((s) => s.setSession);
-  const [orgs, setOrgs] = useState([]);
-  const [form, setForm] = useState({
-    username: "",
-    password: "",
-    selectedOrg: "",
-  });
+  const [orgId, setOrgId] = useState("");
+  const [orgName, setOrgName] = useState("");
+  const [form, setForm] = useState({ username: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [booting, setBooting] = useState(true);
 
   useEffect(() => {
-    authApi
-      .searchOrgs("*")
-      .then((res) => setOrgs(res?.data || []))
-      .catch(() => setOrgs([]));
+    (async () => {
+      try {
+        const res = await authApi.searchOrgs("*");
+        const list = res?.data || [];
+        // System Hub: org dipilih otomatis (biasanya satu). Tidak perlu dropdown.
+        const primary = list[0];
+        if (primary?._id) {
+          setOrgId(primary._id);
+          setOrgName(primary.organizationName || "");
+        } else {
+          setError("Organisasi belum terdaftar di server.");
+        }
+      } catch {
+        setError("Gagal memuat organisasi. Coba refresh.");
+      } finally {
+        setBooting(false);
+      }
+    })();
   }, []);
 
   const onSubmit = async (e) => {
     e.preventDefault();
+    if (!orgId) {
+      setError("Organisasi belum siap. Refresh halaman.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      const res = await authApi.loginLdap(form);
-      // Backend returns { success, data: payload, access_token } + httpOnly cookies.
+      const res = await authApi.loginLdap({
+        username: form.username,
+        password: form.password,
+        selectedOrg: orgId,
+      });
       const user = res?.data || res?.user || null;
       const token = res?.access_token || null;
       setAuthToken(token);
@@ -42,55 +61,80 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ maxWidth: 460, margin: "2rem auto" }}>
-      <header className="page-head">
-        <h1>Masuk System Hub</h1>
-        <p>LDAP organisasi — untuk Config dan x-api-key di System Hub.</p>
-      </header>
-      {error && <div className="alert error">{error}</div>}
-      <form className="panel" onSubmit={onSubmit}>
-        <div className="field">
-          <label>Organisasi</label>
-          <select
-            value={form.selectedOrg}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, selectedOrg: e.target.value }))
-            }
-            required
-          >
-            <option value="">pilih organisasi</option>
-            {orgs.map((org) => (
-              <option key={org._id} value={org._id}>
-                {org.organizationName}
-              </option>
-            ))}
-          </select>
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-brand">
+          <img src="/csi-logo.png" alt="CSI" />
+          <div>
+            <strong>CSI System Hub</strong>
+            <span>Masuk dengan akun LDAP</span>
+          </div>
         </div>
-        <div className="field">
-          <label>Username</label>
-          <input
-            value={form.username}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, username: e.target.value }))
-            }
-            required
-          />
-        </div>
-        <div className="field">
-          <label>Password</label>
-          <input
-            type="password"
-            value={form.password}
-            onChange={(e) =>
-              setForm((s) => ({ ...s, password: e.target.value }))
-            }
-            required
-          />
-        </div>
-        <button className="btn" type="submit" disabled={loading}>
-          {loading ? "Masuk..." : "Masuk"}
-        </button>
-      </form>
+
+        <header className="page-head" style={{ marginBottom: "1.25rem" }}>
+          <h1>Masuk</h1>
+          <p>
+            Untuk menulis update/docs, kelola x-api-key, dan konfigurasi.
+            {orgName ? (
+              <>
+                {" "}
+                Organisasi: <strong>{orgName}</strong>
+              </>
+            ) : null}
+          </p>
+        </header>
+
+        {error && <div className="alert error">{error}</div>}
+
+        {booting ? (
+          <div className="panel">Menyiapkan…</div>
+        ) : (
+          <form className="panel login-form" onSubmit={onSubmit}>
+            <div className="field">
+              <label>Username</label>
+              <input
+                autoFocus
+                autoComplete="username"
+                value={form.username}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, username: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="field">
+              <label>Password</label>
+              <input
+                type="password"
+                autoComplete="current-password"
+                value={form.password}
+                onChange={(e) =>
+                  setForm((s) => ({ ...s, password: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div className="actions">
+              <button
+                className="btn"
+                type="submit"
+                disabled={loading || !orgId}
+                style={{ width: "100%" }}
+              >
+                {loading ? "Masuk…" : "Masuk"}
+              </button>
+              <button
+                type="button"
+                className="btn secondary"
+                style={{ width: "100%" }}
+                onClick={() => navigate("/")}
+              >
+                Kembali ke hub
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

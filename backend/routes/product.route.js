@@ -25,14 +25,32 @@ router.get("/list", async (req, res) => {
   const organization = readOrganization(req, res);
   if (!organization) return;
 
-  const searchKey = req.query.searchKey || "";
+  const searchKey = String(req.query.searchKey || "").trim();
   const skip = parseInt(req.query.skip) || 0;
   const limit = parseInt(req.query.limit) || 10;
+  // B2B via x-api-key (req.integrationKey): tanpa filter Blocked_MA / brand SALES
+  const isThirdPartyApiKey = Boolean(req.integrationKey);
 
-  let query = { Blocked_MA: false };
+  // Minimal 2 karakter saat ada searchKey (hindari 1 huruf / contains ramai).
+  if (searchKey && searchKey.length < 2) {
+    return res.json({
+      data: [],
+      total: 0,
+      totalPages: 0,
+      currentPage: 1,
+      message: "Minimal 2 karakter untuk pencarian",
+    });
+  }
+
   let andConditions = [productOrganizationQuery(organization)];
 
-  if (searchKey) {
+  // Key pendek (tepat 2) → exact No saja, supaya SKU seperti 2B/5A ketemu.
+  if (searchKey.length === 2) {
+    const escaped = escapeRegex(searchKey);
+    andConditions.push({
+      No: { $regex: `^${escaped}$`, $options: "i" },
+    });
+  } else if (searchKey.length > 2) {
     const escaped = escapeRegex(searchKey);
     andConditions.push({
       $or: [
@@ -44,25 +62,29 @@ router.get("/list", async (req, res) => {
     });
   }
 
-  const myVendor =
-    req?.user?.description?.startsWith("SALES") &&
-    req?.user?.description.split("_").length > 1
-      ? req?.user?.description.split("_")[1]
-      : null;
+  // Filter brand SALES hanya untuk sesi user (bukan x-api-key pihak ketiga)
+  let myVendor = null;
+  if (!isThirdPartyApiKey) {
+    myVendor =
+      req?.user?.description?.startsWith("SALES") &&
+      req?.user?.description.split("_").length > 1
+        ? req?.user?.description.split("_")[1]
+        : null;
 
-  if (myVendor) {
-    andConditions.push(
-      { Brand: { $regex: myVendor, $options: "i" } }, // cocok dengan vendor
-      { Brand: { $exists: true } }, // field harus ada
-    );
+    if (myVendor) {
+      andConditions.push(
+        { Brand: { $regex: myVendor, $options: "i" } },
+        { Brand: { $exists: true } },
+      );
+    }
   }
 
-  // Jika ada kondisi $and, gabungkan dengan query utama
-  if (andConditions.length > 0) {
-    query = {
-      $and: [{ Blocked_MA: false }, ...andConditions],
-    };
-  }
+  // UI sale: sembunyikan Blocked_MA. Pihak ketiga (x-api-key): tampilkan semua.
+  const query = {
+    $and: isThirdPartyApiKey
+      ? andConditions
+      : [{ Blocked_MA: false }, ...andConditions],
+  };
 
   try {
     const cencoredSMD =

@@ -7,6 +7,23 @@ const hubAppSchema = new mongoose.Schema(
     description: { type: String, default: "" },
     url: { type: String, required: true, trim: true },
     iconUrl: { type: String, default: null },
+    capabilities: { type: [String], default: [] },
+    useCases: { type: [String], default: [] },
+    audiences: { type: [String], default: [] },
+    keywords: { type: [String], default: [] },
+    limitations: { type: [String], default: [] },
+    prerequisites: { type: [String], default: [] },
+    deepLinks: {
+      type: [
+        {
+          label: String,
+          url: String,
+        },
+      ],
+      default: [],
+    },
+    updateAliases: { type: [String], default: [] },
+    support: { type: String, default: "" },
     /** false = only "Buka"; true = Login + Sudah login (both open _blank) */
     authRequired: { type: Boolean, default: true },
     sortOrder: { type: Number, default: 0 },

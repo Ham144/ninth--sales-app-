@@ -24,6 +24,17 @@ const hubKnowledgeDocSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    /**
+     * public: boleh dipakai chatbot pengunjung e-commerce.
+     * internal: dokumentasi teknikal (x-api-key, voucher, diskon, POS, gudang).
+     * Dokumen lama tanpa field ini diperlakukan internal jika docType technical.
+     */
+    visibility: {
+      type: String,
+      enum: ["public", "internal"],
+      default: "internal",
+      index: true,
+    },
     slug: { type: String, required: true, unique: true },
     title: { type: String, required: true },
     appId: { type: String, default: null },

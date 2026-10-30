@@ -38,7 +38,7 @@ echo "📦 1. Mentransfer backend + public ke $PRODUCTION_SERVER..."
 # Mentransfer file dan folder satu per satu secara spesifik
 sshpass -e rsync -azP --delete \
   -e "ssh -o StrictHostKeyChecking=no" \
-  middlewares models routes utils public \
+  middlewares models routes utils public data \
   index.js package.json package-lock.json \
   $SSH_USER@$PRODUCTION_SERVER:$REMOTE_DIR/
 

@@ -4,7 +4,8 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/pdfDraft.test.js agent/agent.test.js",
+    "eval:agent": "node agent/evalRun.js",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "build:hub": "cd ../frontend && ./node_modules/.bin/vite build"
@@ -28,12 +29,15 @@
     "multer": "^1.4.5-lts.2",
     "node-cron": "^4.2.1",
     "nodemailer": "^7.0.5",
+    "pngjs": "^7.0.0",
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
+    "unpdf": "^1.7.0",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.9",
+    "pdf-lib": "^1.17.1"
   },
   "packageManager": "pnpm@10.19.0+sha512.c9fc7236e92adf5c8af42fd5bf1612df99c2ceb62f27047032f4720b33f8eacdde311865e91c411f2774f618d82f320808ecb51718bfa82c060c4ba7c76a32b8"
 }

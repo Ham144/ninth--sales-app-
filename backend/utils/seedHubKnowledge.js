@@ -1,11 +1,18 @@
+import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import mongoose from "mongoose";
 import HubUpdate from "../models/HubUpdate.model.js";
 import HubKnowledgeDoc from "../models/HubKnowledgeDoc.model.js";
+import { connectDB } from "./connectDB.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const frontendData = path.resolve(__dirname, "../../frontend/src/data");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const dataDirs = [
+  path.resolve(__dirname, "../data"),
+  path.resolve(__dirname, "../../frontend/src/data"),
+];
 
 const slugify = (value) =>
   String(value || "")
@@ -15,64 +22,96 @@ const slugify = (value) =>
     .replace(/^-|-$/g, "");
 
 function readJson(fileName, fallback) {
-  try {
-    return JSON.parse(fs.readFileSync(path.join(frontendData, fileName), "utf8"));
-  } catch {
-    return fallback;
+  for (const dir of dataDirs) {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(dir, fileName), "utf8"));
+    } catch {
+      /* try next */
+    }
   }
+  return fallback;
 }
 
-const TECHNICAL_SEED = [
+const INTERNAL_GUIDES = [
   {
-    slug: "x-api-key",
-    title: "Cara pakai x-api-key",
-    tags: ["api", "integration", "security"],
-    content: [
-      "Backend MIDCSI mengekspos endpoint SOT lewat header x-api-key.",
-      "Key digenerate di halaman x-api-key (role IT). Format contoh: CSIOPEN_<hex>.",
-      "Kirim header x-api-key: <nilai> pada request backend-to-backend. Jangan taruh key di frontend publik.",
-      "Endpoint contoh: /api/v1/sot/user, /api/v1/sot/organization.",
-    ].join("\n\n"),
+    slug: "internal-cek-stok",
+    title: "Cara cek stok per lokasi",
+    appId: "midcsi-so",
+    appTitle: "MIDCSI",
+    summary: "Cari nomor item terlebih dahulu, lalu cek jumlah stok pada kode lokasi yang dibutuhkan.",
+    content:
+      "Gunakan nomor item agar hasil stok tidak ambigu. Stok dibaca dari field inventory per lokasi pada data produk. Contoh kode lokasi: PLUIT, GLD_F, dan MNG2 untuk Mangga Dua. Jika nomor item belum diketahui, cari produk berdasarkan nama lalu pilih nomor item yang benar. Angka stok pada agent adalah data internal dan tidak boleh diberikan kepada pengunjung publik.",
+    tags: ["stok", "inventory", "lokasi", "produk"],
   },
   {
-    slug: "voucher",
-    title: "Konsep voucher",
-    tags: ["voucher", "pricing"],
-    content: [
-      "Voucher adalah nilai potongan/benefit yang punya masa berlaku, kuota, dan aturan pemakaian per channel.",
-      "Validasi biasanya terjadi sebelum sales line final: cek aktif, expired, limit, dan kompatibilitas item/customer.",
-      "Catat pemakaian voucher di transaksi supaya recon dan audit tetap bisa dilacak.",
-    ].join("\n\n"),
+    slug: "internal-cari-customer",
+    title: "Cara mencari customer toko",
+    appId: "midcsi-so",
+    appTitle: "MIDCSI",
+    summary: "Cari customer menggunakan nomor atau bagian nama toko.",
+    content:
+      "Gunakan nomor customer jika tersedia karena hasilnya paling tepat. Jika hanya mengetahui nama toko, cari dengan bagian nama lalu cocokkan nomor, kota, dan identitas toko sebelum memakai hasil untuk pencarian piutang atau order.",
+    tags: ["customer", "toko", "nomor customer"],
   },
   {
-    slug: "diskon",
-    title: "Konsep diskon",
-    tags: ["diskon", "pricing"],
-    content: [
-      "Diskon di ekosistem CSI mengikuti customer price group / brand rules, bukan angka bebas di UI.",
-      "Urutan umum: harga dasar → group price → diskon tambahan (jika ada) → total.",
-      "Jangan campur logika diskon channel (web/OS/MP/JD) tanpa mapping field yang jelas di product library.",
-    ].join("\n\n"),
+    slug: "internal-baca-piutang",
+    title: "Cara membaca piutang customer",
+    appId: "midcsi-so",
+    appTitle: "MIDCSI",
+    summary: "Piutang berasal dari dokumen overdue yang tersimpan dan dapat dirinci per customer.",
+    content:
+      "Peringkat piutang menjumlahkan remainingAmount dari dokumen overdue per nomor customer. Untuk melihat rinciannya, gunakan nomor customer agar dokumen, tanggal jatuh tempo, dan sisa nilai dapat ditampilkan. Data ini adalah snapshot overdue yang tersimpan, bukan saldo live NAV.",
+    tags: ["piutang", "overdue", "customer", "jatuh tempo"],
   },
   {
-    slug: "mobile-pos-sync",
-    title: "Sinkronisasi mobile POS",
-    tags: ["pos", "sync", "mobile"],
-    content: [
-      "POS mobile menyimpan draft lokal lalu sync ke backend saat online.",
-      "Konflik biasanya diselesaikan dengan timestamp / status dokumen; jangan overwrite status released dari NAV.",
-      "Pastikan master product/customer yang dipakai POS berasal dari library pusat agar harga konsisten.",
-    ].join("\n\n"),
+    slug: "internal-buat-sales-order",
+    title: "Di mana membuat sales order",
+    appId: "s-bit",
+    appTitle: "s-bit",
+    summary: "Sales order (SO) baru dibuat di aplikasi s-bit.",
+    content:
+      "Untuk membuat sales order (SO), buka aplikasi s-bit. s-bit adalah Sales Force Automation yang dipakai tenaga penjualan untuk membuat SO ke customer toko. MIDCSI hanya mencari order yang sudah ada dan status NAV.",
+    tags: ["sales order", "so", "s-bit", "buat so"],
   },
   {
-    slug: "warehouse-queue",
-    title: "Socket warehouse queue management",
-    tags: ["warehouse", "socket", "queue"],
-    content: [
-      "Antrian gudang memakai socket agar status lane/counter realtime antar device.",
-      "Event penting: join queue, call next, skip, done, reconnect recovery.",
-      "Server harus idempotent pada event yang di-retry client setelah putus koneksi.",
-    ].join("\n\n"),
+    slug: "internal-sales-order-status-nav",
+    title: "Cara mencari sales order dan status NAV",
+    appId: "midcsi-so",
+    appTitle: "MIDCSI",
+    summary: "DocumentNo hub dihubungkan ke return_value sebelum status live ditanyakan ke NAV.",
+    content:
+      "Sales order hub memiliki DocumentNo seperti CSI-2026-00110 dan return_value seperti SO/SMD-25/08-00027. Pencarian order dapat memakai salah satu nomor tersebut. Untuk status NAV live, sistem mencari return_value terlebih dahulu lalu mengirimkannya ke layanan CHECKSTATUSNAV. Hasil cache dapat berumur sampai tiga jam.",
+    tags: ["sales order", "NAV", "resi", "status", "DocumentNo", "return_value"],
+  },
+  {
+    slug: "internal-pilih-aplikasi",
+    title: "Cara memilih aplikasi internal",
+    appId: "csi-hub",
+    appTitle: "CSI Hub",
+    summary: "Pilih aplikasi berdasarkan pekerjaan, organisasi, dan role staf.",
+    content:
+      "Jelaskan pekerjaan yang ingin dilakukan, misalnya scan invoice CSI, scan invoice RIL, stok opname, approval form, petty cash, service return, atau transaksi POS. Agent mencocokkan kebutuhan tersebut dengan metadata aplikasi dan memberikan link, batasan, update, serta panduan yang tersedia. Jangan memilih aplikasi hanya karena namanya mirip.",
+    tags: ["aplikasi", "rekomendasi", "system hub", "panduan"],
+  },
+  {
+    slug: "internal-scan-invoice",
+    title: "Memilih aplikasi Scan Invoice CSI atau RIL",
+    appId: "invoice-csi",
+    appTitle: "Scan Invoice",
+    summary: "Gunakan aplikasi Scan Invoice sesuai organisasi dokumen.",
+    content:
+      "Gunakan Scan Invoice CSI untuk dokumen organisasi CSI dan Scan Invoice RIL untuk dokumen organisasi RIL. Keduanya digunakan untuk mencatat pergerakan barang masuk atau keluar gudang dari invoice. Pastikan organisasi invoice benar sebelum membuka aplikasi.",
+    tags: ["scan invoice", "CSI", "RIL", "gudang", "barang masuk"],
+  },
+  {
+    slug: "internal-scan-invoice-ril",
+    title: "Memilih aplikasi Scan Invoice RIL",
+    appId: "invoice-ril",
+    appTitle: "Scan Invoice RIL",
+    summary: "Gunakan Scan Invoice RIL untuk pergerakan barang dari dokumen organisasi RIL.",
+    content:
+      "Gunakan Scan Invoice RIL untuk dokumen organisasi RIL yang berkaitan dengan pencatatan barang masuk atau keluar gudang. Jika dokumennya berasal dari organisasi CSI, gunakan Scan Invoice CSI. Pastikan organisasi invoice benar sebelum membuka aplikasi.",
+    tags: ["scan invoice", "RIL", "gudang", "barang masuk"],
   },
 ];
 
@@ -98,59 +137,51 @@ export async function seedHubKnowledgeIfEmpty() {
     }
   }
 
-  const howtoCount = await HubKnowledgeDoc.countDocuments({ docType: "howto" });
-  if (howtoCount === 0) {
-    const projects = readJson("projects.json", []);
-    const docs = projects.map((project) => {
-      const featureLines = (project.features || [])
-        .map((f) => `- ${f.name}: ${f.description || ""}`)
-        .join("\n");
-      return {
-        docType: "howto",
-        slug: `howto-${slugify(project.title)}-${project.id.slice(0, 8)}`,
-        title: project.title,
-        appId: project.id,
-        appTitle: project.title,
-        stage: project.stage || null,
-        appUrl: project.url || null,
-        summary: project.description || "",
-        content: [
-          project.description || "",
-          project.url ? `URL: ${project.url}` : "",
-          featureLines ? `Fitur utama:\n${featureLines}` : "",
-          (project.technologies || []).length
-            ? `Teknologi: ${(project.technologies || []).join(", ")}`
-            : "",
-        ]
-          .filter(Boolean)
-          .join("\n\n"),
-        tags: ["howto", project.stage].filter(Boolean),
-        technologies: project.technologies || [],
-        features: project.features || [],
-        source: "projects.json",
-      };
-    });
-    if (docs.length) {
-      await HubKnowledgeDoc.insertMany(docs);
-      console.log(`Seed HubKnowledgeDoc howto: ${docs.length} rows`);
-    }
+  const howtoVisibility = await HubKnowledgeDoc.updateMany(
+    {
+      docType: "howto",
+      $or: [{ visibility: { $exists: false } }, { visibility: null }],
+    },
+    { $set: { visibility: "public" } },
+  );
+  const technicalVisibility = await HubKnowledgeDoc.updateMany(
+    {
+      docType: "technical",
+      $or: [{ visibility: { $exists: false } }, { visibility: null }],
+    },
+    { $set: { visibility: "internal" } },
+  );
+  const visibilityUpdates =
+    (howtoVisibility.modifiedCount || 0) +
+    (technicalVisibility.modifiedCount || 0);
+  if (visibilityUpdates) {
+    console.log(`HubKnowledgeDoc visibility backfill: ${visibilityUpdates}`);
   }
 
-  const techCount = await HubKnowledgeDoc.countDocuments({
-    docType: "technical",
-  });
-  if (techCount === 0) {
-    await HubKnowledgeDoc.insertMany(
-      TECHNICAL_SEED.map((doc) => ({
-        docType: "technical",
-        slug: `technical-${doc.slug}`,
-        title: doc.title,
-        summary: doc.title,
-        content: doc.content,
-        tags: ["technical", ...(doc.tags || [])],
-        source: "technical-seed",
-      })),
-    );
-    console.log(`Seed HubKnowledgeDoc technical: ${TECHNICAL_SEED.length} rows`);
+  const guideOperations = INTERNAL_GUIDES.map((guide) => ({
+    updateOne: {
+      filter: { slug: guide.slug },
+      update: {
+        $setOnInsert: {
+          ...guide,
+          docType: "howto",
+          visibility: "internal",
+          source: "system-hub",
+        },
+      },
+      upsert: true,
+    },
+  }));
+  if (guideOperations.length) {
+    await HubKnowledgeDoc.bulkWrite(guideOperations, { ordered: false });
   }
+}
+
+// CLI: node utils/seedHubKnowledge.js
+const isCli = process.argv[1] && path.resolve(process.argv[1]) === __filename;
+if (isCli) {
+  await connectDB();
+  await seedHubKnowledgeIfEmpty();
+  await mongoose.disconnect();
+  process.exit(0);
 }

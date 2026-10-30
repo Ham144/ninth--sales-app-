@@ -4,8 +4,16 @@ import HubKnowledgeDoc from "../models/HubKnowledgeDoc.model.js";
 import HubApp from "../models/HubApp.model.js";
 import { seedHubKnowledgeIfEmpty } from "../utils/seedHubKnowledge.js";
 import { seedHubAppsIfEmpty } from "../utils/seedHubApps.js";
+import {
+  indexFields,
+  retrieveKnowledge,
+  scheduleKnowledgeReindex,
+  withoutEmbeddings,
+} from "../utils/knowledgeIndex.js";
+import multer from "multer";
 import authenticate from "../middlewares/authenticate.js";
 import requireIT from "../middlewares/requireIT.js";
+import { pdfToDraft } from "../utils/pdfDraft.js";
 
 const router = Router();
 
@@ -14,9 +22,15 @@ const ensureSeed = async () => {
   if (seeded) return;
   await Promise.all([seedHubKnowledgeIfEmpty(), seedHubAppsIfEmpty()]);
   seeded = true;
+  scheduleKnowledgeReindex();
 };
 
 const writeGate = [authenticate, requireIT];
+
+const pdfUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+});
 
 const slugify = (value) =>
   String(value || "")
@@ -54,6 +68,15 @@ router.post("/apps", ...writeGate, async (req, res) => {
       description: body.description || "",
       url: body.url,
       iconUrl: body.iconUrl || null,
+      capabilities: body.capabilities || [],
+      useCases: body.useCases || [],
+      audiences: body.audiences || [],
+      keywords: body.keywords || [],
+      limitations: body.limitations || [],
+      prerequisites: body.prerequisites || [],
+      deepLinks: body.deepLinks || [],
+      updateAliases: body.updateAliases || [],
+      support: body.support || "",
       authRequired: body.authRequired !== false,
       sortOrder: Number.isFinite(body.sortOrder) ? body.sortOrder : 0,
       active: body.active !== false,
@@ -234,6 +257,27 @@ router.get("/docs/:slug", async (req, res) => {
   }
 });
 
+router.post("/docs/import-pdf", ...writeGate, (req, res) => {
+  pdfUpload.single("file")(req, res, async (err) => {
+    if (err) {
+      const message =
+        err.code === "LIMIT_FILE_SIZE" ? "PDF lebih dari 25 MB" : err.message || "Upload gagal";
+      return res.status(400).json({ message });
+    }
+    const file = req.file;
+    if (!file) return res.status(400).json({ message: "PDF wajib" });
+    const name = file.originalname || "panduan.pdf";
+    const isPdf = file.mimetype === "application/pdf" || name.toLowerCase().endsWith(".pdf");
+    if (!isPdf) return res.status(400).json({ message: "Hanya file PDF" });
+    try {
+      const draft = await pdfToDraft(file.buffer, { fileName: name });
+      return res.json({ message: "draft", data: draft });
+    } catch (error) {
+      return res.status(error.status || 500).json({ message: error.message });
+    }
+  });
+});
+
 router.post("/docs", ...writeGate, async (req, res) => {
   try {
     const body = { ...(req.body || {}) };
@@ -246,8 +290,12 @@ router.post("/docs", ...writeGate, async (req, res) => {
       body.slug = `${body.docType}-${slugify(body.title)}-${Date.now().toString(36)}`;
     }
     body.tags = Array.isArray(body.tags) ? body.tags : [];
+    if (body.visibility !== "public" && body.visibility !== "internal") {
+      body.visibility = body.docType === "howto" ? "public" : "internal";
+    }
+    Object.assign(body, await indexFields(body));
     const created = await HubKnowledgeDoc.create(body);
-    return res.status(201).json({ message: "created", data: created });
+    return res.status(201).json({ message: "created", data: withoutEmbeddings(created) });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -258,13 +306,19 @@ router.put("/docs/:id", ...writeGate, async (req, res) => {
     const body = { ...(req.body || {}) };
     delete body._id;
     delete body.__v;
+    delete body.chunks;
+    delete body.hasEmbeddings;
+    delete body.embeddingModel;
     if (body.tags && !Array.isArray(body.tags)) body.tags = [];
+    const current = await HubKnowledgeDoc.findById(req.params.id).lean();
+    if (!current) return res.status(404).json({ message: "not found" });
+    Object.assign(body, await indexFields({ ...current, ...body }));
     const updated = await HubKnowledgeDoc.findByIdAndUpdate(req.params.id, body, {
       new: true,
       runValidators: true,
     });
     if (!updated) return res.status(404).json({ message: "not found" });
-    return res.json({ message: "updated", data: updated });
+    return res.json({ message: "updated", data: withoutEmbeddings(updated) });
   } catch (error) {
     return res.status(500).json({ message: error.message });
   }
@@ -280,43 +334,23 @@ router.delete("/docs/:id", ...writeGate, async (req, res) => {
   }
 });
 
-/**
- * Lightweight retrieval endpoint for future RAG:
- * text search over knowledge docs, returns passages (chunks if present else content slice).
- */
 router.get("/rag/search", async (req, res) => {
   try {
     await ensureSeed();
     const q = String(req.query.q || "").trim();
     const limit = Math.min(parseInt(req.query.limit, 10) || 8, 30);
     if (!q) return res.status(400).json({ message: "q wajib" });
-
-    const docs = await HubKnowledgeDoc.find(
-      { $text: { $search: q } },
-      { score: { $meta: "textScore" } },
-    )
-      .select("slug title docType summary content appTitle tags chunks.hasEmbeddings")
-      .sort({ score: { $meta: "textScore" } })
-      .limit(limit)
-      .lean();
-
-    const passages = docs.map((doc) => ({
-      id: doc._id,
-      slug: doc.slug,
-      title: doc.title,
-      docType: doc.docType,
-      appTitle: doc.appTitle,
-      tags: doc.tags,
-      score: doc.score,
-      text: doc.summary || String(doc.content || "").slice(0, 1200),
-      hasEmbeddings: Boolean(doc.hasEmbeddings),
-    }));
-
+    const visibility = String(req.query.visibility || "");
+    const result = await retrieveKnowledge({
+      q,
+      limit,
+      visibility: visibility === "public" || visibility === "internal" ? visibility : undefined,
+    });
     return res.json({
       message: "ok",
       query: q,
-      data: passages,
-      note: "Text retrieval now. Vector embeddings can fill HubKnowledgeDoc.chunks.embedding later.",
+      mode: result.mode,
+      data: result.data,
     });
   } catch (error) {
     return res.status(500).json({ message: error.message });

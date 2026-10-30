@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-//tenant
+//multi-tenancy has been canceled, gabungkan saja semua config organisasi berbeda disini
 const organizationSchema = new mongoose.Schema(
   {
     organizationName: {
@@ -69,6 +69,7 @@ const organizationSchema = new mongoose.Schema(
       required: true,
       default: "587",
     },
+    
     EMAIL_SECURE: {
       type: Boolean,
       required: true,
@@ -87,7 +88,7 @@ const organizationSchema = new mongoose.Schema(
     SOAP_PRODUCT_RIL_PASSWORD: String,
     SOAP_PRODUCT_RIL_SOAPACTION: String,
     SOAP_PRODUCT_RIL_XMLNS: String,
-
+    
     SOAP_CUSTOMER_URL: String,
     SOAP_CUSTOMER_USERNAME: String,
     SOAP_CUSTOMER_PASSWORD: String,

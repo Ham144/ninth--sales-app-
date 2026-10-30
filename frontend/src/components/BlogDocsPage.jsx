@@ -17,6 +17,7 @@ const emptyDraft = () => ({
   appId: null,
   appTitle: null,
   appUrl: null,
+  visibility: "internal",
 });
 
 export default function BlogDocsPage({
@@ -32,6 +33,10 @@ export default function BlogDocsPage({
     () => new URLSearchParams(search).get("app") || "",
     [search],
   );
+  const docFromQuery = useMemo(
+    () => new URLSearchParams(search).get("doc") || "",
+    [search],
+  );
 
   const [apps, setApps] = useState([]);
   const [docs, setDocs] = useState([]);
@@ -45,11 +50,16 @@ export default function BlogDocsPage({
   const [draft, setDraft] = useState(emptyDraft);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [fromPdf, setFromPdf] = useState(false);
   const [ragQ, setRagQ] = useState("");
   const [ragHits, setRagHits] = useState([]);
   const contentRef = useRef(null);
   const coverInputRef = useRef(null);
   const inlineInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
+  const defaultVisibility = docType === "howto" ? "public" : "internal";
 
   const tagLabel = (tag) => {
     if (tag === TAG_OTHERS) return "Others";
@@ -60,6 +70,12 @@ export default function BlogDocsPage({
   useEffect(() => {
     if (appFromQuery) setTagFilter(appFromQuery);
   }, [appFromQuery]);
+
+  useEffect(() => {
+    if (!docFromQuery) return;
+    setActiveId(docFromQuery);
+    setMode("view");
+  }, [docFromQuery]);
 
   const load = async () => {
     setLoading(true);
@@ -122,14 +138,12 @@ export default function BlogDocsPage({
     setOkMsg("");
   };
 
-  const openNew = () => {
-    if (!requireIT()) return;
+  const appPreset = () => {
     const preset =
       tagFilter !== "all" && tagFilter !== TAG_OTHERS
         ? apps.find((p) => p.id === tagFilter)
         : null;
-    setDraft({
-      ...emptyDraft(),
+    return {
       tags: preset
         ? [preset.id]
         : tagFilter === TAG_OTHERS
@@ -138,6 +152,16 @@ export default function BlogDocsPage({
       appId: preset?.id || null,
       appTitle: preset?.title || null,
       appUrl: preset?.url || null,
+    };
+  };
+
+  const openNew = () => {
+    if (!requireIT()) return;
+    setFromPdf(false);
+    setDraft({
+      ...emptyDraft(),
+      ...appPreset(),
+      visibility: defaultVisibility,
     });
     setActiveId(null);
     setMode("edit");
@@ -154,7 +178,12 @@ export default function BlogDocsPage({
       appId: doc.appId || null,
       appTitle: doc.appTitle || null,
       appUrl: doc.appUrl || null,
+      visibility:
+        doc.visibility === "public" || doc.visibility === "internal"
+          ? doc.visibility
+          : defaultVisibility,
     });
+    setFromPdf(false);
     setActiveId(doc._id);
     setMode("edit");
   };
@@ -217,6 +246,42 @@ export default function BlogDocsPage({
     }
   };
 
+  const importPdfFile = async (file, { extra = "" } = {}) => {
+    if (!requireIT()) return;
+    if (!file) return;
+    const name = file.name || "";
+    if (file.type && file.type !== "application/pdf" && !name.toLowerCase().endsWith(".pdf")) {
+      setError("Hanya file PDF");
+      return;
+    }
+    setImporting(true);
+    setError("");
+    setOkMsg("");
+    try {
+      const res = await hubApi.importPdf(file);
+      const data = res?.data || {};
+      setDraft({
+        ...emptyDraft(),
+        ...appPreset(),
+        title: data.title || "",
+        summary: data.summary || "",
+        content: data.content || "",
+        visibility: defaultVisibility,
+      });
+      setActiveId(null);
+      setFromPdf(true);
+      setMode("edit");
+      const images = Number(data.imageCount) || 0;
+      setOkMsg(
+        `Draf siap${images ? ` dengan ${images} gambar` : ""}. Periksa aplikasi dan visibility, lalu simpan.${extra}`,
+      );
+    } catch (err) {
+      setError(err.message || "PDF gagal dibaca");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const save = async (e) => {
     e.preventDefault();
     if (!requireIT()) return;
@@ -237,6 +302,7 @@ export default function BlogDocsPage({
         appId: draft.appId,
         appTitle: draft.appTitle,
         appUrl: draft.appUrl,
+        visibility: draft.visibility === "public" ? "public" : "internal",
       };
       let saved;
       if (activeId) {
@@ -314,7 +380,10 @@ export default function BlogDocsPage({
           <button
             className="btn secondary"
             type="button"
-            onClick={() => setMode("list")}
+            onClick={() => {
+              setFromPdf(false);
+              setMode("list");
+            }}
           >
             ← Daftar artikel
           </button>
@@ -360,6 +429,54 @@ export default function BlogDocsPage({
             </div>
           )}
         </section>
+      )}
+
+      {mode === "list" && canEdit && (
+        <div
+          className={`pdf-drop${dragOver ? " over" : ""}`}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragOver(true);
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+            const files = [...(e.dataTransfer.files || [])];
+            const pdf = files.find(
+              (file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
+            );
+            if (!pdf) {
+              setError("Hanya file PDF");
+              return;
+            }
+            importPdfFile(pdf, {
+              extra: files.length > 1 ? " Satu PDF sekali jatuh." : "",
+            });
+          }}
+        >
+          <strong>Jatuhkan PDF</strong>
+          <p>Satu berkas menjadi satu draf. Periksa aplikasi dan visibility, lalu simpan.</p>
+          <button
+            className="btn secondary"
+            type="button"
+            disabled={importing}
+            onClick={() => pdfInputRef.current?.click()}
+          >
+            {importing ? "Membaca PDF…" : "Pilih PDF"}
+          </button>
+          <input
+            ref={pdfInputRef}
+            type="file"
+            accept="application/pdf,.pdf"
+            hidden
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              e.target.value = "";
+              importPdfFile(file);
+            }}
+          />
+        </div>
       )}
 
       {mode === "list" && (
@@ -467,6 +584,9 @@ export default function BlogDocsPage({
                 {tagLabel(t)}
               </span>
             ))}
+            <span className="chip">
+              {active.visibility === "public" ? "Publik" : "Internal"}
+            </span>
             <time className="blog-date">
               {formatDocDate(active.updatedAt || active.createdAt)}
             </time>
@@ -548,6 +668,24 @@ export default function BlogDocsPage({
                 </button>
               ))}
             </div>
+          </div>
+
+          <div className="field">
+            <label>Visibility</label>
+            <select
+              value={draft.visibility === "public" ? "public" : "internal"}
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, visibility: e.target.value }))
+              }
+            >
+              <option value="public">Publik, boleh dipakai pengunjung</option>
+              <option value="internal">Internal saja</option>
+            </select>
+            {fromPdf && (
+              <p className="blog-hint">
+                Draf dari PDF. Simpan memakai jalur artikel yang sama.
+              </p>
+            )}
           </div>
 
           <div className="field">

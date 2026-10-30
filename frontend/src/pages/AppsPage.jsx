@@ -9,12 +9,19 @@ function openApp(url) {
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
+const lines = (value) =>
+  (Array.isArray(value) ? value : String(value || "").split("\n"))
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+
 const emptyForm = () => ({
   id: "",
   title: "",
   description: "",
   url: "",
   iconUrl: "",
+  keywords: "",
+  limitations: "",
   authRequired: true,
   sortOrder: 0,
   active: true,
@@ -55,7 +62,7 @@ export default function AppsPage() {
       .filter((p) => {
         if (!canEdit && p.active === false) return false;
         if (!term) return true;
-        return `${p.title} ${p.description} ${p.id}`
+        return `${p.title} ${p.description} ${p.id} ${(p.capabilities || []).join(" ")} ${(p.keywords || []).join(" ")}`
           .toLowerCase()
           .includes(term);
       })
@@ -81,6 +88,8 @@ export default function AppsPage() {
       description: app.description || "",
       url: app.url || "",
       iconUrl: app.iconUrl || "",
+      keywords: (app.keywords || []).join("\n"),
+      limitations: (app.limitations || []).join("\n"),
       authRequired: app.authRequired !== false,
       sortOrder: app.sortOrder ?? 0,
       active: app.active !== false,
@@ -110,6 +119,8 @@ export default function AppsPage() {
         description: form.description.trim(),
         url: form.url.trim(),
         iconUrl: form.iconUrl.trim() || null,
+        keywords: lines(form.keywords),
+        limitations: lines(form.limitations),
         authRequired: Boolean(form.authRequired),
         sortOrder: Number(form.sortOrder) || 0,
         active: Boolean(form.active),
@@ -146,12 +157,10 @@ export default function AppsPage() {
     <div>
       <header className="page-head blog-head">
         <div>
-          <h1>Tempat berkumpul aplikasi</h1>
+          <h1>Aplikasi</h1>
           <p>
-            Buka di tab baru — login ditangani aplikasi sendiri.{" "}
-            {canEdit
-              ? "Kamu IT: bisa menambah / mengedit daftar app."
-              : "Daftar dikelola IT."}
+            Satu klik membuka tab baru. Kalau belum login di app itu, login di
+            sana. {canEdit ? "IT dapat mengelola daftar." : ""}
           </p>
         </div>
         {canEdit && (
@@ -184,78 +193,46 @@ export default function AppsPage() {
               key={app.id}
               className={`app-card${app.active === false ? " inactive" : ""}`}
             >
-              <div className="app-card-top">
+              <div className="app-card-hero">
                 {app.iconUrl ? (
                   <img
-                    className="app-icon"
+                    className="app-icon lg"
                     src={app.iconUrl}
                     alt=""
                     loading="lazy"
                   />
                 ) : (
-                  <div className="app-icon placeholder" aria-hidden>
+                  <div className="app-icon lg placeholder" aria-hidden>
                     {(app.title || "?").slice(0, 1).toUpperCase()}
                   </div>
                 )}
                 <div className="app-card-title">
                   <h3>{app.title}</h3>
+                  {app.description ? (
+                    <p className="app-desc">{app.description}</p>
+                  ) : null}
                   {app.active === false && (
                     <span className="chip">nonaktif</span>
                   )}
                 </div>
               </div>
-              <p
-                style={{
-                  margin: 0,
-                  color: "var(--ink-soft)",
-                  fontSize: "0.92rem",
-                }}
-              >
-                {app.description}
-              </p>
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: "0.78rem",
-                  color: "var(--ink-soft)",
-                  wordBreak: "break-all",
-                }}
-              >
-                {app.url}
-              </p>
-              <div className="actions">
-                {app.authRequired !== false ? (
-                  <>
-                    <button className="btn" onClick={() => openApp(app.url)}>
-                      Login
-                    </button>
-                    <button
-                      className="btn secondary"
-                      onClick={() => openApp(app.url)}
-                    >
-                      Sudah login
-                    </button>
-                  </>
-                ) : (
-                  <button className="btn" onClick={() => openApp(app.url)}>
-                    Buka
-                  </button>
-                )}
+              <div className="actions app-card-actions">
+                <button className="btn" onClick={() => openApp(app.url)}>
+                  Buka
+                </button>
+                <span className="app-hint">
+                  {app.authRequired !== false
+                    ? "Tab baru · login di app jika perlu"
+                    : "Tab baru · tanpa login"}
+                </span>
                 <button
                   className="btn ghost"
+                  type="button"
                   onClick={() =>
                     navigate(`/docs?app=${encodeURIComponent(app.id)}`)
                   }
                 >
                   How to use
-                </button>
-                <button
-                  className="btn ghost"
-                  onClick={() =>
-                    navigate(`/technical?app=${encodeURIComponent(app.id)}`)
-                  }
-                >
-                  Docs teknikal
                 </button>
                 {canEdit && (
                   <>
@@ -318,6 +295,9 @@ export default function AppsPage() {
               </div>
               <div className="field">
                 <label>Description</label>
+                <p className="field-hint">
+                  Kalimat yang agent ucapkan saat merekomendasikan aplikasi ini.
+                </p>
                 <textarea
                   rows={3}
                   value={form.description}
@@ -335,6 +315,34 @@ export default function AppsPage() {
                   }
                   placeholder="http://..."
                   required
+                />
+              </div>
+              <div className="field">
+                <label>Kata kunci</label>
+                <p className="field-hint">
+                  Kata yang biasa disebut orang saat bertanya. Agent memakai ini untuk memilih aplikasi. Satu frasa per baris.
+                </p>
+                <textarea
+                  rows={3}
+                  value={form.keywords}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, keywords: e.target.value }))
+                  }
+                  placeholder={"pos\nkasir\nbuat sales order"}
+                />
+              </div>
+              <div className="field">
+                <label>Batasan</label>
+                <p className="field-hint">
+                  Hal yang aplikasi ini tidak boleh dikira bisa melakukan. Agent membaca ini supaya tidak salah arah. Kosongkan kalau tidak ada batas khusus. Satu kalimat per baris.
+                </p>
+                <textarea
+                  rows={2}
+                  value={form.limitations}
+                  onChange={(e) =>
+                    setForm((s) => ({ ...s, limitations: e.target.value }))
+                  }
+                  placeholder={"bukan tempat membuat sales order; SO baru dibuat di s-bit\nkhusus dokumen organisasi CSI"}
                 />
               </div>
               <div className="field">

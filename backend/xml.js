@@ -186,6 +186,14 @@ export const pembayaranTertundaFullXml = () => {
   `;
 };
 
+const escapeXml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&apos;");
+
 export const checkStatusSONAVXml = ({ return_value, xmlns }) => {
   return `<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
     <Body>
@@ -194,7 +202,7 @@ export const checkStatusSONAVXml = ({ return_value, xmlns }) => {
       }">
         <filter>
           <Field>No</Field>
-          <Criteria>${return_value}</Criteria>
+          <Criteria>${escapeXml(return_value)}</Criteria>
         </filter>
         <bookmarkKey></bookmarkKey>
         <setSize></setSize>

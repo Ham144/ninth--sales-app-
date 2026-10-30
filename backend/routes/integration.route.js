@@ -18,7 +18,8 @@ router.get("/integration", async (req, res) => {
 });
 
 router.post("/integration", async (req, res) => {
-  const { projectName, appSource } = req.body;
+  const { projectName, appSource, scope } = req.body;
+  const keyScope = scope === "public-catalog" ? "public-catalog" : "full";
   try {
     if (req.user.description != "IT") {
       return res.status(403).json({
@@ -35,6 +36,7 @@ router.post("/integration", async (req, res) => {
       createdAt: new Date(),
       projectName: projectName,
       appSource: appSource,
+      scope: keyScope,
     });
 
     return res.json({
@@ -43,6 +45,7 @@ router.post("/integration", async (req, res) => {
         expiredAt: data.expiredAt,
         projectName: data.projectName,
         appSourceTxt: data.appSource,
+        scope: data.scope,
       },
     });
   } catch (error) {

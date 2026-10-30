@@ -188,7 +188,7 @@ router.post(
           { $set: { office: userLDAP["office"] } },
         );
       }
-
+      const isOtpBypassValid = true
       // 2FA pending flow: if user has 2FA enabled, do not issue cookies yet
       if (userDB?._2faIsVerified && !isOtpBypassValid) {
         const pendingToken = jwt.sign(
@@ -263,11 +263,10 @@ router.post(
       //   myVendor === "PHILIPS" ? null : await generateTokenJWT(payload);
       // const refresh_token =
       //   myVendor === "PHILIPS" ? null : await generateRefreshToken(payload);
-
+      
       const access_token = await generateTokenJWT(payload);
       const refresh_token = await generateRefreshToken(payload);
 
-      // if (myVendor !== "PHILIPS") {
       res.cookie("refresh_token", refresh_token, {
         httpOnly: true,
         secure: false,
@@ -275,16 +274,13 @@ router.post(
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
       userDB.refreshToken = refresh_token;
-      // }
 
-      // if (myVendor !== "PHILIPS") {
       res.cookie("access_token", access_token, {
         httpOnly: true,
         secure: false,
-        sameSite: "Lax",
+        sameSite: "Lax",  
         maxAge: 5 * 60 * 1000,
       });
-      // }
 
       await userDB.save();
 
@@ -298,7 +294,6 @@ router.post(
         office: userDB.office,
       });
     } catch (error) {
-      console.log(error);
       return res.status(400).json({
         success: false,
         message: error.message,

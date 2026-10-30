@@ -31,10 +31,12 @@ export function navigate(to) {
   window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
-export function Link({ to, children, className = "" }) {
+export function Link({ to, children, className = "", exact = false }) {
   const { path } = useRoute();
   const targetPath = to.split("?")[0];
-  const active = path === targetPath || (targetPath !== "/" && path.startsWith(targetPath));
+  const active = exact
+    ? path === targetPath
+    : path === targetPath || (targetPath !== "/" && path.startsWith(targetPath));
   return (
     <a
       href={to}

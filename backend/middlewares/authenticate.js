@@ -25,6 +25,12 @@ const authenticate = async (req, res, next) => {
     } catch (err) {
       console.error("❌ Failed to parse user-info header:", err.message);
     }
+    if (apiKey.scope === "public-catalog") {
+      return res.status(403).json({
+        message: "Api key ini hanya untuk katalog publik",
+      });
+    }
+
     req.user = userInfo;
     // inject ke req untuk keperluan downstream
     req.integrationKey = apiKey;

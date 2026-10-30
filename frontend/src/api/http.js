@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+export const API_BASE = import.meta.env.VITE_API_BASE || "";
 
 function getToken() {
   return localStorage.getItem("hub_token") || "";

@@ -22,12 +22,16 @@ import overdueRoutes from "./routes/overdue.route.js";
 import locationRoutes from "./routes/Location.route.js";
 // import authorizeSupertenant from "./middlewares/authoririzeSupertenant.js";
 import integrationRoutes from "./routes/integration.route.js";
-import apiKeyAuth from "./middlewares/apiKeyAuth.js";
+import apiKeyAuth, { publicCatalogKeyAuth } from "./middlewares/apiKeyAuth.js";
 import userRoutes from "./routes/user.routes.js";
 import organizationRoutes from "./routes/organization.route.js";
 import salesOrderNav from "./routes/SalesOrderNav.route.js";
 import inventoryRoutes from "./routes/inventory.route.js";
 import hubRoutes from "./routes/hub.route.js";
+import publicCatalogRoutes from "./routes/publicCatalog.route.js";
+import { createAgentRouter } from "./agent/routes/chat.route.js";
+import { createRedisLimiter } from "./agent/limits.js";
+import redisService from "./utils/redisService.js";
 
 const isProduction = process.env.NODE_ENV === "production";
 // Same-origin hub (API + static on one PORT) needs no CORS.
@@ -88,8 +92,11 @@ app.use("/api/v1/location", authenticate, locationRoutes);
 app.use("/api/v1/sot/user", apiKeyAuth, userRoutes);
 app.use("/api/v1/sot/organization", apiKeyAuth, organizationRoutes);
 app.use("/api/v1/inventory", authenticate, inventoryRoutes);
+// Katalog read-only untuk chatbot B2C. Harga B2B dan angka stok tidak ikut.
+app.use("/api/v1/public", publicCatalogKeyAuth, publicCatalogRoutes);
 // System Hub: updates + knowledge docs (public read, auth write)
 app.use("/api/v1/hub", hubRoutes);
+app.use("/api/v1/agent", createAgentRouter({ limiter: createRedisLimiter(redisService) }));
 
 /**
  * Serve System Hub SPA from ./public (vite build outDir).
