@@ -17,7 +17,7 @@ export async function chatToken() {
   return token;
 }
 
-export async function agentJson(path, { method = "GET", body } = {}) {
+export async function agentJson(path, { method = "GET", body } = {}, retry = true) {
   const auth = await chatToken();
   const res = await fetch(`${API_BASE}${path}`, {
     method,
@@ -28,6 +28,10 @@ export async function agentJson(path, { method = "GET", body } = {}) {
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && retry) {
+    clearChatToken();
+    return agentJson(path, { method, body }, false);
+  }
   if (!res.ok) {
     const error = new Error(data.message || `HTTP ${res.status}`);
     error.status = res.status;

@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/pdfDraft.test.js agent/agent.test.js",
+    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/pdfDraft.test.js agent/agent.test.js middlewares/authenticate.test.js",
     "eval:agent": "node agent/evalRun.js",
     "dev": "nodemon index.js",
     "start": "node index.js",

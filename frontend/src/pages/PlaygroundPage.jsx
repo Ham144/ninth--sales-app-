@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { agentJson, chatToken } from "../api/agentApi";
+import { agentJson, chatToken, clearChatToken } from "../api/agentApi";
 import { API_BASE } from "../api/http";
 import { hubApi } from "../api/hubApi";
 import { renderReply } from "../lib/renderReply.jsx";
@@ -8,15 +8,15 @@ import { useChatStore } from "../store/chatStore";
 import { useAuthStore } from "../store/authStore";
 
 const PROMPTS = [
-  "Cari produk cat, sebut harga Web dan stok per lokasi",
-  "Stok sebuah item di tiap lokasi, urutkan dari yang paling banyak",
-  "Harga Web untuk produk yang saya sebutkan",
-  "Cari customer toko dari namanya",
+  "Cari produk kipas angin yang murah berkwalitas",
+  "Piutang customer",
+  "apa aplikasi pembuat SO",
   "Customer dengan piutang terbesar",
-  "Order terakhir sebuah customer",
-  "Detail produk dari nomor item",
-  "Bandingkan stok Pluit dan gudang untuk satu produk",
-  "Cari panduan internal tentang cara cek stok",
+  "tolong cek invoice ini",
+  "Apa update terbaru aplikasi CSI super pos",
+  "mau mencatat barang masuk dari invoice RIL, pakai aplikasi apa",
+  "cara buat promo di app csi super pos",
+  "cara menggunakan stok opname gimana",
 ];
 
 const TOOL_LABEL = {
@@ -249,8 +249,8 @@ export default function PlaygroundPage() {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const token = await chatToken();
-      const response = await fetch(`${API_BASE}/api/v1/agent/chat`, {
+      let token = await chatToken();
+      let response = await fetch(`${API_BASE}/api/v1/agent/chat`, {
         method: "POST",
         signal: controller.signal,
         headers: {
@@ -265,6 +265,25 @@ export default function PlaygroundPage() {
           stream: true,
         }),
       });
+      if (response.status === 401) {
+        clearChatToken();
+        token = await chatToken();
+        response = await fetch(`${API_BASE}/api/v1/agent/chat`, {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            message,
+            context: pinned || undefined,
+            sessionId: sessionId || undefined,
+            modelMode: sessionId ? undefined : modelMode,
+            stream: true,
+          }),
+        });
+      }
       if (!response.ok || !response.body) {
         const failed = await response.json().catch(() => ({}));
         throw new Error(failed.message || `HTTP ${response.status}`);

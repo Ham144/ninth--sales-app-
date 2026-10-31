@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import Shell from "./components/Shell";
 import { navigate, useRoute } from "./lib/router.jsx";
 import AppsPage from "./pages/AppsPage";
@@ -10,6 +11,7 @@ import LoginPage from "./pages/LoginPage";
 import PlaygroundPage from "./pages/PlaygroundPage";
 import AgentConfigPage from "./pages/AgentConfigPage";
 import AgentDocsPage from "./pages/AgentDocsPage";
+import { authApi } from "./api/authApi";
 import { useAuthStore } from "./store/authStore";
 
 function RequireAuth({ user, children }) {
@@ -64,7 +66,26 @@ function RouteView({ path, user }) {
 export default function App() {
   const { path } = useRoute();
   const user = useAuthStore((s) => s.user);
+  const setSession = useAuthStore((s) => s.setSession);
   const clearSession = useAuthStore((s) => s.clearSession);
+
+  useEffect(() => {
+    if (path.startsWith("/login")) return undefined;
+    if (!useAuthStore.getState().user && !localStorage.getItem("hub_token")) return undefined;
+    let cancel = false;
+    authApi
+      .me()
+      .then((data) => {
+        if (cancel || !data?.userInfo) return;
+        const current = useAuthStore.getState().user;
+        if (current?._id && String(current._id) === String(data.userInfo._id)) return;
+        setSession(data.userInfo, localStorage.getItem("hub_token") || undefined);
+      })
+      .catch(() => {});
+    return () => {
+      cancel = true;
+    };
+  }, [path, setSession]);
 
   if (path.startsWith("/login")) {
     return <RouteView path={path} user={user} />;

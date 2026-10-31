@@ -200,7 +200,7 @@ export function createAgentRouter(deps = {}) {
   const fetchImpl = deps.fetchImpl || globalThis.fetch;
 
   router.get("/health", (_req, res) => {
-    res.json({ ok: true, service: "midcsi-agent" });
+    res.json({ ok: true, service: "csi-agent" });
   });
 
   router.get("/openapi.json", (_req, res) => {

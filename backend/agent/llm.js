@@ -9,7 +9,7 @@ export const MODEL_MODES = {
   precise: {
     id: "precise",
     label: "Teliti",
-    description: "Untuk pertanyaan ambigu, beberapa tool, dan analisis dokumen.",
+    description: "ambigu, analisis dokumen atau fast tidak dapat menjawab dengan baik.",
   },
 };
 

@@ -1,4 +1,4 @@
-import { API_BASE, http } from "./http";
+import { http } from "./http";
 
 export const hubApi = {
   listUpdates: ({ search = "", status = "all" } = {}) => {
@@ -25,18 +25,9 @@ export const hubApi = {
   getDoc: (id) => http(`/api/v1/hub/docs/by-id/${id}`),
   createDoc: (body) => http("/api/v1/hub/docs", { method: "POST", body }),
   importPdf: async (file) => {
-    const token = localStorage.getItem("hub_token") || "";
     const body = new FormData();
     body.append("file", file);
-    const res = await fetch(`${API_BASE}/api/v1/hub/docs/import-pdf`, {
-      method: "POST",
-      credentials: "include",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.message || `PDF gagal dibaca (${res.status})`);
-    return data;
+    return http("/api/v1/hub/docs/import-pdf", { method: "POST", body });
   },
   updateDoc: (id, body) =>
     http(`/api/v1/hub/docs/${id}`, { method: "PUT", body }),

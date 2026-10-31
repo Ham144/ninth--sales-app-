@@ -1,10 +1,10 @@
 export const openApi = {
   openapi: "3.0.3",
   info: {
-    title: "MIDCSI Agent Chat",
+    title: "CSI Agent Chat",
     version: "0.1.0",
     description:
-      "Chatbot pengunjung e-commerce. x-api-key hanya untuk mint token di server. Browser memakai chat token.",
+      "Chatbot internal & pengunjung e-commerce. x-api-key hanya untuk mint token di server. Browser memakai chat token.",
   },
   paths: {
     "/api/v1/agent/token": {

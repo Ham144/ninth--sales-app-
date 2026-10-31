@@ -4,7 +4,7 @@ const messageSchema = new mongoose.Schema(
   {
     role: { type: String, enum: ["user", "assistant", "tool"], required: true },
     content: { type: String, default: "" },
-    context: { type: String, default: "" },
+    context: { type: String, default: "" },//pesan sebelumnya yg di pointer
     toolCallId: String,
     toolName: String,
     toolCalls: { type: [mongoose.Schema.Types.Mixed], default: undefined },
