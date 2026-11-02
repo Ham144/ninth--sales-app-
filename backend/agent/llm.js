@@ -1,29 +1,51 @@
 import { presentReply } from "./guardrails.js";
 
 export const MODEL_MODES = {
-  fast: {
-    id: "fast",
-    label: "Cepat",
-    description: "Untuk lookup stok, harga, customer, aplikasi, dan pertanyaan rutin.",
+  hemat: {
+    id: "hemat",
+    label: "Hemat",
+    description: "Paling irit. Untuk membandingkan, bukan default staf.",
   },
-  precise: {
-    id: "precise",
-    label: "Teliti",
-    description: "ambigu, analisis dokumen atau fast tidak dapat menjawab dengan baik.",
+  pas: {
+    id: "pas",
+    label: "Pas",
+    description: "Default. Lookup stok, harga, customer, order, dan aplikasi.",
+  },
+  kuat: {
+    id: "kuat",
+    label: "Kuat",
+    description: "Kalau jawaban Pas kurang. Satu langkah di atas, bukan model termahal.",
   },
 };
+
+export function normalizeModelMode(mode) {
+  if (mode === "hemat") return "hemat";
+  if (mode === "kuat" || mode === "precise") return "kuat";
+  return "pas";
+}
 
 function preciseProfile(tenant) {
   return tenant?.llmModes?.precise || {};
 }
 
-export function hasPreciseLlm(tenant, env = process.env) {
+function hematProfile(tenant) {
+  return tenant?.llmModes?.hemat || {};
+}
+
+export function hasHematLlm(tenant, env = process.env) {
+  return Boolean(hematProfile(tenant).model || env.LLM_HEMAT_MODEL);
+}
+
+export function hasKuatLlm(tenant, env = process.env) {
   return Boolean(preciseProfile(tenant).model || env.LLM_PRECISE_MODEL);
 }
 
 export function availableModelModes(tenant, env = process.env) {
   return Object.values(MODEL_MODES).map((mode) => {
-    const available = mode.id === "fast" || hasPreciseLlm(tenant, env);
+    const available =
+      mode.id === "pas" ||
+      (mode.id === "hemat" && hasHematLlm(tenant, env)) ||
+      (mode.id === "kuat" && hasKuatLlm(tenant, env));
     let model = "";
     if (available) {
       try {
@@ -36,32 +58,42 @@ export function availableModelModes(tenant, env = process.env) {
   });
 }
 
-export function resolveLlm(tenant, env = process.env, mode = "fast") {
-  const selectedMode = mode === "precise" ? "precise" : "fast";
+export function resolveLlm(tenant, env = process.env, mode = "pas") {
+  const selectedMode = normalizeModelMode(mode);
   const precise = preciseProfile(tenant);
-  if (selectedMode === "precise" && !hasPreciseLlm(tenant, env)) {
-    const error = new Error("Mode Teliti belum dikonfigurasi");
+  const hemat = hematProfile(tenant);
+  if (selectedMode === "kuat" && !hasKuatLlm(tenant, env)) {
+    const error = new Error("Level Kuat belum dikonfigurasi");
+    error.status = 409;
+    throw error;
+  }
+  if (selectedMode === "hemat" && !hasHematLlm(tenant, env)) {
+    const error = new Error("Level Hemat belum dikonfigurasi");
     error.status = 409;
     throw error;
   }
   const baseUrl = String(
-    (selectedMode === "precise" && (precise.baseUrl || env.LLM_PRECISE_BASE_URL)) ||
+    (selectedMode === "kuat" && (precise.baseUrl || env.LLM_PRECISE_BASE_URL)) ||
+      (selectedMode === "hemat" && (hemat.baseUrl || env.LLM_HEMAT_BASE_URL)) ||
       tenant?.llm?.baseUrl ||
       env.LLM_BASE_URL ||
       "https://openrouter.ai/api/v1",
   ).replace(/\/$/, "");
   const apiKey =
-    (selectedMode === "precise" && (precise.apiKey || env.LLM_PRECISE_API_KEY)) ||
+    (selectedMode === "kuat" && (precise.apiKey || env.LLM_PRECISE_API_KEY)) ||
+    (selectedMode === "hemat" && (hemat.apiKey || env.LLM_HEMAT_API_KEY)) ||
     tenant?.llm?.apiKey ||
     env.LLM_API_KEY ||
     "";
   const model =
-    (selectedMode === "precise" && (precise.model || env.LLM_PRECISE_MODEL)) ||
+    (selectedMode === "kuat" && (precise.model || env.LLM_PRECISE_MODEL)) ||
+    (selectedMode === "hemat" && (hemat.model || env.LLM_HEMAT_MODEL)) ||
     tenant?.llm?.model ||
     env.LLM_MODEL ||
-    "deepseek/deepseek-chat";
+    "deepseek/deepseek-v3.2";
   const fallbackModel =
-    (selectedMode === "precise" && (precise.fallbackModel || env.LLM_PRECISE_FALLBACK_MODEL)) ||
+    (selectedMode === "kuat" && (precise.fallbackModel || env.LLM_PRECISE_FALLBACK_MODEL)) ||
+    (selectedMode === "hemat" && (hemat.fallbackModel || env.LLM_HEMAT_FALLBACK_MODEL)) ||
     tenant?.llm?.fallbackModel ||
     env.LLM_FALLBACK_MODEL ||
     "";
@@ -79,19 +111,26 @@ export function resolveLlm(tenant, env = process.env, mode = "fast") {
     model,
     fallbackModel,
     mode: selectedMode,
-    timeoutMs: selectedMode === "precise" ? 60000 : 30000,
+    timeoutMs: selectedMode === "kuat" ? 60000 : 30000,
   };
 }
 
-export function effectiveLlm(tenant, env = process.env, mode = "fast") {
-  const selectedMode = mode === "precise" ? "precise" : "fast";
-  const saved = selectedMode === "precise" ? preciseProfile(tenant) : tenant?.llm || {};
-  const envPrefix = selectedMode === "precise" ? "LLM_PRECISE_" : "LLM_";
+export function effectiveLlm(tenant, env = process.env, mode = "pas") {
+  const selectedMode = normalizeModelMode(mode);
+  const saved =
+    selectedMode === "kuat" ? preciseProfile(tenant) : selectedMode === "hemat" ? hematProfile(tenant) : tenant?.llm || {};
+  const envPrefix = selectedMode === "kuat" ? "LLM_PRECISE_" : selectedMode === "hemat" ? "LLM_HEMAT_" : "LLM_";
   const source = {
-    baseUrl: saved.baseUrl ? "saved" : env[`${envPrefix}BASE_URL`] ? "env" : selectedMode === "precise" ? "fast" : "default",
-    apiKey: saved.apiKey ? "saved" : env[`${envPrefix}API_KEY`] ? "env" : selectedMode === "precise" ? "fast" : "missing",
-    model: saved.model ? "saved" : env[`${envPrefix}MODEL`] ? "env" : selectedMode === "precise" ? "missing" : "default",
-    fallbackModel: saved.fallbackModel ? "saved" : env[`${envPrefix}FALLBACK_MODEL`] ? "env" : selectedMode === "precise" ? "fast" : "none",
+    baseUrl: saved.baseUrl ? "saved" : env[`${envPrefix}BASE_URL`] ? "env" : selectedMode === "pas" ? "default" : "pas",
+    apiKey: saved.apiKey ? "saved" : env[`${envPrefix}API_KEY`] ? "env" : selectedMode === "pas" ? "missing" : "pas",
+    model: saved.model ? "saved" : env[`${envPrefix}MODEL`] ? "env" : selectedMode === "pas" ? "default" : "missing",
+    fallbackModel: saved.fallbackModel
+      ? "saved"
+      : env[`${envPrefix}FALLBACK_MODEL`]
+        ? "env"
+        : selectedMode === "pas"
+          ? "none"
+          : "pas",
   };
   try {
     const resolved = resolveLlm(tenant, env, selectedMode);

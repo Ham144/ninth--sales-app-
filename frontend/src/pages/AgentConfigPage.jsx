@@ -17,11 +17,10 @@ const PRESETS = [
     label: "OpenRouter",
     baseUrl: "https://openrouter.ai/api/v1",
     models: [
-      "deepseek/deepseek-chat",
       "deepseek/deepseek-v3.2",
-      "google/gemini-2.5-flash",
       "openai/gpt-4.1-mini",
-      "qwen/qwen3-235b-a22b",
+      "qwen/qwen3-32b",
+      "qwen/qwen-plus",
     ],
     hint: "Model memakai id vendor/nama. Key Alibaba tidak berlaku di endpoint ini.",
   },
@@ -143,10 +142,11 @@ export default function AgentConfigPage() {
       setFallbackMode(
         !next.fallbackModel || models.includes(next.fallbackModel) || !models.length ? "preset" : "custom",
       );
-      setEffective(data.effective || data.effectiveModes?.fast || null);
+      setEffective(data.effective || data.effectiveModes?.pas || null);
       setEffectiveModes({
-        fast: data.effectiveModes?.fast || data.effective || null,
-        precise: data.effectiveModes?.precise || null,
+        hemat: data.effectiveModes?.hemat || null,
+        pas: data.effectiveModes?.pas || data.effective || null,
+        kuat: data.effectiveModes?.kuat || null,
       });
     } catch (err) {
       setError(err.message || "Gagal memuat pengaturan agent");
@@ -279,9 +279,12 @@ export default function AgentConfigPage() {
             {effective?.ok === false ? (
               <p className="agent-note">{effective.message}</p>
             ) : (
-              ["fast", "precise"].map((id) => {
-                const row = id === "fast" ? effectiveModes.fast || effective : effectiveModes.precise;
-                const title = id === "fast" ? "Cepat" : "Teliti";
+              [
+                ["hemat", "Hemat"],
+                ["pas", "Pas"],
+                ["kuat", "Kuat"],
+              ].map(([id, title]) => {
+                const row = effectiveModes[id] || (id === "pas" ? effective : null);
                 if (!row) return null;
                 return (
                   <div key={id} className="agent-runtime-mode">

@@ -7,7 +7,7 @@ import requireIT from "../../middlewares/requireIT.js";
 import AgentAudit from "../models/AgentAudit.model.js";
 import AgentTenant, { MIDCSI_TENANT_DEFAULT } from "../models/AgentTenant.model.js";
 import ChatSession from "../models/ChatSession.model.js";
-import { availableModelModes, effectiveLlm, resolveLlm } from "../llm.js";
+import { availableModelModes, effectiveLlm, normalizeModelMode, resolveLlm } from "../llm.js";
 import { runTurn } from "../orchestrator.js";
 import { openApi } from "../openapi.js";
 
@@ -279,10 +279,27 @@ export function createAgentRouter(deps = {}) {
     }
   }
 
+  function chosenModelMode(requested, canSelectModel, tenant) {
+    const mode = normalizeModelMode(requested || "pas");
+    if (mode !== "pas" && !canSelectModel) {
+      const error = new Error("Level model hanya untuk IT");
+      error.status = 403;
+      throw error;
+    }
+    const selected = canSelectModel ? mode : "pas";
+    const catalog = availableModelModes(tenant, deps.env || process.env).find((item) => item.id === selected);
+    if (!catalog?.available) {
+      const error = new Error("Level model belum dikonfigurasi");
+      error.status = 409;
+      throw error;
+    }
+    return selected;
+  }
+
   router.get("/model-modes", readChat, async (req, res) => {
     const modes = availableModelModes(req.chat.tenant, deps.env || process.env);
     return res.json({
-      modes: req.chat.canSelectModel ? modes : modes.filter((mode) => mode.id === "fast"),
+      modes: req.chat.canSelectModel ? modes : modes.filter((mode) => mode.id === "pas"),
       canSelect: req.chat.canSelectModel,
     });
   });
@@ -300,35 +317,25 @@ export function createAgentRouter(deps = {}) {
     }
 
     let session = null;
-    if (req.body?.sessionId) {
-      session = await store.findSession(req.body.sessionId, visitorId);
-      if (!session) return res.status(404).json({ message: "Sesi tidak ditemukan" });
-      const requested = String(req.body?.modelMode || session.modelMode || "fast");
-      if (session.modelMode && requested !== session.modelMode) {
-        return res.status(409).json({ message: "Mode model dikunci per percakapan" });
+    let modelMode = "pas";
+    try {
+      if (req.body?.sessionId) {
+        session = await store.findSession(req.body.sessionId, visitorId);
+        if (!session) return res.status(404).json({ message: "Sesi tidak ditemukan" });
+        modelMode = chosenModelMode(req.body?.modelMode || session.modelMode, canSelectModel, tenant);
+      } else {
+        modelMode = chosenModelMode(req.body?.modelMode, canSelectModel, tenant);
+        session = {
+          tenantSlug: tenant.slug,
+          visitorId,
+          customerId,
+          modelMode,
+          messages: [],
+        };
       }
-      session.modelMode = session.modelMode || "fast";
-    } else {
-      const requested = String(req.body?.modelMode || "fast");
-      if (!["fast", "precise"].includes(requested)) {
-        return res.status(400).json({ message: "Mode model tidak dikenal" });
-      }
-      if (requested !== "fast" && !canSelectModel) {
-        return res.status(403).json({ message: "Mode Teliti hanya untuk power user" });
-      }
-      const mode = availableModelModes(tenant, deps.env || process.env).find(
-        (item) => item.id === requested,
-      );
-      if (!mode?.available) {
-        return res.status(409).json({ message: "Mode Teliti belum dikonfigurasi" });
-      }
-      session = {
-        tenantSlug: tenant.slug,
-        visitorId,
-        customerId,
-        modelMode: requested,
-        messages: [],
-      };
+      session.modelMode = modelMode;
+    } catch (error) {
+      return res.status(error.status || 400).json({ message: error.message });
     }
 
     const stream = req.body?.stream !== false;
@@ -366,7 +373,7 @@ export function createAgentRouter(deps = {}) {
           args: call.args,
           latencyMs: call.latencyMs,
           tokens: result.tokensUsed,
-          modelMode: session.modelMode || "fast",
+          modelMode: session.modelMode || "pas",
           model: session.model || "",
         });
       }
@@ -391,7 +398,7 @@ export function createAgentRouter(deps = {}) {
         toolCallsUsed: result.toolCallsUsed.map((call) => call.name),
         tokensUsed: result.tokensUsed,
         handoffRequested: result.handoffRequested,
-        modelMode: session.modelMode || "fast",
+        modelMode: session.modelMode || "pas",
         model: session.model || "",
       };
       if (stream) {
@@ -435,7 +442,7 @@ export function createAgentRouter(deps = {}) {
     if (!session) return res.status(404).json({ message: "Sesi tidak ditemukan" });
     return res.json({
       sessionId: session._id,
-      modelMode: session.modelMode || "fast",
+      modelMode: session.modelMode || "pas",
       model: session.model || "",
       messages: (session.messages || [])
         .filter((item) => item.role === "user" || item.role === "assistant")
@@ -470,8 +477,9 @@ export function createAgentRouter(deps = {}) {
         ...redactTenant(tenant),
         effective: effectiveLlm(tenant, deps.env || process.env),
         effectiveModes: {
-          fast: effectiveLlm(tenant, deps.env || process.env, "fast"),
-          precise: effectiveLlm(tenant, deps.env || process.env, "precise"),
+          hemat: effectiveLlm(tenant, deps.env || process.env, "hemat"),
+          pas: effectiveLlm(tenant, deps.env || process.env, "pas"),
+          kuat: effectiveLlm(tenant, deps.env || process.env, "kuat"),
         },
         modelModes: availableModelModes(tenant, deps.env || process.env),
       },

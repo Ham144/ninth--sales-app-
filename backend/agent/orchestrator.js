@@ -1,14 +1,14 @@
 import { BUDGET_MESSAGE, expandEmptyToolReply, presentReply, systemPromptFor } from "./guardrails.js";
-import { completeChat, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
+import { completeChat, normalizeModelMode, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
 import { windowMessages } from "./memory.js";
-import { activeTools, executeTool, parseArgs, wrapToolResult } from "./tools.js";
+import { activeTools, executeTool, parseArgs, salesOrderLookup, wrapToolResult } from "./tools.js";
 
 function chunkText(text, size = 48) {
   const chunks = [];
   for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size));
   return chunks;
 }
-
+  
 export async function runTurn({
   tenant,
   session,
@@ -60,7 +60,8 @@ export async function runTurn({
     };
   }
 
-  const llm = resolveLlm(tenant, env, session.modelMode || "fast");
+  session.modelMode = normalizeModelMode(session.modelMode);
+  const llm = resolveLlm(tenant, env, session.modelMode);
   const completeFn = complete || completeChat;
   const executeFn = execute || executeTool;
   const tools = activeTools(tenant, customerId);
@@ -68,6 +69,46 @@ export async function runTurn({
   let tokensUsed = 0;
   const toolCallsUsed = [];
   let reply = "";
+  const orderLookup = salesOrderLookup(text);
+  const orderTool = orderLookup && tools.find((tool) => tool.name === "sales_orders");
+  if (orderTool) {
+    onEvent?.({ type: "tool", name: "sales_orders" });
+    const started = Date.now();
+    const result = await executeFn({
+      tool: orderTool,
+      args: orderLookup,
+      customerId,
+      fetchImpl,
+      upstream: tenant.upstream,
+      limiter,
+    });
+    toolCallsUsed.push({
+      name: "sales_orders",
+      args: orderLookup,
+      latencyMs: Date.now() - started,
+      customerInjected: false,
+    });
+    const callId = "order_lookup";
+    session.messages.push({
+      role: "assistant",
+      content: "",
+      toolCalls: [
+        {
+          id: callId,
+          type: "function",
+          function: { name: "sales_orders", arguments: JSON.stringify(orderLookup) },
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    });
+    session.messages.push({
+      role: "tool",
+      toolCallId: callId,
+      toolName: "sales_orders",
+      content: wrapToolResult("sales_orders", result.payload),
+      createdAt: new Date().toISOString(),
+    });
+  }
 
   for (let i = 0; i < maxIter; i += 1) {
     const messages = toLlmMessages(

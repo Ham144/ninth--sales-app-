@@ -10,7 +10,7 @@ import { availableModelModes, effectiveLlm, resolveLlm, userContentForModel } fr
 import { runTurn } from "./orchestrator.js";
 import { createAgentRouter, originError } from "./routes/chat.route.js";
 import { EVAL_QUESTIONS, judge } from "./evalQuestions.js";
-import { executeTool, finalizeSalesOrdersResult, MIDCSI_TOOLS, productTextQuery, PUBLIC_VISITOR_TOOLS, rankHubApps, wrapToolResult } from "./tools.js";
+import { executeTool, finalizeSalesOrdersResult, MIDCSI_TOOLS, productTextQuery, PUBLIC_VISITOR_TOOLS, rankHubApps, salesOrderLookup, wrapToolResult } from "./tools.js";
 import { APP_ADVISOR_METADATA } from "../utils/seedHubApps.js";
 
 const AUTH_HTTP_TOOL = {
@@ -315,30 +315,59 @@ test("effectiveLlm memakai tenant di atas env tanpa membuka key", () => {
   assert.equal(saved.baseUrl, "https://openrouter.ai/api/v1");
 });
 
-test("mode Teliti memakai env provider dan katalog menampilkan nama model", () => {
+test("tiga level menampilkan nama model dari env", () => {
   const env = {
     LLM_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     LLM_API_KEY: "sk-fast",
-    LLM_MODEL: "qwen-plus",
+    LLM_HEMAT_MODEL: "qwen3-32b",
+    LLM_MODEL: "deepseek-v3.2",
     LLM_PRECISE_MODEL: "qwen-max",
   };
   const modes = availableModelModes({}, env);
-  assert.equal(modes.find((mode) => mode.id === "fast").available, true);
-  assert.equal(modes.find((mode) => mode.id === "precise").available, true);
-  assert.equal(modes.find((mode) => mode.id === "fast").model, "qwen-plus");
-  assert.equal(modes.find((mode) => mode.id === "precise").model, "qwen-max");
-  const fast = resolveLlm({}, env, "fast");
-  const precise = resolveLlm({}, env, "precise");
-  assert.equal(fast.model, "qwen-plus");
-  assert.equal(precise.model, "qwen-max");
-  assert.equal(precise.baseUrl, fast.baseUrl);
+  assert.equal(modes.find((mode) => mode.id === "hemat").model, "qwen3-32b");
+  assert.equal(modes.find((mode) => mode.id === "pas").model, "deepseek-v3.2");
+  assert.equal(modes.find((mode) => mode.id === "kuat").model, "qwen-max");
+  const pas = resolveLlm({}, env, "pas");
+  const kuat = resolveLlm({}, env, "kuat");
+  assert.equal(kuat.baseUrl, pas.baseUrl);
   const otherHost = resolveLlm(
     {},
     { ...env, LLM_PRECISE_BASE_URL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1" },
-    "precise",
+    "kuat",
   );
   assert.match(otherHost.baseUrl, /dashscope-intl/);
-  assert.equal(availableModelModes({}, { LLM_MODEL: "qwen-plus" }).find((mode) => mode.id === "precise").available, false);
+  assert.equal(availableModelModes({}, { LLM_MODEL: "qwen-plus" }).find((mode) => mode.id === "kuat").available, false);
+  assert.equal(availableModelModes({}, { LLM_MODEL: "qwen-plus" }).find((mode) => mode.id === "hemat").available, false);
+});
+
+test("nomor sales order langsung memanggil tool sebelum model menjawab", async () => {
+  const called = [];
+  const session = { messages: [] };
+  const result = await runTurn({
+    tenant: { ...publicTenant, audience: "internal" },
+    session,
+    message: "SO/SMA-25/08-00178",
+    complete: async () => ({ content: "Order ketemu.", toolCalls: [], usage: { total_tokens: 1 } }),
+    execute: async ({ args }) => {
+      called.push(args);
+      return { payload: { data: [{ DocumentNo: "CSI-2026-00017" }], found: true } };
+    },
+  });
+  assert.equal(called.length, 1);
+  assert.equal(called[0].query, "SO/SMA-25/08-00178");
+  assert.equal(called[0].liveStatus, true);
+  assert.equal(result.reply, "Order ketemu.");
+});
+
+test("nomor CSI dan SO dibaca sebagai sales order", () => {
+  assert.equal(salesOrderLookup("buat so"), null);
+  assert.deepEqual(salesOrderLookup("cek CSI-2026-00017"), {
+    query: "CSI-2026-00017",
+    liveStatus: false,
+  });
+  assert.equal(salesOrderLookup("gimana kondisi CSI-2026-00017").liveStatus, true);
+  assert.equal(salesOrderLookup("SO/SMA-25/08-00178").query, "SO/SMA-25/08-00178");
+  assert.equal(salesOrderLookup("SO/SMA-25/08-00178").liveStatus, true);
 });
 
 test("OpenRouter ditolak untuk tenant data sensitif", () => {
@@ -516,7 +545,7 @@ test("chat token dan sesi lewat HTTP", async () => {
   }
 });
 
-test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () => {
+test("level model bisa diganti di tengah percakapan dan staf biasa tetap Pas", async () => {
   const store = memoryStore();
   store.keys.set("CSIOPEN_demo", { status: "active", scope: "public-catalog" });
   const seen = [];
@@ -531,6 +560,7 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
       nodeEnv: "test",
       env: {
         LLM_API_KEY: "test",
+        LLM_HEMAT_MODEL: "qwen3-32b",
         LLM_MODEL: "qwen-plus",
         LLM_PRECISE_MODEL: "qwen-max",
         LLM_BASE_URL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
@@ -554,7 +584,7 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
     });
     const visitorCatalog = await visitorModes.json();
     assert.equal(visitorCatalog.canSelect, false);
-    assert.equal(visitorCatalog.modes.every((mode) => mode.id === "fast"), true);
+    assert.equal(visitorCatalog.modes.every((mode) => mode.id === "pas"), true);
 
     const denied = await fetch(`${url}/api/v1/agent/chat`, {
       method: "POST",
@@ -562,7 +592,7 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
         "content-type": "application/json",
         authorization: `Bearer ${visitor.chatToken}`,
       },
-      body: JSON.stringify({ message: "halo", modelMode: "precise", stream: false }),
+      body: JSON.stringify({ message: "halo", modelMode: "kuat", stream: false }),
     });
     assert.equal(denied.status, 403);
 
@@ -575,9 +605,10 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
     });
     const catalog = await powerModes.json();
     assert.equal(catalog.canSelect, true);
-    assert.equal(catalog.modes.find((mode) => mode.id === "precise")?.available, true);
-    assert.equal(catalog.modes.find((mode) => mode.id === "fast")?.model, "deepseek/deepseek-chat");
-    assert.equal(catalog.modes.find((mode) => mode.id === "precise")?.model, "qwen-max");
+    assert.equal(catalog.modes.find((mode) => mode.id === "kuat")?.available, true);
+    assert.equal(catalog.modes.find((mode) => mode.id === "pas")?.model, "deepseek/deepseek-chat");
+    assert.equal(catalog.modes.find((mode) => mode.id === "kuat")?.model, "qwen-max");
+    assert.equal(catalog.modes.find((mode) => mode.id === "hemat")?.model, "qwen3-32b");
 
     const chat = await fetch(`${url}/api/v1/agent/chat`, {
       method: "POST",
@@ -585,11 +616,11 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
         "content-type": "application/json",
         authorization: `Bearer ${powerToken}`,
       },
-      body: JSON.stringify({ message: "halo teliti", modelMode: "precise", stream: false }),
+      body: JSON.stringify({ message: "halo teliti", modelMode: "kuat", stream: false }),
     });
     const body = await chat.json();
     assert.equal(chat.status, 200);
-    assert.equal(body.modelMode, "precise");
+    assert.equal(body.modelMode, "kuat");
     assert.equal(body.model, "qwen-max");
     assert.equal(seen.at(-1), "qwen-max");
 
@@ -600,13 +631,16 @@ test("mode model dikunci per sesi dan hanya power user boleh Teliti", async () =
         authorization: `Bearer ${powerToken}`,
       },
       body: JSON.stringify({
-        message: "lanjut cepat",
+        message: "lanjut pas",
         sessionId: body.sessionId,
-        modelMode: "fast",
+        modelMode: "pas",
         stream: false,
       }),
     });
-    assert.equal(switched.status, 409);
+    const switchedBody = await switched.json();
+    assert.equal(switched.status, 200);
+    assert.equal(switchedBody.modelMode, "pas");
+    assert.equal(seen.at(-1), "deepseek/deepseek-chat");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

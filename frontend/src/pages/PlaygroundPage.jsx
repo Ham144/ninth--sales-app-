@@ -139,7 +139,7 @@ export default function PlaygroundPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [pinned, setPinned] = useState("");
-  const [modelMode, setModelMode] = useState("fast");
+  const [modelMode, setModelMode] = useState("pas");
   const [modelModes, setModelModes] = useState([]);
   const [canSelectModel, setCanSelectModel] = useState(false);
   const scroller = useRef(null);
@@ -169,7 +169,7 @@ export default function PlaygroundPage() {
     if (!user) {
       setModelModes([]);
       setCanSelectModel(false);
-      setModelMode("fast");
+      setModelMode("pas");
       return undefined;
     }
     let cancel = false;
@@ -179,13 +179,13 @@ export default function PlaygroundPage() {
         const modes = (data.modes || []).filter((mode) => mode.available !== false);
         setModelModes(modes);
         setCanSelectModel(Boolean(data.canSelect) && modes.length > 1);
-        setModelMode((current) => (modes.some((mode) => mode.id === current) ? current : "fast"));
+        setModelMode((current) => (modes.some((mode) => mode.id === current) ? current : "pas"));
       })
       .catch(() => {
         if (cancel) return;
         setModelModes([]);
         setCanSelectModel(false);
-        setModelMode("fast");
+        setModelMode("pas");
       });
     return () => {
       cancel = true;
@@ -205,7 +205,6 @@ export default function PlaygroundPage() {
       setSessionId("");
       setToolsUsed([]);
       setPinned("");
-      setModelMode("fast");
       setError("");
       return undefined;
     }
@@ -215,7 +214,7 @@ export default function PlaygroundPage() {
         if (cancel) return;
         setSessionId(String(data.sessionId || activeId));
         setMessages(data.messages || []);
-        setModelMode(data.modelMode === "precise" ? "precise" : "fast");
+        setModelMode(data.modelMode === "kuat" || data.modelMode === "precise" ? "kuat" : data.modelMode === "hemat" ? "hemat" : "pas");
         setToolsUsed([]);
         setError("");
       })
@@ -261,7 +260,7 @@ export default function PlaygroundPage() {
           message,
           context: pinned || undefined,
           sessionId: sessionId || undefined,
-          modelMode: sessionId ? undefined : modelMode,
+          modelMode,
           stream: true,
         }),
       });
@@ -279,7 +278,7 @@ export default function PlaygroundPage() {
             message,
             context: pinned || undefined,
             sessionId: sessionId || undefined,
-            modelMode: sessionId ? undefined : modelMode,
+            modelMode,
             stream: true,
           }),
         });
@@ -528,7 +527,7 @@ export default function PlaygroundPage() {
                 <span>Mode</span>
                 <select
                   value={modelMode}
-                  disabled={Boolean(sessionId) || busy}
+                  disabled={busy}
                   title={modelModes.find((mode) => mode.id === modelMode)?.description || ""}
                   onChange={(event) => setModelMode(event.target.value)}
                 >

@@ -1,0 +1,13 @@
+---
+description: CSI agent stays a staff tool and must not chat with B2B customers
+alwaysApply: true
+---
+
+# Agent stays with staff
+
+Read `backend/agent/SCOPE.md` before adding agent tools, channels, or chat audiences.
+
+- Build read tools and answers for staff: stock, price, piutang, orders, apps, knowledge, and extra customer fields.
+- Leave sales-order creation to the human and the existing write apps.
+- Do not add a shop login, WhatsApp or other outbound channel, follow-up sender, or any tool that messages a B2B customer.
+- A data lakehouse or richer customer profile is storage. It is not permission to point this agent at the shop.

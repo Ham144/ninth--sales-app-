@@ -470,6 +470,16 @@ const INTERNAL_PRODUCT_SELECT = [
   "Inv_Gab4Loc",
 ].join(" ");
 
+export function salesOrderLookup(text) {
+  const source = String(text || "");
+  const csi = source.match(/\bCSI-\d{4}-\d{3,}\b/i);
+  const so = source.match(/\bSO\/[A-Z0-9][A-Z0-9./_-]{4,}/i);
+  const query = csi ? csi[0].toUpperCase() : so ? so[0] : "";
+  if (!query) return null;
+  const liveStatus = /^SO\//i.test(query) || /\b(status|nav|kondisi|kirim|picking|resi)\b/i.test(source);
+  return { query, liveStatus };
+}
+
 function orderDay(value) {
   if (!value) return null;
   const date = new Date(value);
