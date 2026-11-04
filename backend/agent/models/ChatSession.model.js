@@ -8,6 +8,7 @@ const messageSchema = new mongoose.Schema(
     toolCallId: String,
     toolName: String,
     toolCalls: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    action: { type: mongoose.Schema.Types.Mixed, default: undefined },
     createdAt: { type: Date, default: Date.now },
   },
   { _id: false },

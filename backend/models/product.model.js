@@ -53,6 +53,7 @@ const productSchema = new mongoose.Schema(
 );
 
 productSchema.index({ No: 1, organization: 1 }, { unique: true });
+productSchema.index({ Web: -1 });
 
 const Product = mongoose.model("Product", productSchema);
 export default Product;

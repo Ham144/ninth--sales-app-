@@ -58,6 +58,12 @@ export const EVAL_QUESTIONS = [
     message: "Cek status NAV live order SO/SMD-25/08-00027",
     tools: ["sales_orders"],
   },
+  {
+    id: "draf-so",
+    message: "Buatkan SO customer 103057 item BF-08A qty 2",
+    tools: ["propose_sales_order"],
+    forbidText: [/sudah (terkirim|dibuat) ke NAV/i],
+  },
 ];
 
 function normalizeNumber(token) {

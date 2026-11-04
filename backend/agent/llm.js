@@ -198,7 +198,96 @@ export function openAiTools(tools) {
   }));
 }
 
-export async function completeChat({
+function llmHeaders(apiKey, appUrl) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+  };
+  if (appUrl) headers["HTTP-Referer"] = appUrl;
+  return headers;
+}
+
+function completionFromJson(data, model) {
+  const message = data?.choices?.[0]?.message || {};
+  return {
+    content: message.content || "",
+    toolCalls: message.tool_calls || [],
+    usage: data?.usage || {},
+    model: data?.model || model,
+  };
+}
+
+function rejectLlm(data, fallback = "LLM menolak permintaan") {
+  const error = new Error(data?.error?.message || fallback);
+  error.status = 502;
+  return error;
+}
+
+export function emptyStreamState(model) {
+  return { content: "", toolCalls: [], usage: {}, model, mode: "unknown" };
+}
+
+export function applyChatDelta(state, payload) {
+  const delta = payload?.choices?.[0]?.delta || {};
+  let piece = "";
+  if (Array.isArray(delta.tool_calls) && delta.tool_calls.length) {
+    state.mode = "tools";
+    for (const call of delta.tool_calls) {
+      const index = Number.isInteger(call.index) ? call.index : state.toolCalls.length;
+      if (!state.toolCalls[index]) {
+        state.toolCalls[index] = {
+          id: "",
+          type: "function",
+          function: { name: "", arguments: "" },
+        };
+      }
+      const slot = state.toolCalls[index];
+      if (call.id) slot.id = call.id;
+      if (call.type) slot.type = call.type;
+      if (call.function?.name) slot.function.name += call.function.name;
+      if (call.function?.arguments) slot.function.arguments += call.function.arguments;
+    }
+  }
+  if (delta.content) {
+    state.content += delta.content;
+    if (state.mode !== "tools") {
+      state.mode = "content";
+      piece = delta.content;
+    }
+  }
+  if (payload?.usage) state.usage = payload.usage;
+  if (payload?.model) state.model = payload.model;
+  return piece;
+}
+
+async function consumeSse(body, onPayload) {
+  if (!body || typeof body.getReader !== "function") return;
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+    const chunks = buffer.split(/\r?\n\r?\n/);
+    buffer = chunks.pop() || "";
+    for (const chunk of chunks) {
+      for (const line of chunk.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith("data:")) continue;
+        const data = trimmed.slice(5).trim();
+        if (!data || data === "[DONE]") continue;
+        try {
+          onPayload(JSON.parse(data));
+        } catch {
+          /* ignore keep-alive */
+        }
+      }
+    }
+    if (done) break;
+  }
+}
+
+async function completeChatJson({
   baseUrl,
   apiKey,
   model,
@@ -208,19 +297,9 @@ export async function completeChat({
   appUrl = process.env.APP_URL || "",
   timeoutMs = 30000,
 }) {
-  if (!apiKey) {
-    const error = new Error("LLM_API_KEY belum diisi");
-    error.status = 503;
-    throw error;
-  }
-  const headers = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json",
-  };
-  if (appUrl) headers["HTTP-Referer"] = appUrl;
   const response = await fetchImpl(`${baseUrl}/chat/completions`, {
     method: "POST",
-    headers,
+    headers: llmHeaders(apiKey, appUrl),
     body: JSON.stringify({
       model,
       messages,
@@ -230,16 +309,71 @@ export async function completeChat({
     signal: AbortSignal.timeout(timeoutMs),
   });
   const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw rejectLlm(data);
+  return completionFromJson(data, model);
+}
+
+export async function streamChat({
+  baseUrl,
+  apiKey,
+  model,
+  messages,
+  tools,
+  onToken,
+  fetchImpl = globalThis.fetch,
+  appUrl = process.env.APP_URL || "",
+  timeoutMs = 30000,
+}) {
+  const response = await fetchImpl(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: llmHeaders(apiKey, appUrl),
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.2,
+      stream: true,
+      tools: tools?.length ? tools : undefined,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const type = String(response.headers.get("content-type") || "");
+  if (!type.includes("event-stream")) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw rejectLlm(data);
+    const result = completionFromJson(data, model);
+    if (result.content && !result.toolCalls?.length) onToken?.(result.content);
+    return result;
+  }
   if (!response.ok) {
-    const error = new Error(data?.error?.message || "LLM menolak permintaan");
-    error.status = 502;
+    const data = await response.json().catch(() => ({}));
+    throw rejectLlm(data);
+  }
+  const state = emptyStreamState(model);
+  await consumeSse(response.body, (payload) => {
+    const piece = applyChatDelta(state, payload);
+    if (piece) onToken?.(piece);
+  });
+  return {
+    content: state.content,
+    toolCalls: state.toolCalls.filter(Boolean),
+    usage: state.usage,
+    model: state.model,
+  };
+}
+
+export async function completeChat(opts) {
+  if (!opts?.apiKey) {
+    const error = new Error("LLM_API_KEY belum diisi");
+    error.status = 503;
     throw error;
   }
-  const message = data.choices?.[0]?.message || {};
-  return {
-    content: message.content || "",
-    toolCalls: message.tool_calls || [],
-    usage: data.usage || {},
-    model: data.model || model,
-  };
+  if (typeof opts.onToken !== "function") return completeChatJson(opts);
+  try {
+    return await streamChat(opts);
+  } catch (error) {
+    if (error.status === 409 || error.status === 503) throw error;
+    const result = await completeChatJson(opts);
+    if (result.content && !result.toolCalls?.length) opts.onToken(result.content);
+    return result;
+  }
 }

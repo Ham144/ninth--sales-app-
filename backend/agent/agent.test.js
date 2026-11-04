@@ -10,7 +10,7 @@ import { availableModelModes, effectiveLlm, resolveLlm, userContentForModel } fr
 import { runTurn } from "./orchestrator.js";
 import { createAgentRouter, originError } from "./routes/chat.route.js";
 import { EVAL_QUESTIONS, judge } from "./evalQuestions.js";
-import { executeTool, finalizeSalesOrdersResult, MIDCSI_TOOLS, productTextQuery, PUBLIC_VISITOR_TOOLS, rankHubApps, salesOrderLookup, wrapToolResult } from "./tools.js";
+import { actionFromSession, executeTool, finalizeSalesOrdersResult, MIDCSI_TOOLS, productTextQuery, PUBLIC_VISITOR_TOOLS, rankHubApps, salesOrderLookup, wrapToolResult } from "./tools.js";
 import { APP_ADVISOR_METADATA } from "../utils/seedHubApps.js";
 
 const AUTH_HTTP_TOOL = {
@@ -150,11 +150,19 @@ test("profil aktif adalah copilot internal", () => {
   const enabled = new Set(
     MIDCSI_TOOLS.filter((tool) => tool.enabled !== false).map((tool) => tool.name),
   );
-  for (const name of ["stock_by_location", "customer_lookup", "overdue_lookup", "sales_orders", "hub_apps"]) {
+  for (const name of [
+    "stock_by_location",
+    "customer_lookup",
+    "overdue_lookup",
+    "sales_orders",
+    "propose_sales_order",
+    "hub_apps",
+  ]) {
     assert.equal(enabled.has(name), true, name);
   }
   const search = MIDCSI_TOOLS.find((tool) => tool.name === "search_products");
   assert.equal(search.parameters.required, undefined);
+  assert.equal(search.parameters.properties.sortBy.enum.includes("Web"), true);
   assert.equal(search.parameters.properties.sort.enum[0], "web_desc");
   const catWord = productTextQuery("cat").$or[1].Description.$regex;
   assert.equal(catWord, "\\bcat\\b");
@@ -162,6 +170,9 @@ test("profil aktif adalah copilot internal", () => {
   assert.equal(new RegExp(catWord, "i").test("White Cat"), true);
   const overdue = MIDCSI_TOOLS.find((tool) => tool.name === "overdue_lookup");
   assert.equal(overdue.parameters.required, undefined);
+  const customers = MIDCSI_TOOLS.find((tool) => tool.name === "customer_lookup");
+  assert.equal(customers.parameters.required, undefined);
+  assert.equal(customers.parameters.properties.sortBy.enum.includes("Balance"), true);
   const orders = MIDCSI_TOOLS.find((tool) => tool.name === "sales_orders");
   assert.equal(orders.parameters.required, undefined);
   assert.equal(typeof orders.parameters.properties.searchKey, "object");
@@ -170,6 +181,45 @@ test("profil aktif adalah copilot internal", () => {
   assert.equal(visitor.has("customer_lookup"), false);
   assert.equal(visitor.has("stock_by_location"), false);
   assert.equal(MIDCSI_TOOLS.some((tool) => tool.name === "sales_order_status"), false);
+  assert.equal(visitor.has("propose_sales_order"), false);
+});
+
+test("actionFromSession hanya mengambil draf SO yang siap", () => {
+  const ready = {
+    kind: "sales_order_draft",
+    ready: true,
+    customer: { No: "103057", Name: "Toko" },
+    products: [{ No: "BF-08A", Name: "Kipas", qty: 2 }],
+    requestDeliveryDate: "2026-11-04",
+  };
+  const action = actionFromSession([
+    { role: "user", content: "buatkan SO" },
+    {
+      role: "tool",
+      toolName: "propose_sales_order",
+      content: wrapToolResult("propose_sales_order", { kind: "sales_order_draft", ready: false }),
+    },
+    {
+      role: "tool",
+      toolName: "propose_sales_order",
+      content: wrapToolResult("propose_sales_order", ready),
+    },
+  ]);
+  assert.equal(action.customer.No, "103057");
+  assert.equal(actionFromSession([{ role: "tool", toolName: "sales_orders", content: "{}" }]), null);
+  assert.equal(
+    actionFromSession([
+      { role: "user", content: "buatkan SO" },
+      {
+        role: "tool",
+        toolName: "propose_sales_order",
+        content: wrapToolResult("propose_sales_order", ready),
+      },
+      { role: "assistant", content: "draf", action: ready },
+      { role: "user", content: "dimana petty cash" },
+    ]),
+    null,
+  );
 });
 
 test("buat so hanya cocok ke s-bit", () => {
@@ -204,6 +254,18 @@ test("buat so hanya cocok ke s-bit", () => {
     invoice.some((entry) => entry.app.id === "s-bit"),
     false,
   );
+  const docs = rankHubApps(apps, "dimana saya bisa menambahkan dokumentasi project", "", 5);
+  assert.equal(docs[0].app.id, "midcsi-so");
+  const multi = rankHubApps(
+    apps,
+    "dimana saya bisa buat so dan dimana saya bisa melihat petty cash dan dimana saya bisa meminta request approval",
+    "",
+    8,
+  );
+  const ids = multi.map((entry) => entry.app.id);
+  assert.equal(ids.includes("s-bit"), true);
+  assert.equal(ids.includes("petty-cash"), true);
+  assert.equal(ids.includes("e-form"), true);
 });
 
 test("customerId dari token, bukan dari argumen model", async () => {
@@ -282,6 +344,28 @@ test("hasil tool dibungkus sebagai data tidak tepercaya", async () => {
   assert.match(second, /DATA TIDAK TEPERCAYA/);
   assert.match(second, /ignore previous instructions/);
   assert.equal(session.messages.at(-1).content, "Ada produk cat.");
+});
+
+test("token stream dari complete langsung ke onEvent", async () => {
+  const events = [];
+  const result = await runTurn({
+    tenant: publicTenant,
+    session: { messages: [] },
+    message: "halo",
+    limiter: createMemoryLimiter(),
+    env: { LLM_API_KEY: "test", LLM_BASE_URL: "https://openrouter.ai/api/v1" },
+    complete: async ({ onToken }) => {
+      onToken?.("Ha");
+      onToken?.("lo");
+      return { content: "Halo", toolCalls: [], usage: { total_tokens: 1 } };
+    },
+    onEvent: (event) => events.push(event),
+  });
+  assert.equal(result.reply, "Halo");
+  assert.deepEqual(
+    events.filter((event) => event.type === "token").map((event) => event.text),
+    ["Ha", "lo"],
+  );
 });
 
 test("effectiveLlm memakai tenant di atas env tanpa membuka key", () => {

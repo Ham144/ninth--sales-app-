@@ -8,9 +8,12 @@ FRONTEND_DIR="$REPO_ROOT/frontend"
 
 echo "🚀 Memulai Deployment midcsi (+ System Hub) ke 192.168.169.3..."
 
-PRODUCTION_SERVER="192.168.169.3"
+# PRODUCTION_SERVER="192.168.169.3"
 SSH_USER="ham"
-REMOTE_DIR="/home/ham/midcsi"
+# REMOTE_DIR="/home/ham/midcsi"
+
+return 0 
+# jangan deploy dulu ke midcsi. ini perubahan besar
 
 # Prompt password SSH jika belum diset
 if [ -z "$SSHPASS" ]; then

@@ -24,10 +24,15 @@ export const hubApi = {
   },
   getDoc: (id) => http(`/api/v1/hub/docs/by-id/${id}`),
   createDoc: (body) => http("/api/v1/hub/docs", { method: "POST", body }),
+  importDocument: async (file) => {
+    const body = new FormData();
+    body.append("file", file);
+    return http("/api/v1/hub/docs/import", { method: "POST", body });
+  },
   importPdf: async (file) => {
     const body = new FormData();
     body.append("file", file);
-    return http("/api/v1/hub/docs/import-pdf", { method: "POST", body });
+    return http("/api/v1/hub/docs/import", { method: "POST", body });
   },
   updateDoc: (id, body) =>
     http(`/api/v1/hub/docs/${id}`, { method: "PUT", body }),

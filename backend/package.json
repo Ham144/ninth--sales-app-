@@ -4,8 +4,10 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/pdfDraft.test.js agent/agent.test.js middlewares/authenticate.test.js",
+    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/qdrantStore.test.js utils/pdfDraft.test.js utils/documentDraft.test.js agent/productQuery.test.js agent/customerQuery.test.js agent/agent.test.js agent/llm.test.js middlewares/authenticate.test.js",
     "eval:agent": "node agent/evalRun.js",
+    "rag:index": "node utils/knowledgeIndex.js",
+    "qdrant": "bash ../scripts/start-qdrant.sh",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "build:hub": "cd ../frontend && ./node_modules/.bin/vite build"
@@ -25,6 +27,7 @@
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "ldapjs-client": "^0.1.7",
+    "mammoth": "^1.13.0",
     "mongoose": "^8.9.3",
     "multer": "^1.4.5-lts.2",
     "node-cron": "^4.2.1",
@@ -33,6 +36,7 @@
     "qrcode": "^1.5.4",
     "speakeasy": "^2.0.0",
     "unpdf": "^1.7.0",
+    "word-extractor": "^1.0.4",
     "xml2js": "^0.6.2"
   },
   "devDependencies": {

@@ -157,6 +157,7 @@ function redactTenant(tenant) {
 
 function writeSse(res, event, data) {
   res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  if (typeof res.flush === "function") res.flush();
 }
 
 function hasUserMessage(session) {
@@ -341,9 +342,11 @@ export function createAgentRouter(deps = {}) {
     const stream = req.body?.stream !== false;
     if (stream) {
       res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
       res.setHeader("Connection", "keep-alive");
+      res.setHeader("X-Accel-Buffering", "no");
       res.flushHeaders?.();
+      res.socket?.setNoDelay?.(true);
     }
 
     try {
@@ -397,6 +400,7 @@ export function createAgentRouter(deps = {}) {
         sessionId: session._id,
         toolCallsUsed: result.toolCallsUsed.map((call) => call.name),
         tokensUsed: result.tokensUsed,
+        action: result.action || null,
         handoffRequested: result.handoffRequested,
         modelMode: session.modelMode || "pas",
         model: session.model || "",
@@ -446,7 +450,7 @@ export function createAgentRouter(deps = {}) {
       model: session.model || "",
       messages: (session.messages || [])
         .filter((item) => item.role === "user" || item.role === "assistant")
-        .map((item) => ({ role: item.role, content: item.content })),
+        .map((item) => ({ role: item.role, content: item.content, action: item.action || null })),
     });
   });
 

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import Product from "../models/product.model.js";
 import Location from "../models/Location.model.js";
-import HubKnowledgeDoc from "../models/HubKnowledgeDoc.model.js";
 import escapeRegex from "../utils/excapeRegexInject.js";
+import { retrieveKnowledge } from "../utils/knowledgeIndex.js";
 import {
   normalizeProductOrganization,
   productOrganizationQuery,
@@ -142,24 +142,21 @@ router.get("/knowledge/search", async (req, res) => {
   if (q.length < 2) return res.status(400).json({ message: "q minimal 2 karakter" });
 
   try {
-    const docs = await HubKnowledgeDoc.find(
-      { $text: { $search: q }, ...publicKnowledgeFilter() },
-      { score: { $meta: "textScore" } },
-    )
-      .select("slug title summary content visibility docType updatedAt")
-      .sort({ score: { $meta: "textScore" } })
-      .limit(limit)
-      .lean();
-
+    const result = await retrieveKnowledge({
+      q,
+      top_k: limit,
+      visibility: publicKnowledgeFilter().visibility,
+    });
     return res.json({
       query: q,
+      mode: result.mode,
       observedAt: new Date().toISOString(),
-      data: docs.map((doc) => ({
+      data: result.data.map((doc) => ({
         slug: doc.slug,
         title: doc.title,
         visibility: doc.visibility,
-        text: doc.summary || String(doc.content || "").slice(0, 900),
-        observedAt: doc.updatedAt || null,
+        text: String(doc.text || "").slice(0, 1200),
+        score: doc.score,
       })),
     });
   } catch (error) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { agentJson, chatToken, clearChatToken } from "../api/agentApi";
 import { API_BASE } from "../api/http";
 import { hubApi } from "../api/hubApi";
+import { SalesOrderDraft } from "../components/SalesOrderDraft.jsx";
 import { renderReply } from "../lib/renderReply.jsx";
 import { navigate } from "../lib/router.jsx";
 import { useChatStore } from "../store/chatStore";
@@ -29,6 +30,7 @@ const TOOL_LABEL = {
   hub_apps: "Mencari aplikasi dan panduan",
   list_locations: "Membuka daftar lokasi",
   search_knowledge: "Membaca panduan internal",
+  propose_sales_order: "Menyiapkan draf sales order",
 };
 
 const STATUS_LABEL = {
@@ -243,7 +245,11 @@ export default function PlaygroundPage() {
     setInput("");
     setToolsUsed([]);
     if (box.current) box.current.style.height = "auto";
-    setMessages((rows) => [...rows, { role: "user", content: message }]);
+    setMessages((rows) => [
+      ...rows,
+      { role: "user", content: message },
+      { role: "assistant", content: "", pending: true },
+    ]);
     const turn = ++turnRef.current;
     const controller = new AbortController();
     abortRef.current = controller;
@@ -331,10 +337,15 @@ export default function PlaygroundPage() {
             setMessages((rows) => {
               const next = [...rows];
               const last = next[next.length - 1];
+              const action = data.action || null;
               if (last?.role === "assistant") {
-                next[next.length - 1] = { role: "assistant", content: data.reply || last.content };
-              } else if (data.reply) {
-                next.push({ role: "assistant", content: data.reply });
+                next[next.length - 1] = {
+                  role: "assistant",
+                  content: data.reply || last.content,
+                  action,
+                };
+              } else if (data.reply || action) {
+                next.push({ role: "assistant", content: data.reply || "", action });
               }
               return next;
             });
@@ -373,7 +384,7 @@ export default function PlaygroundPage() {
   const openApp = (url) => window.open(url, "_blank", "noopener,noreferrer");
 
   return (
-    <div className="chat-app">
+    <div className={`chat-app${empty ? " is-empty" : ""}`}>
       {!empty && apps.length > 0 && (
         <div className="app-rail" aria-label="Aplikasi">
           {apps.map((app) => (
@@ -387,9 +398,21 @@ export default function PlaygroundPage() {
       <div className={`thread${empty ? "" : " live"}`} ref={scroller}>
         {empty ? (
           <div className="welcome">
-            <p className="eyebrow">AI Agent MIDCSI</p>
-            <h1>{greet(name)}</h1>
-            <p className="welcome-lead">Stok per lokasi, harga Web, customer toko, piutang, dan order terakhir.</p>
+            <div className="welcome-hero">
+              <img className="welcome-mark" src="/csi-logo.png" alt="" />
+              <p className="eyebrow">Copilot internal</p>
+              <h1>{greet(name)}</h1>
+              <p className="welcome-lead">
+                Stok per lokasi, harga Web, customer toko, piutang, dan order terakhir.
+              </p>
+              <div className="capability-row">
+                <span>Stok lokasi</span>
+                <span>Harga Web</span>
+                <span>Piutang</span>
+                <span>Sales order</span>
+                <span>Aplikasi internal</span>
+              </div>
+            </div>
             {apps.length > 0 && (
               <div className="welcome-block">
                 <h2>Aplikasi</h2>
@@ -402,8 +425,10 @@ export default function PlaygroundPage() {
                       onClick={() => openApp(app.url)}
                     >
                       <AppGlyph app={app} compact />
-                      <strong>{app.title}</strong>
-                      <span>{app.description || ""}</span>
+                      <span className="app-line-copy">
+                        <strong>{app.title}</strong>
+                        <span>{app.description || ""}</span>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -449,10 +474,12 @@ export default function PlaygroundPage() {
           <div className="thread-spacer" />
           <div className="thread-col">
             {messages.map((item, index) => {
-              if (item.role === "assistant" && !item.pending && !presentReply(item.content)) return null;
+              if (item.role === "assistant" && !item.pending && !presentReply(item.content) && !item.action) return null;
               const latestUser = messages.findLastIndex((row) => row.role === "user");
               const showSteps = busy && item.role === "user" && index === latestUser;
-              const drafting = messages.slice(index + 1).some((row) => row.pending);
+              const lastAssistant = messages.findLast((row) => row.role === "assistant");
+              const waitingOnTools =
+                Boolean(lastAssistant?.pending) && !String(lastAssistant?.content || "").trim();
               const steps = toolsUsed.length ? toolsUsed : ["prepare"];
               return (
                 <div key={`${item.role}-${index}`}>
@@ -463,8 +490,27 @@ export default function PlaygroundPage() {
                         item.role === "assistant" && pinned && presentReply(item.content) === pinned ? " pinned" : ""
                       }`}
                     >
-                      {item.role === "assistant" ? renderReply(presentReply(item.content)) : item.content}
-                      {item.pending ? <span className="caret" /> : null}
+                      {item.role === "assistant" && item.pending && !String(item.content || "").trim() ? (
+                        <span className="thinking" aria-label="Menyusun jawaban">
+                          <span />
+                          <span />
+                          <span />
+                        </span>
+                      ) : item.role === "assistant" ? (
+                        <>
+                          {item.action?.kind === "sales_order_draft"
+                            ? null
+                            : presentReply(item.content)
+                              ? renderReply(presentReply(item.content))
+                              : null}
+                          {item.action?.kind === "sales_order_draft" ? (
+                            <SalesOrderDraft action={item.action} disabled={busy} />
+                          ) : null}
+                        </>
+                      ) : (
+                        item.content
+                      )}
+                      {item.pending && String(item.content || "").trim() ? <span className="caret" /> : null}
                     </div>
                     {item.role === "assistant" && !item.pending ? (
                       <button
@@ -492,7 +538,7 @@ export default function PlaygroundPage() {
                   {showSteps && (
                     <div className="tool-log" aria-live="polite">
                       {steps.map((name, step) => {
-                        const active = step === steps.length - 1 && !drafting;
+                        const active = step === steps.length - 1 && waitingOnTools;
                         const label = name === "prepare" ? "Menyusun jawaban" : TOOL_LABEL[name] || name;
                         return (
                           <div key={`${name}-${step}`} className={`tool-step${active ? " live" : " done"}`}>
@@ -569,7 +615,16 @@ export default function PlaygroundPage() {
                 </button>
               ) : (
                 <button className="send" type="submit" disabled={!input.trim()} aria-label="Kirim">
-                  ↑
+                  <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+                    <path
+                      d="M8 12.8V3.2M4 7.1 8 3.2l4 3.9"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.7"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
                 </button>
               )}
             </div>

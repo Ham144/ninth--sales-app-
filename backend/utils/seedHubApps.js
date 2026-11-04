@@ -126,18 +126,78 @@ export const APP_ADVISOR_METADATA = {
     updateAliases: ["project library", "csi hub"],
   },
   "midcsi-so": {
-    capabilities: ["data produk", "data customer", "mencari status sales order yang sudah ada", "layanan SOAP", "otomasi internal"],
-    useCases: ["mencari order yang sudah tersimpan dan status NAV"],
+    capabilities: [
+      "data produk",
+      "data customer",
+      "mencari status sales order yang sudah ada",
+      "layanan SOAP",
+      "otomasi internal",
+      "menulis how to use",
+      "menulis docs teknikal",
+      "menambahkan dokumentasi project",
+    ],
+    useCases: [
+      "mencari order yang sudah tersimpan dan status NAV",
+      "menambahkan dokumentasi project di Hub ini",
+    ],
     audiences: ["staf", "IT", "telesales"],
-    keywords: ["midcsi", "produk", "customer", "status order", "soap", "backend"],
-    limitations: ["bukan tempat membuat sales order; SO baru dibuat di s-bit"],
+    keywords: [
+      "midcsi",
+      "produk",
+      "customer",
+      "status order",
+      "soap",
+      "backend",
+      "dokumentasi",
+      "dokumentasi project",
+      "how to use",
+      "docs teknikal",
+      "tambah dokumentasi",
+    ],
+    deepLinks: [
+      { label: "Dokumentasi", url: "/docs" },
+    ],
+    limitations: [
+      "bukan tempat membuat sales order; SO baru dibuat di s-bit",
+      "Hanya IT yang menyimpan dokumentasi. Update fitur bukan editor dokumentasi.",
+    ],
   },
   midcsi: {
-    capabilities: ["data produk", "data customer", "mencari status sales order yang sudah ada", "layanan SOAP", "otomasi internal"],
-    useCases: ["mencari order yang sudah tersimpan dan status NAV"],
+    capabilities: [
+      "data produk",
+      "data customer",
+      "mencari status sales order yang sudah ada",
+      "layanan SOAP",
+      "otomasi internal",
+      "menulis how to use",
+      "menulis docs teknikal",
+      "menambahkan dokumentasi project",
+    ],
+    useCases: [
+      "mencari order yang sudah tersimpan dan status NAV",
+      "menambahkan dokumentasi project di Hub ini",
+    ],
     audiences: ["staf", "IT", "telesales"],
-    keywords: ["midcsi", "produk", "customer", "status order", "soap", "backend"],
-    limitations: ["bukan tempat membuat sales order; SO baru dibuat di s-bit"],
+    keywords: [
+      "midcsi",
+      "produk",
+      "customer",
+      "status order",
+      "soap",
+      "backend",
+      "dokumentasi",
+      "dokumentasi project",
+      "how to use",
+      "docs teknikal",
+      "tambah dokumentasi",
+    ],
+    deepLinks: [
+      { label: "Dokumentasi", url: "/docs" },
+    ],
+    limitations: [
+      "bukan tempat membuat sales order; SO baru dibuat di s-bit",
+      "Hanya IT yang menyimpan dokumentasi. Update fitur bukan editor dokumentasi.",
+    ],
   },
 };
 
@@ -168,6 +228,10 @@ export async function seedHubAppsIfEmpty() {
       })),
     );
     if (operations.length) await HubApp.bulkWrite(operations, { ordered: false });
+    for (const id of ["csi-hub", "midcsi-so", "midcsi"]) {
+      if (!APP_ADVISOR_METADATA[id]) continue;
+      await HubApp.updateOne({ id }, { $set: APP_ADVISOR_METADATA[id] });
+    }
     return { seeded: false, enriched: true, count };
   }
 

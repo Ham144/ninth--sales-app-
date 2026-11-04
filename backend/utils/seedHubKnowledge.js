@@ -84,6 +84,17 @@ const INTERNAL_GUIDES = [
     tags: ["sales order", "NAV", "resi", "status", "DocumentNo", "return_value"],
   },
   {
+    slug: "internal-tambah-dokumentasi-hub",
+    title: "Cara menambah dokumentasi project di Hub",
+    appId: "midcsi-so",
+    appTitle: "MIDCSI",
+    summary:
+      "Dokumentasi project ditulis di CSI System Hub yang sedang dibuka, menu Dokumentasi (/docs). Bukan di daftar Update fitur.",
+    content:
+      "Percakapan agent ini berjalan di MIDCSI (WEB APP SAAT INI), yaitu CSI System Hub. Tempat menambah dokumentasi project adalah aplikasi ini sendiri. Buka menu Dokumentasi di /docs. How to use dan teknikal memakai penyimpanan dan RAG yang sama; bedanya hanya peran untuk AI (prosedur singkat vs catatan panjang). Pilih aplikasi terkait (appId) agar dokumentasi tertaut ke kartu aplikasi — jangan andalkan tebakan AI untuk membedakan aplikasi yang mirip (misalnya POS vs Super POS). IT menjatuhkan PDF/CSV/TXT/DOC atau menempel teks (gambar ikut jika menempel dari Word/Docs), mengatur visibility, lalu simpan. Daftar Update fitur hanya changelog tugas, bukan editor dokumentasi. Kartu katalog Hub ini ber-id midcsi-so.",
+    tags: ["dokumentasi", "dokumentasi project", "how to use", "docs teknikal", "hub", "pdf"],
+  },
+  {
     slug: "internal-pilih-aplikasi",
     title: "Cara memilih aplikasi internal",
     appId: "csi-hub",
@@ -174,6 +185,21 @@ export async function seedHubKnowledgeIfEmpty() {
   }));
   if (guideOperations.length) {
     await HubKnowledgeDoc.bulkWrite(guideOperations, { ordered: false });
+  }
+  const selfGuide = INTERNAL_GUIDES.find((guide) => guide.slug === "internal-tambah-dokumentasi-hub");
+  if (selfGuide) {
+    await HubKnowledgeDoc.updateOne(
+      { slug: selfGuide.slug },
+      {
+        $set: {
+          ...selfGuide,
+          docType: "howto",
+          visibility: "internal",
+          source: "system-hub",
+        },
+      },
+      { upsert: true },
+    );
   }
 }
 

@@ -235,14 +235,14 @@ function pageMarkdown(lines, images) {
   return parts.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-function usableTitle(value) {
+export function usableTitle(value) {
   const title = String(value || "").replace(/\s+/g, " ").trim();
   if (!title) return "";
   if (/^(untitled|microsoft word|document|pdf|untitled document)$/i.test(title)) return "";
   return title.slice(0, 140);
 }
 
-function titleFromFileName(fileName) {
+export function titleFromFileName(fileName) {
   const base = path.basename(String(fileName || "panduan.pdf"), path.extname(fileName || ""))
     .replace(/[_-]+/g, " ")
     .replace(/\s+/g, " ")
@@ -250,7 +250,7 @@ function titleFromFileName(fileName) {
   return usableTitle(base) || "Panduan";
 }
 
-function summaryFrom(text, title) {
+export function summaryFrom(text, title) {
   const line = text
     .split("\n")
     .map((row) => row.replace(/^#+\s*/, "").trim())

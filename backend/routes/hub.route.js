@@ -6,6 +6,7 @@ import { seedHubKnowledgeIfEmpty } from "../utils/seedHubKnowledge.js";
 import { seedHubAppsIfEmpty } from "../utils/seedHubApps.js";
 import {
   indexFields,
+  removeKnowledgeVectors,
   retrieveKnowledge,
   scheduleKnowledgeReindex,
   withoutEmbeddings,
@@ -13,7 +14,7 @@ import {
 import multer from "multer";
 import authenticate from "../middlewares/authenticate.js";
 import requireIT from "../middlewares/requireIT.js";
-import { pdfToDraft } from "../utils/pdfDraft.js";
+import { DocumentDraftError, fileToDraft } from "../utils/documentDraft.js";
 
 const router = Router();
 
@@ -27,10 +28,31 @@ const ensureSeed = async () => {
 
 const writeGate = [authenticate, requireIT];
 
-const pdfUpload = multer({
+const fileUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 25 * 1024 * 1024, files: 1 },
 });
+
+const importDocument = (req, res) => {
+  fileUpload.single("file")(req, res, async (err) => {
+    if (err) {
+      const message =
+        err.code === "LIMIT_FILE_SIZE" ? "Berkas lebih dari 25 MB" : err.message || "Upload gagal";
+      return res.status(400).json({ message });
+    }
+    const file = req.file;
+    if (!file) return res.status(400).json({ message: "Berkas wajib" });
+    const name = file.originalname || "dokumen.txt";
+    try {
+      const draft = await fileToDraft(file.buffer, { fileName: name, mime: file.mimetype });
+      return res.json({ message: "draft", data: draft });
+    } catch (error) {
+      const status =
+        error instanceof DocumentDraftError ? error.status || 400 : error.status || 500;
+      return res.status(status).json({ message: error.message });
+    }
+  });
+};
 
 const slugify = (value) =>
   String(value || "")
@@ -257,26 +279,8 @@ router.get("/docs/:slug", async (req, res) => {
   }
 });
 
-router.post("/docs/import-pdf", ...writeGate, (req, res) => {
-  pdfUpload.single("file")(req, res, async (err) => {
-    if (err) {
-      const message =
-        err.code === "LIMIT_FILE_SIZE" ? "PDF lebih dari 25 MB" : err.message || "Upload gagal";
-      return res.status(400).json({ message });
-    }
-    const file = req.file;
-    if (!file) return res.status(400).json({ message: "PDF wajib" });
-    const name = file.originalname || "panduan.pdf";
-    const isPdf = file.mimetype === "application/pdf" || name.toLowerCase().endsWith(".pdf");
-    if (!isPdf) return res.status(400).json({ message: "Hanya file PDF" });
-    try {
-      const draft = await pdfToDraft(file.buffer, { fileName: name });
-      return res.json({ message: "draft", data: draft });
-    } catch (error) {
-      return res.status(error.status || 500).json({ message: error.message });
-    }
-  });
-});
+router.post("/docs/import", ...writeGate, importDocument);
+router.post("/docs/import-pdf", ...writeGate, importDocument);
 
 router.post("/docs", ...writeGate, async (req, res) => {
   try {
@@ -328,6 +332,7 @@ router.delete("/docs/:id", ...writeGate, async (req, res) => {
   try {
     const deleted = await HubKnowledgeDoc.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: "not found" });
+    await removeKnowledgeVectors(deleted.slug);
     return res.json({ message: "deleted" });
   } catch (error) {
     return res.status(500).json({ message: error.message });
@@ -343,7 +348,7 @@ router.get("/rag/search", async (req, res) => {
     const visibility = String(req.query.visibility || "");
     const result = await retrieveKnowledge({
       q,
-      limit,
+      top_k: limit,
       visibility: visibility === "public" || visibility === "internal" ? visibility : undefined,
     });
     return res.json({

@@ -28,12 +28,17 @@ export default {
         configure: (proxy) => {
           proxy.on("proxyRes", (proxyRes) => {
             const cookies = proxyRes.headers["set-cookie"];
-            if (!cookies) return;
-            proxyRes.headers["set-cookie"] = cookies.map((cookie) =>
-              cookie
-                .replace(/;\s*Secure/gi, "")
-                .replace(/;\s*Domain=[^;]+/gi, ""),
-            );
+            if (cookies) {
+              proxyRes.headers["set-cookie"] = cookies.map((cookie) =>
+                cookie
+                  .replace(/;\s*Secure/gi, "")
+                  .replace(/;\s*Domain=[^;]+/gi, ""),
+              );
+            }
+            if (String(proxyRes.headers["content-type"] || "").includes("text/event-stream")) {
+              proxyRes.headers["cache-control"] = "no-cache, no-transform";
+              proxyRes.headers["x-accel-buffering"] = "no";
+            }
           });
         },
       },

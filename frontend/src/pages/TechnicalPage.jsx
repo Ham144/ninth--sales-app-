@@ -1,12 +1,9 @@
-import BlogDocsPage from "../components/BlogDocsPage";
+import { useEffect } from "react";
+import { navigate } from "../lib/router.jsx";
 
 export default function TechnicalPage() {
-  return (
-    <BlogDocsPage
-      docType="technical"
-      heading="Dokumentasi teknikal"
-      description="Catatan teknis. Jatuhkan PDF untuk membuat draf, periksa aplikasi dan visibility, lalu simpan."
-      showRag
-    />
-  );
+  useEffect(() => {
+    navigate("/docs?ai=technical");
+  }, []);
+  return null;
 }

@@ -26,6 +26,26 @@ const navErrorToJson = (result) =>
     },
   );
 
+async function loadCustomer(input) {
+  const no = String(
+    input && typeof input === "object" ? input.No ?? input.no ?? "" : input ?? "",
+  ).trim();
+  const name = String(
+    input && typeof input === "object" ? input.Name ?? input.name ?? "" : "",
+  ).trim();
+  if (no) {
+    const byNo = await Customer.findOne({ No: no });
+    if (byNo) return byNo;
+  }
+  if (name) {
+    const byName = await Customer.findOne({
+      Name: { $regex: `^${escapeRegex(name)}$`, $options: "i" },
+    });
+    if (byName) return byName;
+  }
+  return null;
+}
+
 //hanya butuh req.user._id requestor
 export const requestSalesOrder = async ({
   DocumentNo,
@@ -186,12 +206,18 @@ router.post("/new", async (req, res) => {
 
     const vendor = userInfo?.description?.split("_")[1];
 
-    //kondisi menerima customer boleh hanya No atau objek lengkap
-    let customer;
-    if (customerObj?.No && customerObj?.Name) {
-      customer = customerObj;
-    } else {
-      customer = await Customer.findOne({ No: customerObj });
+    const customer = await loadCustomer(customerObj);
+    if (!customer) {
+      return res.status(400).json({
+        error: true,
+        message: "Customer tidak ditemukan",
+      });
+    }
+    if (!customer.Customer_Price_Group) {
+      return res.status(400).json({
+        error: true,
+        message: "Customer tidak memiliki Customer_Price_Group",
+      });
     }
 
     // Periksa dan lengkapi data product dari DB jika tidak lengkap
@@ -212,22 +238,26 @@ router.post("/new", async (req, res) => {
           );
         }
 
-        // Tentukan harga berdasarkan Customer_Price_Group
         const targetKey = customer.Customer_Price_Group?.toUpperCase();
         if (!targetKey) {
           throw new Error(`Customer tidak memiliki Customer_Price_Group`);
         }
 
-        // Normalize keys jadi uppercase
-        const normalizedProduct = Object.entries(product.toObject()).reduce(
-          (acc, [key, value]) => {
-            acc[key.toUpperCase()] = value;
-            return acc;
-          },
-          {},
+        const raw = product.toObject();
+        const upper = Object.fromEntries(
+          Object.entries(raw).map(([key, value]) => [key.toUpperCase(), value]),
         );
-
-        const matchedPrice = normalizedProduct[targetKey];
+        const groupFields = {
+          MP: ["MP_PRICE", "MP"],
+          OS: ["OS_PRICE", "OS"],
+          JD: ["JD_PRICE", "JD"],
+          LK: ["LK"],
+          RETAIL: ["RETAIL"],
+          DEALER: ["DEALER"],
+          WEB: ["WEB"],
+        };
+        const keys = groupFields[targetKey] || [targetKey, `${targetKey}_PRICE`];
+        const matchedPrice = keys.map((key) => upper[key]).find((value) => value != null && Number(value) !== 0);
 
         // Validasi harga
         if (matchedPrice == null || Number(matchedPrice) === 0) {
@@ -370,12 +400,10 @@ router.post("/new", async (req, res) => {
 
     return res.status(200).json(generatedSalesOrder);
   } catch (error) {
+    const message = error?.message || String(error);
     return res.status(500).json({
       error: true,
-      message: navErrorToJson({
-        error: true,
-        message: error?.message || String(error),
-      }),
+      message,
     });
   }
 });

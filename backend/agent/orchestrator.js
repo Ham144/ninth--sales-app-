@@ -1,7 +1,7 @@
 import { BUDGET_MESSAGE, expandEmptyToolReply, presentReply, systemPromptFor } from "./guardrails.js";
 import { completeChat, normalizeModelMode, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
 import { windowMessages } from "./memory.js";
-import { activeTools, executeTool, parseArgs, salesOrderLookup, wrapToolResult } from "./tools.js";
+import { actionFromSession, activeTools, executeTool, parseArgs, salesOrderLookup, wrapToolResult } from "./tools.js";
 
 function chunkText(text, size = 48) {
   const chunks = [];
@@ -69,6 +69,15 @@ export async function runTurn({
   let tokensUsed = 0;
   const toolCallsUsed = [];
   let reply = "";
+  let streamedTokens = false;
+  const emitToken = onEvent
+    ? (text) => {
+        const piece = String(text || "");
+        if (!piece) return;
+        streamedTokens = true;
+        onEvent({ type: "token", text: piece });
+      }
+    : undefined;
   const orderLookup = salesOrderLookup(text);
   const orderTool = orderLookup && tools.find((tool) => tool.name === "sales_orders");
   if (orderTool) {
@@ -122,6 +131,7 @@ export async function runTurn({
         messages,
         tools: openAiTools(tools),
         fetchImpl,
+        onToken: emitToken,
       });
     } catch (error) {
       if (!llm.fallbackModel || error.status === 409 || error.status === 503) throw error;
@@ -131,6 +141,7 @@ export async function runTurn({
         messages,
         tools: openAiTools(tools),
         fetchImpl,
+        onToken: emitToken,
       });
     }
 
@@ -147,7 +158,9 @@ export async function runTurn({
         content: reply,
         createdAt: new Date().toISOString(),
       });
-      for (const piece of chunkText(reply)) onEvent?.({ type: "token", text: piece });
+      if (!streamedTokens) {
+        for (const piece of chunkText(reply)) emitToken?.(piece);
+      }
       break;
     }
 
@@ -203,11 +216,23 @@ export async function runTurn({
     });
   }
 
+  const action = actionFromSession(session.messages);
+  const last = session.messages[session.messages.length - 1];
+  const proposedThisTurn = toolCallsUsed.some((call) => call.name === "propose_sales_order");
+  if (action && last?.role === "assistant") {
+    last.action = action;
+    if (proposedThisTurn) {
+      reply = "Draf sales order ada di kartu. Periksa lalu tekan Kirim. Belum terkirim ke NAV.";
+      last.content = reply;
+    }
+  }
+
   if (publicVisitor && limiter) await limiter.addSpent(tenant.slug || tenant._id, tokensUsed);
   return {
     reply,
     toolCallsUsed,
     tokensUsed,
+    action,
     handoffRequested: Boolean(session.handoffRequested),
     budgetExceeded: false,
   };

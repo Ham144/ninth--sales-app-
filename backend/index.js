@@ -2,6 +2,8 @@ import express from "express";
 import "dotenv/config";
 import fs from "fs";
 import { connectDB } from "./utils/connectDB.js";
+import { seedHubKnowledgeIfEmpty } from "./utils/seedHubKnowledge.js";
+import { scheduleKnowledgeReindex } from "./utils/knowledgeIndex.js";
 import cors from "cors";
 import auhtRoutes from "./routes/auth.route.js";
 import authenticate from "./middlewares/authenticate.js";
@@ -65,7 +67,11 @@ app.use(
 app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
 
 //database
-connectDB();
+connectDB().then(() =>
+  seedHubKnowledgeIfEmpty()
+    .then(() => scheduleKnowledgeReindex())
+    .catch((error) => console.warn("[rag] seed/index gagal:", error.message)),
+);
 
 //routes reusable (jangan dihapus)
 app.use("/api/auth", auhtRoutes);

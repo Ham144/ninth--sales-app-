@@ -3,9 +3,8 @@ import BlogDocsPage from "../components/BlogDocsPage";
 export default function DocsPage() {
   return (
     <BlogDocsPage
-      docType="howto"
-      heading="How to use"
-      description="Panduan pemakaian. Jatuhkan PDF untuk membuat draf, periksa aplikasi dan visibility, lalu simpan."
+      heading="Dokumentasi"
+      description="Satu korpus RAG. Jatuhkan PDF, CSV, TXT, DOC, atau tempel teks. Tandai aplikasi dan peran untuk AI (how to use atau teknikal), lalu simpan."
       showRag
     />
   );

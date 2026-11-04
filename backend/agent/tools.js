@@ -22,7 +22,18 @@ import {
   toPublicProduct,
 } from "../utils/publicCatalog.js";
 import { applyAllowlist } from "./allowlist.js";
-import { retrieveKnowledge } from "../utils/knowledgeIndex.js";
+import {
+  PRODUCT_FILTER_FIELDS,
+  PRODUCT_SORT_FIELDS,
+  productTextQuery,
+  runProductQuery,
+} from "./productQuery.js";
+import {
+  CUSTOMER_FILTER_FIELDS,
+  CUSTOMER_SORT_FIELDS,
+  runCustomerQuery,
+} from "./customerQuery.js";
+import { retrieveKnowledge, TOP_K } from "../utils/knowledgeIndex.js";
 
 const PRODUCT_FIELDS = [
   "No",
@@ -70,6 +81,10 @@ const CUSTOMER_FIELDS = [
   "Credit_Limit_LCY",
   "Blocked",
   "Location_Code",
+  "total",
+  "returned",
+  "scope",
+  "note",
   "observedAt",
   "error",
   "message",
@@ -197,7 +212,7 @@ export const MIDCSI_TOOLS = [
   {
     name: "search_products",
     description:
-      "Cari produk untuk staf internal, termasuk harga Web. searchKey untuk nama atau nomor. Untuk harga Web tertinggi di seluruh katalog, isi sort web_desc dan kosongkan searchKey. scope search bukan seluruh katalog.",
+      "Satu mesin query produk (bukan Mongo mentah). searchKey = nama/nomor/barcode, bukan kalimat pertanyaan. no = lookup SKU. sortBy Web atau kode lokasi (PLUIT, MNG2) plus sortDir. filters allowlist. view stock untuk stok per gudang. scope search bukan seluruh katalog.",
     kind: "internal",
     internal: "search_products",
     tier: "anonymous",
@@ -206,9 +221,28 @@ export const MIDCSI_TOOLS = [
     parameters: {
       type: "object",
       properties: {
-        searchKey: { type: "string", description: "Nama atau nomor. Kosongkan bila sort web_desc untuk seluruh katalog." },
+        searchKey: {
+          type: "string",
+          description: "Nama, nomor, atau barcode. Kosongkan untuk ranking katalog.",
+        },
+        no: { type: "string", description: "Nomor item persis. Mengabaikan searchKey." },
         organization: { type: "string", enum: ["csi", "ril"] },
-        sort: { type: "string", enum: ["web_desc"] },
+        sortBy: { type: "string", enum: PRODUCT_SORT_FIELDS },
+        sortDir: { type: "string", enum: ["asc", "desc"] },
+        view: { type: "string", enum: ["list", "stock"] },
+        filters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string", enum: PRODUCT_FILTER_FIELDS },
+              op: { type: "string", enum: ["eq", "contains", "gt", "gte", "lt", "lte"] },
+              value: { type: "string" },
+            },
+            required: ["field", "op", "value"],
+          },
+        },
+        sort: { type: "string", enum: ["web_desc", "web_asc"] },
         limit: { type: "number", description: "1 sampai 8" },
       },
     },
@@ -216,7 +250,8 @@ export const MIDCSI_TOOLS = [
   },
   {
     name: "product_detail",
-    description: "Detail satu produk untuk staf internal, termasuk harga Web.",
+    description:
+      "Alias search_products untuk satu SKU (no). Mesin yang sama dengan productQuery. Lebih ketat daripada searchKey.",
     kind: "internal",
     internal: "product_detail",
     tier: "anonymous",
@@ -235,7 +270,7 @@ export const MIDCSI_TOOLS = [
   {
     name: "stock_by_location",
     description:
-      "Stok per lokasi untuk staf internal, plus harga Web. Sebutkan angkanya. MNG2 adalah Mangga Dua. Bukan untuk pengunjung e-commerce.",
+      "Bentuk stok per lokasi dari mesin productQuery. Wajib nomor item. MNG2 adalah Mangga Dua. Ranking stok antar-produk memakai search_products sortBy kode lokasi.",
     kind: "internal",
     internal: "stock_by_location",
     tier: "anonymous",
@@ -253,7 +288,8 @@ export const MIDCSI_TOOLS = [
   },
   {
     name: "customer_lookup",
-    description: "Cari customer B2B (toko) dari nomor atau nama.",
+    description:
+      "Query master customer toko (bukan Mongo mentah, bukan piutang). query = nomor/nama/kota. sortBy Balance atau Credit_Limit_LCY untuk ranking kartu. Piutang faktur memakai overdue_lookup.",
     kind: "internal",
     internal: "customer_lookup",
     tier: "anonymous",
@@ -261,8 +297,26 @@ export const MIDCSI_TOOLS = [
     cacheTtlSeconds: 60,
     parameters: {
       type: "object",
-      properties: { query: { type: "string", description: "Nomor atau nama toko" } },
-      required: ["query"],
+      properties: {
+        query: { type: "string", description: "Nomor, nama, atau kota. Kosongkan untuk ranking." },
+        no: { type: "string", description: "Nomor customer persis" },
+        city: { type: "string" },
+        sortBy: { type: "string", enum: CUSTOMER_SORT_FIELDS },
+        sortDir: { type: "string", enum: ["asc", "desc"] },
+        filters: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              field: { type: "string", enum: CUSTOMER_FILTER_FIELDS },
+              op: { type: "string", enum: ["eq", "contains", "gt", "gte", "lt", "lte"] },
+              value: { type: "string" },
+            },
+            required: ["field", "op", "value"],
+          },
+        },
+        limit: { type: "number", description: "1 sampai 8" },
+      },
     },
     responseAllowlist: CUSTOMER_FIELDS,
   },
@@ -314,6 +368,55 @@ export const MIDCSI_TOOLS = [
     responseAllowlist: ORDER_FIELDS,
   },
   {
+    name: "propose_sales_order",
+    description:
+      "Siapkan draf sales order di chat. Pakai jika staf minta buatkan SO, orderkan barang, atau isi form SO. Cari customer dan item di dalam tool ini. Jangan dipakai untuk pertanyaan di mana aplikasi membuat SO; itu hub_apps. Tool ini tidak mengirim order ke NAV.",
+    kind: "internal",
+    internal: "propose_sales_order",
+    tier: "anonymous",
+    enabled: true,
+    parameters: {
+      type: "object",
+      properties: {
+        customerNo: { type: "string", description: "Nomor toko jika sudah diketahui." },
+        customer: { type: "string", description: "Nama atau nomor toko." },
+        requestDeliveryDate: { type: "string", description: "Tanggal kirim YYYY-MM-DD." },
+        locationCode: { type: "string", description: "Nama lokasi. Kosongkan untuk lokasi default customer." },
+        keterangan: { type: "string", description: "Catatan staf." },
+        lines: {
+          type: "array",
+          description: "Baris barang.",
+          items: {
+            type: "object",
+            properties: {
+              no: { type: "string", description: "Nomor item." },
+              qty: { type: "number", description: "Jumlah, minimal 1." },
+            },
+            required: ["no", "qty"],
+          },
+        },
+      },
+      required: ["lines"],
+    },
+    responseAllowlist: [
+      "kind",
+      "ready",
+      "message",
+      "missing",
+      "candidates",
+      "customer",
+      "No",
+      "Name",
+      "Location_Code",
+      "products",
+      "qty",
+      "requestDeliveryDate",
+      "locationCode",
+      "keterangan",
+      "error",
+    ],
+  },
+  {
     name: "list_locations",
     description:
       "Nama lokasi yang tersimpan di sistem. Salin field name apa adanya. Jangan menyebut walk-in, toko, atau gudang.",
@@ -328,7 +431,7 @@ export const MIDCSI_TOOLS = [
   {
     name: "hub_apps",
     description:
-      "Rekomendasikan aplikasi internal dari katalog. Salin field title apa adanya dan jangan mengarang nama aplikasi. Gunakan untuk pertanyaan aplikasi mana yang dipakai, termasuk di mana membuat sales order (SO), link, fitur, atau update.",
+      "Rekomendasikan aplikasi internal dari katalog. Salin field title apa adanya. Satu pertanyaan bisa berisi beberapa kebutuhan (SO, petty cash, approval); kembalikan satu aplikasi per kebutuhan. Jangan dipakai untuk mengisi draf SO; itu propose_sales_order.",
     kind: "internal",
     internal: "hub_apps",
     tier: "anonymous",
@@ -378,7 +481,9 @@ export const MIDCSI_TOOLS = [
   },
   {
     name: "search_knowledge",
-    description: "Cari dokumen hub, termasuk catatan teknikal, untuk staf internal.",
+    top_k: TOP_K,
+    description:
+      "Cari cuplikan dokumentasi Hub (how to use dan teknikal satu indeks RAG). How to use: prosedur singkat. Teknikal: catatan panjang, beberapa cuplikan. Bukan untuk nomor produk atau invoice.",
     kind: "internal",
     internal: "search_knowledge",
     tier: "anonymous",
@@ -389,7 +494,19 @@ export const MIDCSI_TOOLS = [
       properties: { q: { type: "string" } },
       required: ["q"],
     },
-    responseAllowlist: ["data", "query", "observedAt", "slug", "title", "text", "visibility", "error"],
+    responseAllowlist: [
+      "data",
+      "query",
+      "mode",
+      "note",
+      "observedAt",
+      "slug",
+      "title",
+      "text",
+      "score",
+      "visibility",
+      "error",
+    ],
   },
 ];
 
@@ -408,44 +525,14 @@ function withWeb(doc) {
   return row;
 }
 
-export function productTextQuery(searchKey) {
-  const escaped = escapeRegex(searchKey);
-  if (searchKey.length === 2) return { No: { $regex: `^${escaped}$`, $options: "i" } };
-  const word = { $regex: `\\b${escaped}\\b`, $options: "i" };
-  return {
-    $or: [
-      { No: { $regex: escaped, $options: "i" } },
-      { Description: word },
-      { Description_2: word },
-    ],
-  };
-}
+export { productTextQuery };
 
-async function findProducts(args, select) {
-  const searchKey = String(args.searchKey || "").trim();
-  const sortWeb = args.sort === "web_desc";
-  const limit = Math.min(Math.max(Number(args.limit) || (sortWeb ? 5 : 8), 1), 8);
-  if (searchKey.length < 2 && !sortWeb) {
-    return { message: "searchKey minimal 2 karakter, atau sort web_desc" };
-  }
-  const catalog = catalogClause(args);
-  if (catalog?.invalid) return { error: "organization harus csi atau ril" };
-  const text = searchKey.length >= 2 ? productTextQuery(searchKey) : { Web: { $gt: 0 } };
-  const filter = catalog ? { $and: [catalog, text] } : text;
-  const total = await Product.countDocuments(filter);
-  let query = Product.find(filter).select(select);
-  if (sortWeb) query = query.sort({ Web: -1 });
-  const rows = await query.limit(limit).lean();
-  const scope = searchKey.length >= 2 ? "search" : "catalog";
-  return {
-    rows,
-    total,
-    scope,
-    note:
-      scope === "catalog"
-        ? "Peringkat harga Web seluruh katalog yang tersimpan."
-        : "Hanya produk yang teksnya cocok dengan searchKey. Bukan seluruh katalog.",
-  };
+async function findProducts(args, select, { allowCatalogQuery = true } = {}) {
+  return runProductQuery(Product, args, {
+    allowCatalogQuery,
+    organizationClause: catalogClause(args),
+    select,
+  });
 }
 
 const INTERNAL_PRODUCT_SELECT = [
@@ -683,8 +770,17 @@ function appScore(app, query, role) {
   return { score, matchReason: [...reasons] };
 }
 
-export function rankHubApps(apps, query, role = "", limit = 5) {
-  const cap = Math.min(Math.max(Number(limit) || 5, 1), 8);
+function advisorClauses(query) {
+  const text = String(query || "").trim();
+  if (!text) return [];
+  const parts = text
+    .split(/\s+(?:dan|serta|lalu|kemudian)\s+|[,;?]+\s*/i)
+    .map((part) => part.trim())
+    .filter((part) => advisorTokens(part).length);
+  return parts.length > 1 ? parts : [text];
+}
+
+function rankOneQuery(apps, query, role, cap) {
   const ranked = (apps || [])
     .map((app) => ({ app, ...appScore(app, query, role) }))
     .filter((entry) => entry.score > 0)
@@ -697,16 +793,55 @@ export function rankHubApps(apps, query, role = "", limit = 5) {
   return (close.length ? close : ranked.slice(0, 1)).slice(0, cap);
 }
 
+export function rankHubApps(apps, query, role = "", limit = 5) {
+  const cap = Math.min(Math.max(Number(limit) || 5, 1), 8);
+  const clauses = advisorClauses(query);
+  if (clauses.length <= 1) return rankOneQuery(apps, query, role, cap);
+  const merged = new Map();
+  for (const clause of clauses) {
+    const top = rankOneQuery(apps, clause, role, 2);
+    for (const entry of top) {
+      const id = entry.app.id;
+      const prev = merged.get(id);
+      if (!prev || entry.score > prev.score) merged.set(id, entry);
+    }
+  }
+  return [...merged.values()]
+    .sort((a, b) => b.score - a.score || (a.app.sortOrder || 0) - (b.app.sortOrder || 0))
+    .slice(0, cap);
+}
+
 function updateKeysFor(app) {
   return [app.id, app.title, ...(app.updateAliases || [])].map(advisorText).filter(Boolean);
+}
+
+function knowledgePayload(result, q) {
+  const mode = result?.mode || "text";
+  return {
+    query: q,
+    mode,
+    observedAt: new Date().toISOString(),
+    data: (result?.data || []).map((doc) => ({
+      slug: doc.slug,
+      title: doc.title,
+      visibility: doc.visibility,
+      score: Number(Number(doc.score || 0).toFixed(4)),
+      text: String(doc.text || "").slice(0, 1200),
+    })),
+    note:
+      mode === "text"
+        ? "Pencarian kata. Embedding korpus belum tersedia."
+        : "Cuplikan panduan dari retrieval semantik.",
+  };
 }
 
 export const internalExecutors = {
   async search_products(args) {
     const found = await findProducts(args, INTERNAL_PRODUCT_SELECT);
     if (found.error || found.message) return found;
+    const stock = args.view === "stock" || found.view === "stock";
     return {
-      data: found.rows.map(withWeb),
+      data: stock ? found.rows.map(stockByLocation) : found.rows.map(withWeb),
       total: found.total,
       returned: found.rows.length,
       scope: found.scope,
@@ -717,7 +852,9 @@ export const internalExecutors = {
   },
 
   async search_products_public(args) {
-    const found = await findProducts(args, PUBLIC_PRODUCT_FIELDS.join(" "));
+    const found = await findProducts(args, PUBLIC_PRODUCT_FIELDS.join(" "), {
+      allowCatalogQuery: false,
+    });
     if (found.error || found.message) return found;
     return {
       data: found.rows.map(toPublicProduct),
@@ -731,57 +868,47 @@ export const internalExecutors = {
   },
 
   async product_detail(args) {
-    const catalog = catalogClause(args);
-    if (catalog?.invalid) return { error: "organization harus csi atau ril" };
-    const filter = catalog
-      ? { $and: [{ No: String(args.no || "") }, catalog] }
-      : { No: String(args.no || "") };
-    const rows = await Product.find(filter).select(INTERNAL_PRODUCT_SELECT).limit(4).lean();
-    if (!rows.length) return { message: "Produk tidak ditemukan", data: null };
+    const found = await findProducts({ ...args, no: args.no, limit: 4 }, INTERNAL_PRODUCT_SELECT);
+    if (found.error || found.message) return found;
+    if (!found.rows.length) return { message: "Produk tidak ditemukan", data: null };
     return {
-      data: rows.map(withWeb),
+      data: found.rows.map(withWeb),
       observedAt: new Date().toISOString(),
     };
   },
 
   async stock_by_location(args) {
-    const catalog = catalogClause(args);
-    if (catalog?.invalid) return { error: "organization harus csi atau ril" };
     const no = String(args.no || "").trim();
-    const exact = catalog ? { $and: [{ No: no }, catalog] } : { No: no };
-    let rows = await Product.find(exact).select(INTERNAL_PRODUCT_SELECT).limit(4).lean();
-    if (!rows.length) {
-      const code = no.match(/[A-Za-z]*\d[A-Za-z0-9-]*/)?.[0] || "";
-      if (code.length >= 3) {
-        const pattern = new RegExp(escapeRegex(code).replace(/-/g, "-?"), "i");
-        const loose = { $or: [{ No: pattern }, { Description: pattern }, { Description_2: pattern }] };
-        const filter = catalog ? { $and: [loose, catalog] } : loose;
-        rows = await Product.find(filter).select(INTERNAL_PRODUCT_SELECT).limit(4).lean();
-      }
+    let found = await findProducts({ ...args, no, limit: 4, view: "stock" }, INTERNAL_PRODUCT_SELECT);
+    if (found.error) return found;
+    if (!found.rows?.length && no.length >= 3) {
+      found = await findProducts(
+        { organization: args.organization, searchKey: no, limit: 4, view: "stock" },
+        INTERNAL_PRODUCT_SELECT,
+      );
     }
-    if (!rows.length) return { error: "Produk tidak ditemukan" };
+    if (found.error || found.message) return found;
+    if (!found.rows?.length) return { error: "Produk tidak ditemukan" };
     return {
-      data: rows.map(stockByLocation),
+      data: found.rows.map(stockByLocation),
       observedAt: new Date().toISOString(),
     };
   },
 
   async customer_lookup(args) {
-    const query = String(args.query || "").trim();
-    if (query.length < 2) return { error: "query minimal 2 karakter" };
-    const escaped = escapeRegex(query);
-    const rows = await Customer.find({
-      $or: [
-        { No: { $regex: escaped, $options: "i" } },
-        { Name: { $regex: escaped, $options: "i" } },
-      ],
-    })
-      .select(
+    const found = await runCustomerQuery(Customer, args, {
+      select:
         "No Name City Phone_No Customer_Price_Group Salesperson_Code Balance Balance_Due Credit_Limit_LCY Blocked Location_Code",
-      )
-      .limit(8)
-      .lean();
-    return { data: rows, observedAt: new Date().toISOString() };
+    });
+    if (found.error || found.message) return found;
+    return {
+      data: found.rows,
+      total: found.total,
+      returned: found.rows.length,
+      scope: found.scope,
+      note: found.note,
+      observedAt: new Date().toISOString(),
+    };
   },
 
   async overdue_lookup(args) {
@@ -976,39 +1103,107 @@ export const internalExecutors = {
   async search_knowledge(args) {
     const q = String(args.q || "").trim();
     if (q.length < 2) return { error: "q minimal 2 karakter" };
-    const result = await retrieveKnowledge({ q, limit: 5 });
-    return {
-      query: q,
-      observedAt: new Date().toISOString(),
-      data: result.data.map((doc) => ({
-        slug: doc.slug,
-        title: doc.title,
-        visibility: doc.visibility,
-        text: String(doc.text || "").slice(0, 900),
-      })),
-    };
+    return knowledgePayload(await retrieveKnowledge({ q, top_k: TOP_K }), q);
   },
 
   async search_public_knowledge(args) {
     const q = String(args.q || "").trim();
     if (q.length < 2) return { error: "q minimal 2 karakter" };
-    const result = await retrieveKnowledge({
+    return knowledgePayload(
+      await retrieveKnowledge({
+        q,
+        top_k: TOP_K,
+        visibility: publicKnowledgeFilter().visibility,
+      }),
       q,
-      limit: 5,
-      visibility: publicKnowledgeFilter().visibility,
-    });
-    return {
-      query: q,
-      observedAt: new Date().toISOString(),
-      data: result.data.map((doc) => ({
-        slug: doc.slug,
-        title: doc.title,
-        visibility: doc.visibility,
-        text: String(doc.text || "").slice(0, 900),
-      })),
-    };
+    );
+  },
+
+  async propose_sales_order(args) {
+    return proposeSalesOrderDraft(args);
   },
 };
+
+function tomorrowIso() {
+  const date = new Date();
+  date.setDate(date.getDate() + 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function productLabel(doc) {
+  return String(doc?.Description || doc?.Description_2 || doc?.No || "").trim();
+}
+
+async function proposeSalesOrderDraft(args) {
+  const missing = [];
+  const customerKey = String(args.customerNo || args.customer || "").trim();
+  if (customerKey.length < 2) missing.push("customer");
+  const rawLines = Array.isArray(args.lines) ? args.lines : [];
+  if (!rawLines.length) missing.push("lines");
+
+  let customer = null;
+  let candidates = [];
+  if (customerKey.length >= 2) {
+    const escaped = escapeRegex(customerKey);
+    const exact = await Customer.find({ No: { $regex: `^${escaped}$`, $options: "i" } })
+      .select("No Name Location_Code")
+      .limit(2)
+      .lean();
+    if (exact.length === 1) {
+      customer = exact[0];
+    } else {
+      candidates = await Customer.find({
+        $or: [{ No: { $regex: escaped, $options: "i" } }, { Name: { $regex: escaped, $options: "i" } }],
+      })
+        .select("No Name Location_Code")
+        .limit(8)
+        .lean();
+      if (candidates.length === 1) customer = candidates[0];
+      else if (!candidates.length) missing.push("customer");
+      else missing.push("customer");
+    }
+  }
+
+  const products = [];
+  for (const line of rawLines) {
+    const no = String(line?.no || line?.No || "").trim();
+    const qty = Math.max(1, Number(line?.qty) || 0);
+    if (!no || qty < 1) {
+      missing.push(no || "item");
+      continue;
+    }
+    const found = await Product.find({
+      $and: [{ No: no }, productOrganizationQuery("csi")],
+    })
+      .select("No Description Description_2")
+      .limit(1)
+      .lean();
+    if (!found.length) {
+      missing.push(no);
+      continue;
+    }
+    products.push({ No: found[0].No, Name: productLabel(found[0]), qty });
+  }
+
+  const requestDeliveryDate = String(args.requestDeliveryDate || "").trim() || tomorrowIso();
+  const locationCode = String(args.locationCode || customer?.Location_Code || "").trim();
+  const keterangan = String(args.keterangan || "").trim();
+  const ready = Boolean(customer && products.length && !missing.length);
+  return {
+    kind: "sales_order_draft",
+    ready,
+    message: ready
+      ? "Draf siap. Staf menekan Kirim di kartu. Belum terkirim ke NAV."
+      : "Draf belum lengkap. Jangan bilang order sudah dibuat.",
+    missing: [...new Set(missing)],
+    candidates: customer ? [] : candidates.map((row) => ({ No: row.No, Name: row.Name })),
+    customer: customer ? { No: customer.No, Name: customer.Name, Location_Code: customer.Location_Code } : null,
+    products,
+    requestDeliveryDate,
+    locationCode,
+    keterangan,
+  };
+}
 
 export function parseArgs(raw) {
   if (!raw) return {};
@@ -1146,4 +1341,27 @@ export function wrapToolResult(name, payload) {
     "Jangan menyalin jam atau stempel waktu ke jawaban.",
     JSON.stringify(body).slice(0, 8000),
   ].join("\n");
+}
+
+export function actionFromSession(messages) {
+  const list = Array.isArray(messages) ? messages : [];
+  let start = -1;
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    if (list[i]?.role === "user") {
+      start = i;
+      break;
+    }
+  }
+  for (let i = list.length - 1; i > start; i -= 1) {
+    const msg = list[i];
+    if (msg?.role !== "tool" || msg.toolName !== "propose_sales_order") continue;
+    const raw = String(msg.content || "").split("\n").pop();
+    try {
+      const payload = JSON.parse(raw);
+      if (payload?.kind === "sales_order_draft" && payload.ready) return payload;
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }

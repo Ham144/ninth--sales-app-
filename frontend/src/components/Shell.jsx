@@ -7,8 +7,7 @@ import { useChatStore } from "../store/chatStore";
 const EXTRAS = [
   { to: "/apps", label: "Aplikasi" },
   { to: "/updates", label: "Update fitur" },
-  { to: "/docs", label: "How to use" },
-  { to: "/technical", label: "Docs teknikal" },
+  { to: "/docs", label: "Dokumentasi" },
   { to: "/agent/config", label: "Pengaturan agent" },
   { to: "/keys", label: "x-api-key" },
   { to: "/config", label: "Konfigurasi SOAP" },

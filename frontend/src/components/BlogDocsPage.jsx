@@ -2,13 +2,75 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { hubApi } from "../api/hubApi";
 import { uploadImage } from "../api/uploadApi";
 import { formatDocDate, renderBlogContent } from "../lib/renderBlogContent.jsx";
+import {
+  clipboardHasImages,
+  clipboardToMarkdown,
+  filesToImageMarkdown,
+} from "../lib/pasteRich.js";
 import { isIT } from "../lib/isIT";
 import { navigate, useRoute } from "../lib/router.jsx";
 import { useAuthStore } from "../store/authStore";
 
 const TAG_OTHERS = "others";
+const IMPORT_ACCEPT =
+  ".pdf,.csv,.txt,.text,.doc,.docx,application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-const emptyDraft = () => ({
+function isImportFile(file) {
+  const name = String(file?.name || "").toLowerCase();
+  return (
+    name.endsWith(".pdf") ||
+    name.endsWith(".csv") ||
+    name.endsWith(".txt") ||
+    name.endsWith(".text") ||
+    name.endsWith(".doc") ||
+    name.endsWith(".docx")
+  );
+}
+
+function isImageFile(file) {
+  return (
+    String(file?.type || "").startsWith("image/") ||
+    /\.(png|jpe?g|gif|webp|bmp)$/i.test(file?.name || "")
+  );
+}
+
+function suggestAppFromText(apps, haystack) {
+  const hay = ` ${String(haystack || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")} `;
+  const hits = (apps || []).filter((app) => {
+    const id = String(app.id || "")
+      .toLowerCase()
+      .replace(/[_-]+/g, " ");
+    const title = String(app.title || "").toLowerCase();
+    if (id.length >= 4 && hay.includes(` ${id} `)) return true;
+    if (title.length >= 5 && hay.includes(title)) return true;
+    return false;
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function draftFromPastedText(text) {
+  const trimmed = String(text || "").replace(/\u0000/g, "").trim();
+  if (!trimmed) return null;
+  const first = trimmed
+    .split("\n")
+    .map((row) => row.replace(/^#+\s*/, "").trim())
+    .find(Boolean);
+  const title = (first || "Catatan tempel").slice(0, 140);
+  const line = trimmed
+    .split("\n")
+    .map((row) => row.replace(/^#+\s*/, "").trim())
+    .find((row) => row && row !== title);
+  const summary = !line
+    ? ""
+    : line.length <= 180
+      ? line
+      : `${line.slice(0, 180).trim()}…`;
+  return { title, summary, content: trimmed };
+}
+
+const emptyDraft = (docType = "howto") => ({
   title: "",
   summary: "",
   content: "",
@@ -17,11 +79,15 @@ const emptyDraft = () => ({
   appId: null,
   appTitle: null,
   appUrl: null,
-  visibility: "internal",
+  docType: docType === "technical" ? "technical" : "howto",
+  visibility: docType === "howto" ? "public" : "internal",
 });
 
+function aiRoleLabel(docType) {
+  return docType === "technical" ? "Teknikal" : "How to use";
+}
+
 export default function BlogDocsPage({
-  docType,
   heading,
   description,
   showRag = false,
@@ -37,6 +103,10 @@ export default function BlogDocsPage({
     () => new URLSearchParams(search).get("doc") || "",
     [search],
   );
+  const aiFromQuery = useMemo(() => {
+    const value = new URLSearchParams(search).get("ai");
+    return value === "technical" || value === "howto" ? value : "";
+  }, [search]);
 
   const [apps, setApps] = useState([]);
   const [docs, setDocs] = useState([]);
@@ -45,6 +115,7 @@ export default function BlogDocsPage({
   const [okMsg, setOkMsg] = useState("");
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState(appFromQuery || "all");
+  const [aiFilter, setAiFilter] = useState(aiFromQuery || "all");
   const [mode, setMode] = useState("list"); // list | view | edit
   const [activeId, setActiveId] = useState(null);
   const [draft, setDraft] = useState(emptyDraft);
@@ -52,14 +123,15 @@ export default function BlogDocsPage({
   const [uploading, setUploading] = useState(false);
   const [importing, setImporting] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const [fromPdf, setFromPdf] = useState(false);
+  const [fromImport, setFromImport] = useState(false);
+  const [pasteText, setPasteText] = useState("");
   const [ragQ, setRagQ] = useState("");
   const [ragHits, setRagHits] = useState([]);
   const contentRef = useRef(null);
   const coverInputRef = useRef(null);
   const inlineInputRef = useRef(null);
-  const pdfInputRef = useRef(null);
-  const defaultVisibility = docType === "howto" ? "public" : "internal";
+  const fileInputRef = useRef(null);
+  const defaultAiRole = aiFilter === "technical" ? "technical" : "howto";
 
   const tagLabel = (tag) => {
     if (tag === TAG_OTHERS) return "Others";
@@ -72,6 +144,10 @@ export default function BlogDocsPage({
   }, [appFromQuery]);
 
   useEffect(() => {
+    setAiFilter(aiFromQuery || "all");
+  }, [aiFromQuery]);
+
+  useEffect(() => {
     if (!docFromQuery) return;
     setActiveId(docFromQuery);
     setMode("view");
@@ -82,7 +158,7 @@ export default function BlogDocsPage({
     setError("");
     try {
       const [docsRes, appsRes] = await Promise.all([
-        hubApi.listDocs({ docType }),
+        hubApi.listDocs({}),
         hubApi.listApps(),
       ]);
       setDocs(docsRes?.data || []);
@@ -96,7 +172,7 @@ export default function BlogDocsPage({
 
   useEffect(() => {
     load();
-  }, [docType]);
+  }, []);
 
   const appIds = useMemo(() => new Set(apps.map((a) => a.id)), [apps]);
 
@@ -104,6 +180,9 @@ export default function BlogDocsPage({
     const term = q.trim().toLowerCase();
     return docs.filter((doc) => {
       const tags = doc.tags || [];
+      if (aiFilter === "howto" || aiFilter === "technical") {
+        if (doc.docType !== aiFilter) return false;
+      }
       if (tagFilter !== "all") {
         const matchTag =
           tags.includes(tagFilter) ||
@@ -118,7 +197,7 @@ export default function BlogDocsPage({
         .toLowerCase()
         .includes(term);
     });
-  }, [docs, q, tagFilter, appIds]);
+  }, [docs, q, tagFilter, aiFilter, appIds]);
 
   const active = docs.find((d) => d._id === activeId);
 
@@ -155,20 +234,9 @@ export default function BlogDocsPage({
     };
   };
 
-  const openNew = () => {
-    if (!requireIT()) return;
-    setFromPdf(false);
-    setDraft({
-      ...emptyDraft(),
-      ...appPreset(),
-      visibility: defaultVisibility,
-    });
-    setActiveId(null);
-    setMode("edit");
-  };
-
   const openEdit = (doc) => {
     if (!requireIT()) return;
+    const docType = doc.docType === "technical" ? "technical" : "howto";
     setDraft({
       title: doc.title || "",
       summary: doc.summary || "",
@@ -178,12 +246,15 @@ export default function BlogDocsPage({
       appId: doc.appId || null,
       appTitle: doc.appTitle || null,
       appUrl: doc.appUrl || null,
+      docType,
       visibility:
         doc.visibility === "public" || doc.visibility === "internal"
           ? doc.visibility
-          : defaultVisibility,
+          : docType === "howto"
+            ? "public"
+            : "internal",
     });
-    setFromPdf(false);
+    setFromImport(false);
     setActiveId(doc._id);
     setMode("edit");
   };
@@ -246,37 +317,108 @@ export default function BlogDocsPage({
     }
   };
 
-  const importPdfFile = async (file, { extra = "" } = {}) => {
+  const openImportedDraft = (data, { extra = "", sourceLabel = "berkas" } = {}) => {
+    const preset = appPreset();
+    const suggested =
+      preset.appId
+        ? null
+        : suggestAppFromText(
+            apps,
+            `${data.fileName || ""} ${data.title || ""} ${data.summary || ""}`,
+          );
+    const appFields = suggested
+      ? {
+          tags: [suggested.id],
+          appId: suggested.id,
+          appTitle: suggested.title || null,
+          appUrl: suggested.url || null,
+        }
+      : preset;
+    setDraft({
+      ...emptyDraft(defaultAiRole),
+      ...appFields,
+      title: data.title || "",
+      summary: data.summary || "",
+      content: data.content || "",
+    });
+    setActiveId(null);
+    setFromImport(true);
+    setMode("edit");
+    const images = Number(data.imageCount) || 0;
+    const appNote = appFields.appId
+      ? suggested
+        ? ` Aplikasi terisi dari nama ${sourceLabel}; periksa apakah benar (POS vs Super POS tidak ditebak otomatis).`
+        : " Periksa aplikasi dan visibility, lalu simpan."
+      : " Tandai aplikasinya sebelum simpan. AI tidak cukup membedakan POS vs Super POS.";
+    setOkMsg(
+      `Draf siap${images ? ` dengan ${images} gambar` : ""}.${appNote}${extra}`,
+    );
+  };
+
+  const importDocumentFile = async (file, { extra = "" } = {}) => {
     if (!requireIT()) return;
     if (!file) return;
-    const name = file.name || "";
-    if (file.type && file.type !== "application/pdf" && !name.toLowerCase().endsWith(".pdf")) {
-      setError("Hanya file PDF");
+    if (!isImportFile(file)) {
+      setError("Format: PDF, CSV, TXT, TEXT, DOC, atau DOCX");
       return;
     }
     setImporting(true);
     setError("");
     setOkMsg("");
     try {
-      const res = await hubApi.importPdf(file);
-      const data = res?.data || {};
-      setDraft({
-        ...emptyDraft(),
-        ...appPreset(),
-        title: data.title || "",
-        summary: data.summary || "",
-        content: data.content || "",
-        visibility: defaultVisibility,
-      });
-      setActiveId(null);
-      setFromPdf(true);
-      setMode("edit");
-      const images = Number(data.imageCount) || 0;
-      setOkMsg(
-        `Draf siap${images ? ` dengan ${images} gambar` : ""}. Periksa aplikasi dan visibility, lalu simpan.${extra}`,
+      const res = await hubApi.importDocument(file);
+      openImportedDraft(
+        { ...(res?.data || {}), fileName: file.name },
+        { extra, sourceLabel: "berkas" },
       );
     } catch (err) {
-      setError(err.message || "PDF gagal dibaca");
+      setError(err.message || "Berkas gagal dibaca");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const applyPastedText = (raw, { imageCount = 0 } = {}) => {
+    if (!requireIT()) return;
+    const data = draftFromPastedText(raw);
+    if (!data) {
+      setError("Tempel teks dulu");
+      return;
+    }
+    setError("");
+    setPasteText("");
+    openImportedDraft({ ...data, imageCount }, { sourceLabel: "teks" });
+  };
+
+  const applyPastedClipboard = async (clipboardData) => {
+    if (!requireIT()) return;
+    setImporting(true);
+    setError("");
+    setOkMsg("");
+    try {
+      const { markdown, imageCount } = await clipboardToMarkdown(clipboardData, {
+        upload: uploadImage,
+      });
+      applyPastedText(markdown, { imageCount });
+    } catch (err) {
+      setError(err.message || "Tempel gagal dibaca");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const applyDroppedImages = async (files) => {
+    if (!requireIT()) return;
+    setImporting(true);
+    setError("");
+    setOkMsg("");
+    try {
+      const { markdown, imageCount } = await filesToImageMarkdown(files, {
+        upload: uploadImage,
+      });
+      applyPastedText(markdown, { imageCount });
+    } catch (err) {
+      setError(err.message || "Gambar gagal diunggah");
     } finally {
       setImporting(false);
     }
@@ -293,7 +435,7 @@ export default function BlogDocsPage({
     setError("");
     try {
       const body = {
-        docType,
+        docType: draft.docType === "technical" ? "technical" : "howto",
         title: draft.title.trim(),
         summary: draft.summary.trim(),
         content: draft.content,
@@ -348,20 +490,27 @@ export default function BlogDocsPage({
     }
   };
 
-  const basePath = docType === "howto" ? "/docs" : "/technical";
+  const docsHref = ({ app = tagFilter, ai = aiFilter } = {}) => {
+    const params = new URLSearchParams();
+    if (ai === "howto" || ai === "technical") params.set("ai", ai);
+    if (app && app !== "all") params.set("app", app);
+    const qs = params.toString();
+    return qs ? `/docs?${qs}` : "/docs";
+  };
 
   const clearAppFilter = () => {
     setTagFilter("all");
-    navigate(basePath);
+    navigate(docsHref({ app: "all" }));
   };
 
   const applyTagFilter = (id) => {
     setTagFilter(id);
-    navigate(
-      id === "all" || id === TAG_OTHERS
-        ? basePath
-        : `${basePath}?app=${encodeURIComponent(id)}`,
-    );
+    navigate(docsHref({ app: id }));
+  };
+
+  const applyAiFilter = (id) => {
+    setAiFilter(id);
+    navigate(docsHref({ ai: id }));
   };
 
   return (
@@ -371,17 +520,12 @@ export default function BlogDocsPage({
           <h1>{heading}</h1>
           <p>{description}</p>
         </div>
-        {mode === "list" && canEdit && (
-          <button className="btn" type="button" onClick={openNew}>
-            Tulis artikel
-          </button>
-        )}
         {mode !== "list" && (
           <button
             className="btn secondary"
             type="button"
             onClick={() => {
-              setFromPdf(false);
+              setFromImport(false);
               setMode("list");
             }}
           >
@@ -393,47 +537,10 @@ export default function BlogDocsPage({
       {error && <div className="alert error">{error}</div>}
       {okMsg && <div className="alert ok">{okMsg}</div>}
 
-      {showRag && mode === "list" && (
-        <section className="panel" style={{ marginBottom: "1rem" }}>
-          <form className="toolbar" onSubmit={runRag}>
-            <input
-              style={{ flex: 1 }}
-              value={ragQ}
-              onChange={(e) => setRagQ(e.target.value)}
-              placeholder="Uji retrieval RAG…"
-            />
-            <button className="btn" type="submit">
-              Cari knowledge
-            </button>
-          </form>
-          {ragHits.length > 0 && (
-            <div className="table-wrap" style={{ marginTop: "0.75rem" }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Cuplikan</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ragHits.map((hit) => (
-                    <tr key={hit.id}>
-                      <td>{hit.title}</td>
-                      <td>{hit.docType}</td>
-                      <td>{String(hit.text || "").slice(0, 160)}…</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-      )}
-
       {mode === "list" && canEdit && (
         <div
           className={`pdf-drop${dragOver ? " over" : ""}`}
+          tabIndex={0}
           onDragOver={(e) => {
             e.preventDefault();
             setDragOver(true);
@@ -443,39 +550,82 @@ export default function BlogDocsPage({
             e.preventDefault();
             setDragOver(false);
             const files = [...(e.dataTransfer.files || [])];
-            const pdf = files.find(
-              (file) => file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"),
-            );
-            if (!pdf) {
-              setError("Hanya file PDF");
+            const file = files.find(isImportFile);
+            if (file) {
+              importDocumentFile(file, {
+                extra: files.length > 1 ? " Satu berkas sekali jatuh." : "",
+              });
               return;
             }
-            importPdfFile(pdf, {
-              extra: files.length > 1 ? " Satu PDF sekali jatuh." : "",
-            });
+            const images = files.filter(isImageFile);
+            if (images.length) {
+              applyDroppedImages(images);
+              return;
+            }
+            setError("Format: PDF, CSV, TXT, TEXT, DOC, DOCX, atau gambar");
+          }}
+          onPaste={(e) => {
+            const files = [...(e.clipboardData?.files || [])];
+            const file = files.find(isImportFile);
+            if (file) {
+              e.preventDefault();
+              importDocumentFile(file);
+              return;
+            }
+            if (clipboardHasImages(e.clipboardData)) {
+              e.preventDefault();
+              applyPastedClipboard(e.clipboardData);
+              return;
+            }
+            const text = e.clipboardData?.getData("text") || "";
+            if (text.trim().length > 20) {
+              e.preventDefault();
+              applyPastedText(text);
+            }
           }}
         >
-          <strong>Jatuhkan PDF</strong>
-          <p>Satu berkas menjadi satu draf. Periksa aplikasi dan visibility, lalu simpan.</p>
+          <strong>Jatuhkan PDF, CSV, TXT, DOC, atau DOCX</strong>
+          <p>
+            Satu berkas menjadi satu draf. Tempel dari Word/Google Docs agar screenshot ikut
+            terunggah. Tandai aplikasinya di editor.
+          </p>
           <button
             className="btn secondary"
             type="button"
             disabled={importing}
-            onClick={() => pdfInputRef.current?.click()}
+            onClick={() => fileInputRef.current?.click()}
           >
-            {importing ? "Membaca PDF…" : "Pilih PDF"}
+            {importing ? "Membaca berkas…" : "Pilih berkas"}
           </button>
           <input
-            ref={pdfInputRef}
+            ref={fileInputRef}
             type="file"
-            accept="application/pdf,.pdf"
+            accept={IMPORT_ACCEPT}
             hidden
             onChange={(e) => {
               const file = e.target.files?.[0];
               e.target.value = "";
-              importPdfFile(file);
+              importDocumentFile(file);
             }}
           />
+          <div className="paste-box">
+            <label htmlFor="docs-paste">Atau tempel teks panjang</label>
+            <textarea
+              id="docs-paste"
+              rows={6}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="Tempel SOP, changelog, atau catatan teknis di sini. Screenshot dari Word/Docs ikut jika menempel di kotak ini."
+            />
+            <button
+              className="btn secondary"
+              type="button"
+              disabled={importing || !pasteText.trim()}
+              onClick={() => applyPastedText(pasteText)}
+            >
+              Buat draf dari teks
+            </button>
+          </div>
         </div>
       )}
 
@@ -495,10 +645,34 @@ export default function BlogDocsPage({
           <div className="tag-row">
             <button
               type="button"
+              className={`chip-btn${aiFilter === "all" ? " active" : ""}`}
+              onClick={() => applyAiFilter("all")}
+            >
+              Semua untuk AI
+            </button>
+            <button
+              type="button"
+              className={`chip-btn${aiFilter === "howto" ? " active" : ""}`}
+              onClick={() => applyAiFilter("howto")}
+            >
+              How to use
+            </button>
+            <button
+              type="button"
+              className={`chip-btn${aiFilter === "technical" ? " active" : ""}`}
+              onClick={() => applyAiFilter("technical")}
+            >
+              Teknikal
+            </button>
+          </div>
+
+          <div className="tag-row">
+            <button
+              type="button"
               className={`chip-btn${tagFilter === "all" ? " active" : ""}`}
               onClick={clearAppFilter}
             >
-              Semua
+              Semua aplikasi
             </button>
             <button
               type="button"
@@ -525,44 +699,31 @@ export default function BlogDocsPage({
             <div className="panel">
               Belum ada artikel
               {tagFilter !== "all" ? ` untuk “${tagLabel(tagFilter)}”` : ""}.
-              {canEdit && (
-                <>
-                  {" "}
-                  <button className="btn" type="button" onClick={openNew}>
-                    Tulis yang pertama
-                  </button>
-                </>
-              )}
+              {canEdit ? " Jatuhkan berkas atau tempel teks di atas." : ""}
             </div>
           ) : (
             <div className="blog-list">
               {filtered.map((doc) => (
-                <article
+                <button
                   key={doc._id}
-                  className="blog-card"
+                  type="button"
+                  className="blog-row"
                   onClick={() => openView(doc._id)}
                 >
-                  {doc.coverImage ? (
-                    <div
-                      className="blog-card-cover"
-                      style={{ backgroundImage: `url(${doc.coverImage})` }}
-                    />
-                  ) : (
-                    <div className="blog-card-cover placeholder" />
-                  )}
-                  <div className="blog-card-body">
-                    <div className="meta">
-                      {(doc.tags || []).map((t) => (
-                        <span key={t} className="chip">
-                          {tagLabel(t)}
-                        </span>
-                      ))}
-                    </div>
-                    <h2>{doc.title}</h2>
-                    {doc.summary && <p>{doc.summary}</p>}
+                  <span className="blog-row-main">
+                    <strong>{doc.title}</strong>
+                    {doc.summary ? <span>{doc.summary}</span> : null}
+                  </span>
+                  <span className="blog-row-meta">
+                    <span className="chip">{aiRoleLabel(doc.docType)}</span>
+                    {(doc.tags || []).slice(0, 2).map((t) => (
+                      <span key={t} className="chip">
+                        {tagLabel(t)}
+                      </span>
+                    ))}
                     <time>{formatDocDate(doc.updatedAt || doc.createdAt)}</time>
-                  </div>
-                </article>
+                  </span>
+                </button>
               ))}
             </div>
           )}
@@ -584,6 +745,7 @@ export default function BlogDocsPage({
                 {tagLabel(t)}
               </span>
             ))}
+            <span className="chip">{aiRoleLabel(active.docType)}</span>
             <span className="chip">
               {active.visibility === "public" ? "Publik" : "Internal"}
             </span>
@@ -671,6 +833,27 @@ export default function BlogDocsPage({
           </div>
 
           <div className="field">
+            <label>Untuk AI</label>
+            <select
+              value={draft.docType === "technical" ? "technical" : "howto"}
+              onChange={(e) => {
+                const docType = e.target.value === "technical" ? "technical" : "howto";
+                setDraft((d) => ({
+                  ...d,
+                  docType,
+                  visibility: docType === "howto" ? "public" : "internal",
+                }));
+              }}
+            >
+              <option value="howto">How to use — prosedur singkat (1 cuplikan RAG)</option>
+              <option value="technical">Teknikal — catatan panjang (beberapa cuplikan RAG)</option>
+            </select>
+            <p className="blog-hint">
+              Penyimpanan dan indeks sama. Pilihan ini hanya mengatur cara AI memotong dokumen.
+            </p>
+          </div>
+
+          <div className="field">
             <label>Visibility</label>
             <select
               value={draft.visibility === "public" ? "public" : "internal"}
@@ -681,9 +864,10 @@ export default function BlogDocsPage({
               <option value="public">Publik, boleh dipakai pengunjung</option>
               <option value="internal">Internal saja</option>
             </select>
-            {fromPdf && (
+            {fromImport && (
               <p className="blog-hint">
-                Draf dari PDF. Simpan memakai jalur artikel yang sama.
+                Draf dari impor. Tandai aplikasi yang benar, lalu simpan lewat jalur artikel yang
+                sama.
               </p>
             )}
           </div>
@@ -781,6 +965,39 @@ export default function BlogDocsPage({
               }
               placeholder={"# Cara pakai\n\nTulis langkah di sini…\n\n![screenshot](url)\n"}
               required
+              onPaste={(e) => {
+                if (!clipboardHasImages(e.clipboardData)) return;
+                e.preventDefault();
+                const data = e.clipboardData;
+                (async () => {
+                  setUploading(true);
+                  setError("");
+                  try {
+                    const { markdown, imageCount } = await clipboardToMarkdown(data, {
+                      upload: uploadImage,
+                    });
+                    const snippet = markdown.startsWith("\n") ? markdown : `\n${markdown}\n`;
+                    const el = contentRef.current;
+                    setDraft((d) => {
+                      const start = el?.selectionStart ?? d.content.length;
+                      const end = el?.selectionEnd ?? start;
+                      const next = d.content.slice(0, start) + snippet + d.content.slice(end);
+                      requestAnimationFrame(() => {
+                        if (!el) return;
+                        el.focus();
+                        const pos = start + snippet.length;
+                        el.setSelectionRange(pos, pos);
+                      });
+                      return { ...d, content: next };
+                    });
+                    if (imageCount) setOkMsg(`${imageCount} gambar ikut tertempel.`);
+                  } catch (err) {
+                    setError(err.message || "Gambar gagal diunggah");
+                  } finally {
+                    setUploading(false);
+                  }
+                })();
+              }}
             />
           </div>
 
