@@ -199,7 +199,7 @@ export default function BlogDocsPage({
     });
   }, [docs, q, tagFilter, aiFilter, appIds]);
 
-  const active = docs.find((d) => d._id === activeId);
+  const active = docs.find((d) => d._id ===  activeId);
 
   const requireIT = () => {
     if (canEdit) return true;

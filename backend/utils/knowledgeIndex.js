@@ -156,7 +156,7 @@ export function cosine(left, right) {
   const width = Math.min(left?.length || 0, right?.length || 0);
   if (!width) return 0;
   let dot = 0;
-  let leftNorm = 0;
+  let leftNorm = 0; 
   let rightNorm = 0;
   for (let i = 0; i < width; i += 1) {
     dot += left[i] * right[i];
