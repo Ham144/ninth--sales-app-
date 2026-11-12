@@ -61,14 +61,14 @@ const agentTenantSchema = new mongoose.Schema(
 );
 
 export const MIDCSI_TENANT_DEFAULT = {
-  slug: "midcsi",
-  name: "MIDCSI Hub",
+  slug: "csi-agent",
+  name: "CSI Agent",
   status: "active",
   audience: "internal",
   dataSensitivity: "public",
   allowedOrigins: [],
   tools: MIDCSI_TOOLS,
-  dailyTokenBudget: 200000,
+  dailyTokenBudget: 300000,
 };
 
 const AgentTenant = mongoose.model("AgentTenant", agentTenantSchema);

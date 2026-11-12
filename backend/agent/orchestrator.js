@@ -1,3 +1,4 @@
+import { aiServiceEnabled, runTurnViaAiService } from "./aiServiceClient.js";
 import { BUDGET_MESSAGE, expandEmptyToolReply, presentReply, systemPromptFor } from "./guardrails.js";
 import { completeChat, normalizeModelMode, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
 import { windowMessages } from "./memory.js";
@@ -59,11 +60,23 @@ export async function runTurn({
       budgetExceeded: true,
     };
   }
-
+  
   session.modelMode = normalizeModelMode(session.modelMode);
   const llm = resolveLlm(tenant, env, session.modelMode);
   const completeFn = complete || completeChat;
   const executeFn = execute || executeTool;
+  const injected = complete !== completeChat || execute !== executeTool;
+  if (aiServiceEnabled(env) && !injected) {
+    return runTurnViaAiService({
+      tenant,
+      session,
+      message: text,
+      customerId,
+      onEvent,
+      env,
+      fetchImpl,
+    });
+  }
   const tools = activeTools(tenant, customerId);
   const maxIter = tenant.maxToolIterations || 4;
   let tokensUsed = 0;

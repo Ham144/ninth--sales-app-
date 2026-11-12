@@ -10,6 +10,7 @@ import ChatSession from "../models/ChatSession.model.js";
 import { availableModelModes, effectiveLlm, normalizeModelMode, resolveLlm } from "../llm.js";
 import { runTurn } from "../orchestrator.js";
 import { openApi } from "../openapi.js";
+import { activeTools, executeTool } from "../tools.js";
 
 const TTL_SECONDS = Number(process.env.CHAT_TOKEN_TTL_SECONDS) || 900;
 
@@ -202,6 +203,31 @@ export function createAgentRouter(deps = {}) {
 
   router.get("/health", (_req, res) => {
     res.json({ ok: true, service: "csi-agent" });
+  });
+
+  router.post("/internal/tools", async (req, res) => {
+    const expected = process.env.AI_SERVICE_KEY || "";
+    if (!expected || req.headers["x-ai-service-key"] !== expected) {
+      return res.status(401).json({ message: "unauthorized" });
+    }
+    try {
+      const tenant = await store.getTenant();
+      const customerId = req.body?.customerId || undefined;
+      const name = String(req.body?.name || "");
+      const tool = activeTools(tenant, customerId).find((item) => item.name === name);
+      if (!tool) return res.status(404).json({ payload: { error: "Tool tidak dikenal" } });
+      const result = await executeTool({
+        tool,
+        args: req.body?.args || {},
+        customerId,
+        fetchImpl,
+        upstream: tenant.upstream,
+        limiter,
+      });
+      return res.json({ payload: result.payload, handoff: Boolean(result.handoff) });
+    } catch (error) {
+      return res.status(500).json({ payload: { error: "data tidak tersedia" } });
+    }
   });
 
   router.get("/openapi.json", (_req, res) => {

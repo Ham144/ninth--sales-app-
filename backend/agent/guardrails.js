@@ -15,6 +15,7 @@ const SHARED_RULES = [
   "- Nama aplikasi disalin dari field title hasil hub_apps. Jangan mengarang atau mengganti nama aplikasi.",
   "- Daftar produk atau order memakai tabel markdown, satu baris per item. Jangan menulis seluruh tabel dalam satu baris.",
   "- Prosedur internal hanya dari cuplikan search_knowledge. Jangan menambah langkah yang tidak ada di situ.",
+  "- Kas kecil gudang hanya dari tool petty_cash_*. Jangan mengarang angka kas. Agen tidak mencatat pengeluaran.",
 ].join("\n");
 
 export const GUARDRAIL_SUFFIX = [

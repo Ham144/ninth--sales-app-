@@ -4,10 +4,12 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/qdrantStore.test.js utils/pdfDraft.test.js utils/documentDraft.test.js agent/productQuery.test.js agent/customerQuery.test.js agent/agent.test.js agent/llm.test.js middlewares/authenticate.test.js",
+    "test": "node --test utils/publicCatalog.test.js utils/knowledgeIndex.test.js utils/qdrantStore.test.js utils/pdfDraft.test.js utils/documentDraft.test.js agent/productQuery.test.js agent/customerQuery.test.js agent/agent.test.js agent/appTools.test.js agent/llm.test.js middlewares/authenticate.test.js",
     "eval:agent": "node agent/evalRun.js",
+    "eval:rag": "bash -lc 'cd ../python/rag_eval && . .venv/bin/activate && rag-eval eval --k 5'",
     "rag:index": "node utils/knowledgeIndex.js",
     "qdrant": "bash ../scripts/start-qdrant.sh",
+    "ai-service": "bash -lc 'cd ../ai-service && . .venv/bin/activate && uvicorn app.main:app --host 127.0.0.1 --port 7080'",
     "dev": "nodemon index.js",
     "start": "node index.js",
     "build:hub": "cd ../frontend && ./node_modules/.bin/vite build"

@@ -32,6 +32,7 @@ import inventoryRoutes from "./routes/inventory.route.js";
 import hubRoutes from "./routes/hub.route.js";
 import publicCatalogRoutes from "./routes/publicCatalog.route.js";
 import { createAgentRouter } from "./agent/routes/chat.route.js";
+import { createAppToolsRouter } from "./agent/routes/appTools.route.js";
 import { createRedisLimiter } from "./agent/limits.js";
 import redisService from "./utils/redisService.js";
 
@@ -103,6 +104,7 @@ app.use("/api/v1/public", publicCatalogKeyAuth, publicCatalogRoutes);
 // System Hub: updates + knowledge docs (public read, auth write)
 app.use("/api/v1/hub", hubRoutes);
 app.use("/api/v1/agent", createAgentRouter({ limiter: createRedisLimiter(redisService) }));
+app.use("/api/v1/apps", createAppToolsRouter({ limiter: createRedisLimiter(redisService) }));
 
 /**
  * Serve System Hub SPA from ./public (vite build outDir).

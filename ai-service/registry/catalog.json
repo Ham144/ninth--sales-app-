@@ -1,0 +1,354 @@
+{
+  "apps": [
+    {
+      "id": "midcsi",
+      "title": "MIDCSI SOAP microsoft NAV center",
+      "enabled": true,
+      "base_url_env": "MIDCSI_BASE_URL",
+      "default_base_url": "http://127.0.0.1:7047",
+      "wave": 0,
+      "note": "Penyedia REST #1. CRUD tetap di Node Hub; agen hanya HTTP.",
+      "tools": [
+        {
+          "name": "search_products",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/search_products",
+          "description": "Query produk Hub (bukan Mongo mentah). searchKey nama/nomor/barcode. no = SKU. sortBy Web atau kode lokasi. view stock untuk stok per gudang.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "searchKey": { "type": "string" },
+              "no": { "type": "string" },
+              "organization": { "type": "string", "enum": ["csi", "ril"] },
+              "sortBy": { "type": "string" },
+              "sortDir": { "type": "string", "enum": ["asc", "desc"] },
+              "view": { "type": "string", "enum": ["list", "stock"] },
+              "limit": { "type": "number" }
+            }
+          }
+        },
+        {
+          "name": "product_detail",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/product_detail",
+          "description": "Detail satu SKU. Wajib no.",
+          "parameters": {
+            "type": "object",
+            "properties": { "no": { "type": "string" }, "organization": { "type": "string", "enum": ["csi", "ril"] } },
+            "required": ["no"]
+          }
+        },
+        {
+          "name": "stock_by_location",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/stock_by_location",
+          "description": "Stok per lokasi untuk satu nomor item. MNG2 adalah Mangga Dua.",
+          "parameters": {
+            "type": "object",
+            "properties": { "no": { "type": "string" }, "organization": { "type": "string", "enum": ["csi", "ril"] } },
+            "required": ["no"]
+          }
+        },
+        {
+          "name": "customer_lookup",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/customer_lookup",
+          "description": "Master customer toko. Piutang faktur memakai overdue_lookup.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": { "type": "string" },
+              "no": { "type": "string" },
+              "city": { "type": "string" },
+              "sortBy": { "type": "string" },
+              "sortDir": { "type": "string", "enum": ["asc", "desc"] },
+              "limit": { "type": "number" }
+            }
+          }
+        },
+        {
+          "name": "overdue_lookup",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/overdue_lookup",
+          "description": "Piutang tertunda. Tanpa customerNo: peringkat total. Dengan customerNo: dokumen toko itu.",
+          "parameters": {
+            "type": "object",
+            "properties": { "customerNo": { "type": "string" }, "limit": { "type": "number" } }
+          }
+        },
+        {
+          "name": "sales_orders",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/sales_orders",
+          "description": "Cari SO Hub dan status NAV. query CSI-… atau SO/…. liveStatus untuk picking/DO/invoice.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": { "type": "string" },
+              "searchKey": { "type": "string" },
+              "customerNo": { "type": "string" },
+              "liveStatus": { "type": "boolean" }
+            }
+          }
+        },
+        {
+          "name": "propose_sales_order",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/propose_sales_order",
+          "description": "Draf SO di chat. Tidak mengirim ke NAV. SO baru dibuat di s-bit setelah staf tekan Kirim.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "customerNo": { "type": "string" },
+              "customer": { "type": "string" },
+              "requestDeliveryDate": { "type": "string" },
+              "locationCode": { "type": "string" },
+              "keterangan": { "type": "string" },
+              "lines": { "type": "array" }
+            },
+            "required": ["lines"]
+          }
+        },
+        {
+          "name": "list_locations",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/list_locations",
+          "description": "Nama lokasi tersimpan. Salin field name apa adanya.",
+          "parameters": { "type": "object", "properties": {} }
+        },
+        {
+          "name": "hub_apps",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/hub_apps",
+          "description": "Rekomendasi aplikasi dari katalog Hub. Salin field title.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "query": { "type": "string" },
+              "role": { "type": "string" },
+              "limit": { "type": "number" }
+            }
+          }
+        },
+        {
+          "name": "search_knowledge",
+          "kind": "qdrant",
+          "description": "Cuplikan dokumentasi Hub (howto + teknikal). Bukan nomor produk atau invoice.",
+          "parameters": {
+            "type": "object",
+            "properties": { "q": { "type": "string" } },
+            "required": ["q"]
+          }
+        },
+        {
+          "name": "request_human",
+          "kind": "handoff",
+          "description": "Eskalasi ke manusia.",
+          "parameters": {
+            "type": "object",
+            "properties": { "reason": { "type": "string" } },
+            "required": ["reason"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "s-bit",
+      "title": "s-bit",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.3",
+      "wave": 1,
+      "note": "Tempat membuat SO baru. Tunggu REST + api key."
+    },
+    {
+      "id": "petty-cash",
+      "title": "petty cash",
+      "enabled": true,
+      "base_url_env": "PETTY_CASH_BASE_URL",
+      "default_base_url": "http://192.168.169.20",
+      "wave": 1,
+      "note": "Penyedia REST #2. Baca kas kecil di Nest; agen tidak POST /flow-log/new.",
+      "tools": [
+        {
+          "name": "petty_cash_warehouses",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/apps/petty-cash/tools/petty_cash_warehouses",
+          "description": "Daftar gudang kas kecil. searchKey opsional filter nama.",
+          "parameters": {
+            "type": "object",
+            "properties": { "searchKey": { "type": "string" } }
+          }
+        },
+        {
+          "name": "petty_cash_logs",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/apps/petty-cash/tools/petty_cash_logs",
+          "timeout_ms": 12000,
+          "description": "Jurnal kas kecil terbaru. Hanya baca. warehouse/category = id. type IN atau OUT. selectedDate YYYY-MM atau YYYY-MM-DD.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "warehouse": { "type": "string" },
+              "category": { "type": "string" },
+              "type": { "type": "string", "enum": ["IN", "OUT", "ALL"] },
+              "searchKey": { "type": "string" },
+              "selectedDate": { "type": "string" },
+              "limit": { "type": "number" }
+            }
+          }
+        },
+        {
+          "name": "petty_cash_analytics",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/apps/petty-cash/tools/petty_cash_analytics",
+          "timeout_ms": 15000,
+          "description": "Ringkasan inflow/outflow/sisa budget satu gudang. Wajib warehouseId. selectedDate YYYY-MM.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "warehouseId": { "type": "string" },
+              "selectedDate": { "type": "string" }
+            },
+            "required": ["warehouseId"]
+          }
+        },
+        {
+          "name": "petty_cash_categories",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/apps/petty-cash/tools/petty_cash_categories",
+          "description": "Kategori pengeluaran kas kecil. warehouseId opsional.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "warehouseId": { "type": "string" },
+              "searchKey": { "type": "string" }
+            }
+          }
+        },
+        {
+          "name": "petty_cash_budget",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/apps/petty-cash/tools/petty_cash_budget",
+          "description": "Budget per kategori kas kecil. Wajib categoryId. Hanya baca.",
+          "parameters": {
+            "type": "object",
+            "properties": { "categoryId": { "type": "string" } },
+            "required": ["categoryId"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "e-form",
+      "title": "e-form",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.24",
+      "wave": 1,
+      "note": "Status approval. Tunggu REST."
+    },
+    {
+      "id": "antrian",
+      "title": "antrian",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.11",
+      "wave": 1,
+      "note": "Antrean gudang. Tunggu REST baca."
+    },
+    {
+      "id": "invoice-csi",
+      "title": "invoice CSI",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.6",
+      "wave": 2,
+      "note": "Scan invoice CSI. Baca dulu, tulis = draf."
+    },
+    {
+      "id": "invoice-ril",
+      "title": "invoice RIL",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.8",
+      "wave": 2,
+      "note": "Scan invoice RIL."
+    },
+    {
+      "id": "stok-opname",
+      "title": "stok opname",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.26",
+      "wave": 2
+    },
+    {
+      "id": "bukti-scan",
+      "title": "buktiScan",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.27",
+      "wave": 2
+    },
+    {
+      "id": "catur-pos",
+      "title": "catur pos",
+      "enabled": false,
+      "default_base_url": "http://8.215.63.141",
+      "wave": 3,
+      "note": "Jangan Cetak Bill sampai API tanggal ISO."
+    },
+    {
+      "id": "csi-super-pos",
+      "title": "csi super pos",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.35",
+      "wave": 3
+    },
+    {
+      "id": "service-log-ril",
+      "title": "service log RIL",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.44",
+      "wave": 4
+    },
+    {
+      "id": "claim-service",
+      "title": "claim service",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.26:8080",
+      "wave": 4
+    },
+    {
+      "id": "n8n-email-formater",
+      "title": "N8N email formater",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.3:5679",
+      "wave": 5,
+      "note": "Workflow, bukan CRUD."
+    },
+    {
+      "id": "n8n-penggunaan-app",
+      "title": "N8N penggunaan app",
+      "enabled": false,
+      "default_base_url": "http://192.168.169.3:5678",
+      "wave": 5
+    },
+    {
+      "id": "csi-hub",
+      "title": "csi hub",
+      "enabled": false,
+      "default_base_url": "https://s-bit2.muara.co.id/project-library",
+      "wave": 0,
+      "note": "Klien chat + katalog. Bukan host tool bisnis. Docs/RAG lewat midcsi + Qdrant."
+    }
+  ]
+}

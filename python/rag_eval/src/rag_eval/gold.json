@@ -1,0 +1,52 @@
+[
+  {
+    "id": "cek-stok",
+    "query": "Cari panduan internal tentang cara cek stok per lokasi",
+    "relevant_slugs": ["internal-cek-stok"]
+  },
+  {
+    "id": "buat-so",
+    "query": "Di mana staf membuat sales order",
+    "relevant_slugs": ["internal-buat-sales-order"]
+  },
+  {
+    "id": "piutang",
+    "query": "Cara membaca piutang customer di Hub",
+    "relevant_slugs": ["internal-baca-piutang"]
+  },
+  {
+    "id": "status-nav",
+    "query": "Cara mencari sales order dan status NAV",
+    "relevant_slugs": ["internal-sales-order-status-nav"]
+  },
+  {
+    "id": "cari-customer",
+    "query": "Bagaimana mencari customer toko",
+    "relevant_slugs": ["internal-cari-customer"]
+  },
+  {
+    "id": "voucher-pos",
+    "query": "Penjelasan sistem voucher Catur POS",
+    "relevant_slugs": ["howto-penjelasan-sistem-voucher-beta-catur-pos-mw07v35p"]
+  },
+  {
+    "id": "kasir",
+    "query": "Cara membuat kasir atau user di Super POS",
+    "relevant_slugs": ["howto-membuat-kasir-atau-user-mw07xtpe"]
+  },
+  {
+    "id": "scan-invoice-ril",
+    "query": "Aplikasi untuk scan invoice RIL",
+    "relevant_slugs": ["internal-scan-invoice-ril", "internal-scan-invoice"]
+  },
+  {
+    "id": "pilih-aplikasi",
+    "query": "Cara memilih aplikasi internal di Hub",
+    "relevant_slugs": ["internal-pilih-aplikasi"]
+  },
+  {
+    "id": "tambah-dokumentasi",
+    "query": "Cara menambah dokumentasi project di Hub",
+    "relevant_slugs": ["internal-tambah-dokumentasi-hub"]
+  }
+]

@@ -348,6 +348,7 @@ async function textPassages(Model, query, visibility, top_k) {
       .sort({ score: { $meta: "textScore" } })
       .limit(cap)
       .lean();
+      
     return docs.map((doc) =>
       passageFromDoc(doc, doc.summary || String(doc.content || "").slice(0, 900), doc.score),
     );
