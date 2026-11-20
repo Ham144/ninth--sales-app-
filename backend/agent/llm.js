@@ -1,3 +1,8 @@
+/**
+ * OpenRouter client + model-mode helpers for Hub.
+ * Production turns stream via ai-service; this module still resolves mode labels
+ * for the UI and powers the Node loop only when tests inject complete().
+ */
 import { presentReply } from "./guardrails.js";
 
 export const MODEL_MODES = {

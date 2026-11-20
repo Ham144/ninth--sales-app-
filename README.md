@@ -20,8 +20,8 @@ flowchart LR
 | Proses | Isi |
 |---|---|
 | `frontend/` | SPA Hub |
-| `backend/` | Auth, CRUD, tool Mongo/NAV, sesi chat, SSE ke browser |
-| `ai-service/` | Pusat agen: loop, Qdrant, `registry/catalog.json` (16 app; `midcsi` + `petty-cash` enabled) |
+| `backend/` | Auth, CRUD, tool Mongo/NAV, sesi chat, SSE ke browser (`backend/agent/` = pintu + data, bukan otak produksi) |
+| `ai-service/` | Otak agen: loop, Qdrant, `registry/catalog.json` (16 app; `midcsi` + `petty-cash` enabled) |
 | `infra/qdrant/` | Vector DB |
 | `python/rag_eval/` | Eval hit@k / MRR (bukan serving) |
 

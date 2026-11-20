@@ -27,6 +27,11 @@ def test_midcsi_search_products_is_http_path():
     assert tool.kind == "http"
     assert tool.path.endswith("/search_products")
     assert get_tool("petty_cash_list") is None
+    hub_query = get_tool("hub_data_query")
+    assert hub_query
+    assert hub_query[0].id == "midcsi"
+    assert hub_query[1].path.endswith("/hub_data_query")
+    assert hub_query[1].kind == "http"
 
 
 def test_petty_cash_tools_hit_nest_not_hub():

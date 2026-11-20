@@ -21,7 +21,7 @@ const chatSessionSchema = new mongoose.Schema(
     customerId: { type: String, default: null },
     messages: { type: [messageSchema], default: [] },
     model: { type: String, default: "" },
-    modelMode: { type: String, enum: ["hemat", "pas", "kuat", "fast", "precise"], default: "pas" },
+    modelMode: { type: String, enum: ["fast",  "balanced" ,"precise",], default: "fast" },
     handoffRequested: { type: Boolean, default: false },
   },
   { timestamps: true },

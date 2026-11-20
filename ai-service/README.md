@@ -1,8 +1,8 @@
 # MIDCSI AI service
 
-FastAPI microservice for the staff copilot: Chat Completions tool-calling loop and Qdrant vector search.
+FastAPI microservice for the staff copilot: Chat Completions tool-calling loop and Qdrant vector search. This is the production agent brain.
 
-The Node hub still owns JWT, chat sessions, Mongo product/customer/SO tools, and the Kirim button to NAV. This process never posts a sales order.
+The Node hub (`backend/agent/`) still owns JWT, chat sessions, Mongo product/customer/SO tools, and the Kirim button to NAV. Node `orchestrator.js` is for injected unit tests only — not a fallback when this process is down. This process never posts a sales order.
 
 ```bash
 python3 -m venv .venv
@@ -23,6 +23,6 @@ Shared secret: header `X-AI-Service-Key`.
 
 Tool registry: `registry/catalog.json`. `GET /v1/apps` lists all catalog apps. Enabled now: `midcsi` and `petty-cash`. Other apps stay disabled; Hub still returns `501` for them. Petty-cash tools are served by Nest (`PETTY_CASH_BASE_URL`), not by the Hub proxy.
 
-HTTP tools call `POST {MIDCSI_BASE_URL}/api/v1/apps/midcsi/tools/:name` or `POST {PETTY_CASH_BASE_URL}/api/apps/petty-cash/tools/:name`. Knowledge stays on Qdrant. The generic `internal/tools` callback is not used. The agent never posts a petty-cash expense.
+HTTP tools call `POST {MIDCSI_BASE_URL}/api/v1/apps/midcsi/tools/:name` or `POST {PETTY_CASH_BASE_URL}/api/apps/petty-cash/tools/:name`. `hub_data_query` is Level B text-to-Mongo (allowlisted find/aggregate/lines, customer lookup, SalesLine unwind); writes and free Mongo shells are rejected. Knowledge stays on Qdrant. The generic `internal/tools` callback is not used. The agent never posts a petty-cash expense.
 
 Pydantic rejects empty or >2000-character turns before the model is called. If this process is down, the Hub chat fails; it does not run a second Node agent loop.

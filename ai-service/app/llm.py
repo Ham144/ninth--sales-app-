@@ -4,8 +4,6 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-import httpx
-
 from app.config import Settings
 
 

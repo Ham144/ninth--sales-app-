@@ -157,6 +157,7 @@ test("profil aktif adalah copilot internal", () => {
     "sales_orders",
     "propose_sales_order",
     "hub_apps",
+    "hub_data_query",
   ]) {
     assert.equal(enabled.has(name), true, name);
   }

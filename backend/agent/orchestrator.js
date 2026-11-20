@@ -1,3 +1,8 @@
+/**
+ * Hub turn entry. Production: when AI_SERVICE_URL is set and complete/execute are
+ * not injected, the turn runs only in ai-service (Python). The Node loop below
+ * remains for unit tests that inject complete/execute — not a staging fallback.
+ */
 import { aiServiceEnabled, runTurnViaAiService } from "./aiServiceClient.js";
 import { BUDGET_MESSAGE, expandEmptyToolReply, presentReply, systemPromptFor } from "./guardrails.js";
 import { completeChat, normalizeModelMode, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
@@ -9,7 +14,7 @@ function chunkText(text, size = 48) {
   for (let i = 0; i < text.length; i += size) chunks.push(text.slice(i, i + size));
   return chunks;
 }
-  
+
 export async function runTurn({
   tenant,
   session,

@@ -16,6 +16,7 @@ const SHARED_RULES = [
   "- Daftar produk atau order memakai tabel markdown, satu baris per item. Jangan menulis seluruh tabel dalam satu baris.",
   "- Prosedur internal hanya dari cuplikan search_knowledge. Jangan menambah langkah yang tidak ada di situ.",
   "- Kas kecil gudang hanya dari tool petty_cash_*. Jangan mengarang angka kas. Agen tidak mencatat pengeluaran.",
+  "- hub_data_query adalah text-to-Mongo Level B (lookup customer, lines, between, avg/sum). Jangan mengarang field di luar allowlist. Stok live, status NAV, petty-cash, atau draf SO tetap tool khusus.",
 ].join("\n");
 
 export const GUARDRAIL_SUFFIX = [

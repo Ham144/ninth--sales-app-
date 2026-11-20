@@ -140,6 +140,33 @@
           }
         },
         {
+          "name": "hub_data_query",
+          "kind": "http",
+          "method": "POST",
+          "path": "/api/v1/apps/midcsi/tools/hub_data_query",
+          "timeout_ms": 12000,
+          "description": "Text-to-Mongo Level B baca allowlist. mode find|aggregate|lines. includeCustomer, unwindLines, between, metrics count|sum|avg|min|max. Bukan shell bebas, bukan tulis, bukan NAV live. SKU/stok/draf SO tetap tool khusus.",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "collection": {
+                "type": "string",
+                "enum": ["products", "customers", "sales_orders", "overdues", "locations"]
+              },
+              "mode": { "type": "string", "enum": ["find", "aggregate", "lines"] },
+              "includeCustomer": { "type": "boolean" },
+              "unwindLines": { "type": "boolean" },
+              "filters": { "type": "array" },
+              "sort": { "type": "array" },
+              "fields": { "type": "array", "items": { "type": "string" } },
+              "groupBy": { "type": "array", "items": { "type": "string" } },
+              "metrics": { "type": "array" },
+              "limit": { "type": "number" }
+            },
+            "required": ["collection"]
+          }
+        },
+        {
           "name": "search_knowledge",
           "kind": "qdrant",
           "description": "Cuplikan dokumentasi Hub (howto + teknikal). Bukan nomor produk atau invoice.",
