@@ -7,16 +7,18 @@ import { createQdrantStore, qdrantUrlFrom } from "./qdrantStore.js";
 /**
  * RAG knowledge store. Mongo holds the documents; Qdrant holds vectors when QDRANT_URL is set.
  * Every chunk must be self-contained (title, app, table headers).
+ * CHUNK_VERSION bumps force reindex when chunking rules change (e.g. one table row = one chunk).
  */
 
 const CHUNK_SIZE = 1200;
 const CHUNK_OVERLAP = 200;
-const MAX_CHUNKS = 200; // document/text is too large (jaga ram)
+const MAX_CHUNKS = 400; // curated docs; table rows become many small chunks
+export const CHUNK_VERSION = 2;
 const RRF_K = 60;
-export const TOP_K = 5;
+export const TOP_K = 8;
 export const CHUNKS_PER_DOC = {
-  howto: 1,
-  technical: 4,
+  howto: 6,
+  technical: 8,
 };
 
 function chunksAllowed(docType) {
@@ -36,7 +38,11 @@ export function sourceText(doc) {
 }
 
 export function docHash(doc) {
-  return createHash("sha256").update(sourceText(doc)).digest("hex").slice(0, 16);
+  return createHash("sha256")
+    .update(`chunk:v${CHUNK_VERSION}\n`)
+    .update(sourceText(doc))
+    .digest("hex")
+    .slice(0, 16);
 }
 
 export function needsReindex(doc, env = process.env) {
@@ -80,7 +86,11 @@ export function expandMarkdownTables(text) {
         const pairs = header
           .map((name, index) => `${name}: ${cells[index] || ""}`.trim())
           .filter((part) => !part.endsWith(":"));
-        if (pairs.length) out.push(`Baris tabel. ${pairs.join("; ")}`);
+        if (pairs.length) {
+          // Blank line → each row becomes its own RAG chunk (header:value stays attached).
+          out.push(`Baris tabel. ${pairs.join("; ")}`);
+          out.push("");
+        }
         i += 1;
       }
       continue;
@@ -383,6 +393,37 @@ async function mongoVectorHits(Model, vector, visibility, pool) {
   return hits.slice(0, pool);
 }
 
+export function exactNeedles(q) {
+  const source = String(q || "");
+  const out = [];
+  const email = source.match(/\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b/gi) || [];
+  out.push(...email);
+  const asset = source.match(/\bE0\d{3,}\b/gi) || [];
+  out.push(...asset);
+  return [...new Set(out.map((item) => String(item)))];
+}
+
+async function exactChunkHits(Model, query, visibility, cap) {
+  const needles = exactNeedles(query);
+  if (!needles.length) return [];
+  const filter = { hasEmbeddings: true };
+  if (visibility) filter.visibility = visibility;
+  const docs = await Model.find(filter)
+    .select("slug title docType summary appTitle tags visibility chunks.text")
+    .lean();
+  const needlesL = needles.map((n) => n.toLowerCase());
+  const hits = [];
+  for (const doc of docs) {
+    for (const chunk of doc.chunks || []) {
+      const text = String(chunk.text || "");
+      const lower = text.toLowerCase();
+      if (!needlesL.some((n) => lower.includes(n))) continue;
+      hits.push(passageFromDoc(doc, text, 10));
+    }
+  }
+  return hits.slice(0, Math.max(cap * 4, 20));
+}
+
 export async function retrieveKnowledge({
   q,
   visibility,
@@ -404,6 +445,13 @@ export async function retrieveKnowledge({
   }
 
   const pool = cap * Math.max(...Object.values(CHUNKS_PER_DOC)) * 2;
+  let exactHits = [];
+  try {
+    exactHits = await exactChunkHits(Model, query, visibility, cap);
+  } catch {
+    exactHits = [];
+  }
+
   let vectorHits = [];
   if (vector?.length) {
     const store = resolveVectorStore({ fetchImpl, env, vectorStore, ...deps });
@@ -426,6 +474,16 @@ export async function retrieveKnowledge({
     textHits = [];
   }
 
+  if (exactHits.length) {
+    const rest =
+      vectorHits.length && textHits.length
+        ? reciprocalRankMerge([vectorHits, textHits], cap)
+        : collapseByDoc(vectorHits.length ? vectorHits : textHits, cap);
+    return {
+      mode: vectorHits.length || textHits.length ? "exact+hybrid" : "exact",
+      data: collapseByDoc([...exactHits, ...rest], cap),
+    };
+  }
   if (vectorHits.length && textHits.length) {
     return { mode: "hybrid", data: reciprocalRankMerge([vectorHits, textHits], cap) };
   }

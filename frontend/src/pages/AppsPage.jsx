@@ -232,7 +232,7 @@ export default function AppsPage() {
                     navigate(`/docs?app=${encodeURIComponent(app.id)}`)
                   }
                 >
-                  Dokumentasi
+                  Knowledge
                 </button>
                 {canEdit && (
                   <>

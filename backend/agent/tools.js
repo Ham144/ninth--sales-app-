@@ -290,7 +290,7 @@ export const MIDCSI_TOOLS = [
   {
     name: "customer_lookup",
     description:
-      "Query master customer toko (bukan Mongo mentah, bukan piutang). query = nomor/nama/kota. sortBy Balance atau Credit_Limit_LCY untuk ranking kartu. Piutang faktur memakai overdue_lookup.",
+      "Master customer toko NAV/Mongo: nomor, nama, atau kota. Bukan daftar email/NPWP dari Knowledge CSV. Kalau staf sebut alamat email, NPWP dari sheet, non-PKP, atau file Hub — pakai search_knowledge. Piutang faktur: overdue_lookup.",
     kind: "internal",
     internal: "customer_lookup",
     tier: "anonymous",
@@ -632,7 +632,7 @@ export const MIDCSI_TOOLS = [
     name: "search_knowledge",
     top_k: TOP_K,
     description:
-      "Cari cuplikan dokumentasi Hub (how to use dan teknikal satu indeks RAG). How to use: prosedur singkat. Teknikal: catatan panjang, beberapa cuplikan. Bukan untuk nomor produk atau invoice.",
+      "Cari Knowledge Hub (RAG): prosedur, teknikal, CSV terunggah (aset, email, NPWP, BCC, non-PKP, acquisition_date, asset_name). Wajib untuk alamat email / field sheet Hub. Jangan search_products atau customer_lookup untuk data itu. Bukan sales_orders atau stok live NAV.",
     kind: "internal",
     internal: "search_knowledge",
     tier: "anonymous",
@@ -714,6 +714,23 @@ export function salesOrderLookup(text) {
   if (!query) return null;
   const liveStatus = /^SO\//i.test(query) || /\b(status|nav|kondisi|kirim|picking|resi)\b/i.test(source);
   return { query, liveStatus };
+}
+
+/** Prefetch Knowledge when email/sheet fields would otherwise hijack customer_lookup. */
+export function knowledgePrefetch(text) {
+  const source = String(text || "").trim();
+  if (!source || salesOrderLookup(source)) return null;
+  const email = source.match(/\b[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}\b/i);
+  if (email) return { q: email[0] };
+  if (
+    /\bE0\d{3,}\b/i.test(source) ||
+    /\b(npwp|bcc|non[\s-]?pkp|acquisition_date|acquisition_value|asset_name|asset_no|asset_condition|akuisisi|inventaris)\b/i.test(
+      source,
+    )
+  ) {
+    return { q: source.slice(0, 240) };
+  }
+  return null;
 }
 
 function orderDay(value) {

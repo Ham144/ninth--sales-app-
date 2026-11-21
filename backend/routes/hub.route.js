@@ -15,6 +15,11 @@ import multer from "multer";
 import authenticate from "../middlewares/authenticate.js";
 import requireIT from "../middlewares/requireIT.js";
 import { DocumentDraftError, fileToDraft } from "../utils/documentDraft.js";
+import {
+  MAX_KNOWLEDGE_IMPORT_BYTES,
+  KnowledgeValidateError,
+  assertKnowledgeDoc,
+} from "../utils/knowledgeValidate.js";
 
 const router = Router();
 
@@ -30,14 +35,17 @@ const writeGate = [authenticate, requireIT];
 
 const fileUpload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024, files: 1 },
+  limits: { fileSize: MAX_KNOWLEDGE_IMPORT_BYTES, files: 1 },
 });
 
 const importDocument = (req, res) => {
   fileUpload.single("file")(req, res, async (err) => {
     if (err) {
+      const mb = Math.round(MAX_KNOWLEDGE_IMPORT_BYTES / (1024 * 1024));
       const message =
-        err.code === "LIMIT_FILE_SIZE" ? "Berkas lebih dari 25 MB" : err.message || "Upload gagal";
+        err.code === "LIMIT_FILE_SIZE"
+          ? `Berkas lebih dari ${mb} MB. Knowledge curated — potong berkas.`
+          : err.message || "Upload gagal";
       return res.status(400).json({ message });
     }
     const file = req.file;
@@ -285,22 +293,25 @@ router.post("/docs/import-pdf", ...writeGate, importDocument);
 router.post("/docs", ...writeGate, async (req, res) => {
   try {
     const body = { ...(req.body || {}) };
-    if (!body.docType || !body.title || !body.content) {
-      return res
-        .status(400)
-        .json({ message: "docType, title, content wajib" });
-    }
-    if (!body.slug) {
-      body.slug = `${body.docType}-${slugify(body.title)}-${Date.now().toString(36)}`;
-    }
     body.tags = Array.isArray(body.tags) ? body.tags : [];
     if (body.visibility !== "public" && body.visibility !== "internal") {
       body.visibility = body.docType === "howto" ? "public" : "internal";
     }
+    const { warnings } = assertKnowledgeDoc(body);
+    if (!body.slug) {
+      body.slug = `${body.docType}-${slugify(body.title)}-${Date.now().toString(36)}`;
+    }
     Object.assign(body, await indexFields(body));
     const created = await HubKnowledgeDoc.create(body);
-    return res.status(201).json({ message: "created", data: withoutEmbeddings(created) });
+    return res.status(201).json({
+      message: "created",
+      data: withoutEmbeddings(created),
+      warnings,
+    });
   } catch (error) {
+    if (error instanceof KnowledgeValidateError) {
+      return res.status(error.status || 400).json({ message: error.message });
+    }
     return res.status(500).json({ message: error.message });
   }
 });
@@ -316,14 +327,19 @@ router.put("/docs/:id", ...writeGate, async (req, res) => {
     if (body.tags && !Array.isArray(body.tags)) body.tags = [];
     const current = await HubKnowledgeDoc.findById(req.params.id).lean();
     if (!current) return res.status(404).json({ message: "not found" });
-    Object.assign(body, await indexFields({ ...current, ...body }));
+    const merged = { ...current, ...body };
+    const { warnings } = assertKnowledgeDoc(merged);
+    Object.assign(body, await indexFields(merged));
     const updated = await HubKnowledgeDoc.findByIdAndUpdate(req.params.id, body, {
       new: true,
       runValidators: true,
     });
     if (!updated) return res.status(404).json({ message: "not found" });
-    return res.json({ message: "updated", data: withoutEmbeddings(updated) });
+    return res.json({ message: "updated", data: withoutEmbeddings(updated), warnings });
   } catch (error) {
+    if (error instanceof KnowledgeValidateError) {
+      return res.status(error.status || 400).json({ message: error.message });
+    }
     return res.status(500).json({ message: error.message });
   }
 });

@@ -123,7 +123,7 @@ export function csvToMarkdown(text) {
   return lines.join("\n");
 }
 
-function finishDraft({ title, content, extra = {} }) {
+function finishDraft({ title, content, extra = {}, warnings = [] } = {}) {
   const clipped = clipText(content);
   if (!clipped.text) {
     throw new DocumentDraftError("Berkas tidak berisi teks yang bisa dijadikan draf");
@@ -131,11 +131,16 @@ function finishDraft({ title, content, extra = {} }) {
   const body = clipped.truncated
     ? `${clipped.text}\n\nSebagian isi tidak ikut karena batas impor.`
     : clipped.text;
+  const notes = [...warnings];
+  if (clipped.truncated) {
+    notes.push("Isi dipotong karena batas impor. Knowledge curated — pecah dokumen besar.");
+  }
   return {
     title: usableTitle(title) || "Panduan",
     summary: summaryFrom(clipped.text, title),
     content: body,
     imageCount: 0,
+    warnings: notes,
     ...extra,
   };
 }
@@ -227,6 +232,15 @@ function csvToDraft(buffer, fileName) {
 export function detectImportKind(fileName = "", mime = "", buffer) {
   const ext = path.extname(String(fileName || "")).toLowerCase();
   const type = String(mime || "").toLowerCase();
+  if (
+    ext === ".xlsx" ||
+    ext === ".xls" ||
+    type.includes("spreadsheetml") ||
+    type.includes("ms-excel") ||
+    type.includes("excel")
+  ) {
+    return "xlsx";
+  }
   if (ext === ".pdf" || type === "application/pdf") return "pdf";
   if (ext === ".csv" || type === "text/csv" || type === "application/csv") {
     return "csv";
@@ -259,12 +273,24 @@ export function pastedTextToDraft(text, { title } = {}) {
 
 export async function fileToDraft(buffer, { fileName = "dokumen.txt", mime = "" } = {}) {
   const kind = detectImportKind(fileName, mime, buffer);
+  if (kind === "xlsx") {
+    throw new DocumentDraftError(
+      "XLSX/XLS belum didukung. Export ke CSV (atau tulis markdown table) supaya header terikat ke tiap baris.",
+    );
+  }
   if (!kind) {
-    throw new DocumentDraftError("Format tidak didukung. Pakai PDF, CSV, TXT, TEXT, DOC, atau DOCX.");
+    throw new DocumentDraftError(
+      "Format tidak didukung. Pakai CSV/TXT/MD-friendly, PDF/DOC untuk narasi. Bukan XLSX atau dump biner.",
+    );
   }
   if (kind === "pdf") {
     try {
-      return await pdfToDraft(buffer, { fileName });
+      const draft = await pdfToDraft(buffer, { fileName });
+      const warnings = [
+        ...(draft.warnings || []),
+        "PDF: tabel sering kehilangan hubungan header↔nilai. Untuk tabel, unggah CSV atau markdown.",
+      ];
+      return { ...draft, warnings };
     } catch (error) {
       if (error instanceof PdfDraftError) {
         throw new DocumentDraftError(error.message, error.status || 400);
@@ -272,7 +298,16 @@ export async function fileToDraft(buffer, { fileName = "dokumen.txt", mime = "" 
       throw error;
     }
   }
-  if (kind === "csv") return csvToDraft(buffer, fileName);
+  if (kind === "csv") {
+    const draft = csvToDraft(buffer, fileName);
+    return {
+      ...draft,
+      warnings: [
+        ...(draft.warnings || []),
+        "CSV diubah ke markdown table — header akan diikat ke setiap baris saat index.",
+      ],
+    };
+  }
   if (kind === "txt") return textToDraft(buffer, fileName);
   if (kind === "docx") return docxToDraft(buffer, fileName);
   return docToDraft(buffer, fileName);

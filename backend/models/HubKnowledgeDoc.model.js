@@ -1,9 +1,9 @@
 import mongoose from "mongoose";
 
 /**
- * Knowledge corpus for System Hub docs.
- * RAG-ready: keep `content` as the canonical text; optional `chunks` + `embedding`
- * can be filled later without changing the public API shape.
+ * Curated knowledge corpus for Hub + staff agent RAG.
+ * Not a data lake: keep documents topic-sized; large dumps belong elsewhere.
+ * `content` is canonical; `chunks` + embeddings sync to Qdrant when configured.
  */
 const chunkSchema = new mongoose.Schema(
   {
@@ -29,7 +29,7 @@ const hubKnowledgeDocSchema = new mongoose.Schema(
      * internal: dokumentasi teknikal (x-api-key, voucher, diskon, POS, gudang).
      * Dokumen lama tanpa field ini diperlakukan internal jika docType technical.
      */
-    visibility: {
+    visibility: { 
       type: String,
       enum: ["public", "internal"],
       default: "internal",

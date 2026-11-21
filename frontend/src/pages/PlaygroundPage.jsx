@@ -133,7 +133,7 @@ export default function PlaygroundPage() {
   const activeId = useChatStore((state) => state.activeId);
   const nonce = useChatStore((state) => state.nonce);
   const [apps, setApps] = useState([]);
-  const [updates, setUpdates] = useState([]);
+  // const [updates, setUpdates] = useState([]);
   const [messages, setMessages] = useState([]);
   const [sessionId, setSessionId] = useState("");
   const [input, setInput] = useState("");
@@ -154,13 +154,13 @@ export default function PlaygroundPage() {
     let cancel = false;
     Promise.all([
       hubApi.listApps().catch(() => ({ data: [] })),
-      hubApi.listUpdates().catch(() => ({ data: [] })),
-    ]).then(([appRes, updateRes]) => {
+      // hubApi.listUpdates().catch(() => ({ data: [] })),
+    ]).then(([appRes]) => {
       if (cancel) return;
       setApps((appRes?.data || []).filter((app) => app.active !== false && app.url));
-      setUpdates(
-        (updateRes?.data || []).filter((entry) => !["pending", "failed"].includes(entry.status)).slice(0, 12),
-      );
+      // setUpdates(
+      //   (updateRes?.data || []).filter((entry) => !["pending", "failed"].includes(entry.status)).slice(0, 12),
+      // );
     });
     return () => {
       cancel = true;
@@ -434,7 +434,7 @@ export default function PlaygroundPage() {
                 </div>
               </div>
             )}
-            {updates.length > 0 && (
+            {/* {updates.length > 0 && (
               <div className="welcome-block">
                 <div className="welcome-label">
                   <h2>Cek update terbaru aplikasi CSI&RIL</h2>
@@ -460,7 +460,7 @@ export default function PlaygroundPage() {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
             <div className="prompt-row">
               {PROMPTS.map((prompt) => (
                 <button key={prompt} type="button" className="prompt-chip" onClick={() => sendText(prompt)}>

@@ -37,6 +37,14 @@ test("fileToDraft membaca CSV", async () => {
   assert.equal(draft.title, "stok pos");
   assert.match(draft.content, /\| sku \| stok \|/);
   assert.match(draft.content, /\| X1 \| 12 \|/);
+  assert.match(String((draft.warnings || []).join(" ")), /CSV|header/i);
+});
+
+test("fileToDraft menolak xlsx", async () => {
+  await assert.rejects(
+    () => fileToDraft(Buffer.from("PK"), { fileName: "harga.xlsx" }),
+    (err) => /CSV|XLSX/i.test(err.message),
+  );
 });
 
 test("pastedTextToDraft memakai baris pertama sebagai judul", () => {
@@ -45,8 +53,9 @@ test("pastedTextToDraft memakai baris pertama sebagai judul", () => {
   assert.match(draft.content, /Scan nota lalu pilih alasan/);
 });
 
-test("detectImportKind menolak format asing", () => {
+test("detectImportKind menolak format asing dan menandai xlsx", () => {
   assert.equal(detectImportKind("foto.png", "image/png"), "");
   assert.equal(detectImportKind("panduan.docx"), "docx");
   assert.equal(detectImportKind("lama.doc"), "doc");
+  assert.equal(detectImportKind("harga.xlsx"), "xlsx");
 });

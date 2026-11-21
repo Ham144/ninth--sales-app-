@@ -7,7 +7,15 @@ import { aiServiceEnabled, runTurnViaAiService } from "./aiServiceClient.js";
 import { BUDGET_MESSAGE, expandEmptyToolReply, presentReply, systemPromptFor } from "./guardrails.js";
 import { completeChat, normalizeModelMode, openAiTools, resolveLlm, toLlmMessages } from "./llm.js";
 import { windowMessages } from "./memory.js";
-import { actionFromSession, activeTools, executeTool, parseArgs, salesOrderLookup, wrapToolResult } from "./tools.js";
+import {
+  actionFromSession,
+  activeTools,
+  executeTool,
+  knowledgePrefetch,
+  parseArgs,
+  salesOrderLookup,
+  wrapToolResult,
+} from "./tools.js";
 
 function chunkText(text, size = 48) {
   const chunks = [];
@@ -133,6 +141,48 @@ export async function runTurn({
       toolCallId: callId,
       toolName: "sales_orders",
       content: wrapToolResult("sales_orders", result.payload),
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  const knowledgeLookup = !orderLookup ? knowledgePrefetch(text) : null;
+  const knowledgeTool =
+    knowledgeLookup && tools.find((tool) => tool.name === "search_knowledge");
+  if (knowledgeTool) {
+    onEvent?.({ type: "tool", name: "search_knowledge" });
+    const started = Date.now();
+    const result = await executeFn({
+      tool: knowledgeTool,
+      args: knowledgeLookup,
+      customerId,
+      fetchImpl,
+      upstream: tenant.upstream,
+      limiter,
+    });
+    toolCallsUsed.push({
+      name: "search_knowledge",
+      args: knowledgeLookup,
+      latencyMs: Date.now() - started,
+      customerInjected: false,
+    });
+    const callId = "knowledge_prefetch";
+    session.messages.push({
+      role: "assistant",
+      content: "",
+      toolCalls: [
+        {
+          id: callId,
+          type: "function",
+          function: { name: "search_knowledge", arguments: JSON.stringify(knowledgeLookup) },
+        },
+      ],
+      createdAt: new Date().toISOString(),
+    });
+    session.messages.push({
+      role: "tool",
+      toolCallId: callId,
+      toolName: "search_knowledge",
+      content: wrapToolResult("search_knowledge", result.payload),
       createdAt: new Date().toISOString(),
     });
   }

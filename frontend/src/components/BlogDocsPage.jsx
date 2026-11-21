@@ -7,47 +7,31 @@ import {
   clipboardToMarkdown,
   filesToImageMarkdown,
 } from "../lib/pasteRich.js";
+import {
+  IMPORT_ACCEPT,
+  KNOWLEDGE_RULES,
+  MAX_KNOWLEDGE_CONTENT_CHARS,
+  TAG_OTHERS,
+  collectCustomCategories,
+  formatTagLabel,
+  isBlockedSpreadsheet,
+  isKnowledgeImportFile,
+  slugifyTag,
+  suggestKnowledgeTags,
+  validateImportFile,
+  validateKnowledgeDraft,
+} from "../lib/knowledgeRules.js";
 import { isIT } from "../lib/isIT";
 import { navigate, useRoute } from "../lib/router.jsx";
 import { useAuthStore } from "../store/authStore";
 
-const TAG_OTHERS = "others";
-const IMPORT_ACCEPT =
-  ".pdf,.csv,.txt,.text,.doc,.docx,application/pdf,text/plain,text/csv,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-function isImportFile(file) {
-  const name = String(file?.name || "").toLowerCase();
-  return (
-    name.endsWith(".pdf") ||
-    name.endsWith(".csv") ||
-    name.endsWith(".txt") ||
-    name.endsWith(".text") ||
-    name.endsWith(".doc") ||
-    name.endsWith(".docx")
-  );
-}
+const isImportFile = isKnowledgeImportFile;
 
 function isImageFile(file) {
   return (
     String(file?.type || "").startsWith("image/") ||
     /\.(png|jpe?g|gif|webp|bmp)$/i.test(file?.name || "")
   );
-}
-
-function suggestAppFromText(apps, haystack) {
-  const hay = ` ${String(haystack || "")
-    .toLowerCase()
-    .replace(/[_-]+/g, " ")} `;
-  const hits = (apps || []).filter((app) => {
-    const id = String(app.id || "")
-      .toLowerCase()
-      .replace(/[_-]+/g, " ");
-    const title = String(app.title || "").toLowerCase();
-    if (id.length >= 4 && hay.includes(` ${id} `)) return true;
-    if (title.length >= 5 && hay.includes(title)) return true;
-    return false;
-  });
-  return hits.length === 1 ? hits[0] : null;
 }
 
 function draftFromPastedText(text) {
@@ -90,7 +74,6 @@ function aiRoleLabel(docType) {
 export default function BlogDocsPage({
   heading,
   description,
-  showRag = false,
 }) {
   const user = useAuthStore((s) => s.user);
   const canEdit = isIT(user);
@@ -125,19 +108,16 @@ export default function BlogDocsPage({
   const [dragOver, setDragOver] = useState(false);
   const [fromImport, setFromImport] = useState(false);
   const [pasteText, setPasteText] = useState("");
-  const [ragQ, setRagQ] = useState("");
-  const [ragHits, setRagHits] = useState([]);
+  const [showCover, setShowCover] = useState(false);
+  const [customTagInput, setCustomTagInput] = useState("");
   const contentRef = useRef(null);
   const coverInputRef = useRef(null);
   const inlineInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const defaultAiRole = aiFilter === "technical" ? "technical" : "howto";
+  const contentLen = String(draft.content || "").length;
 
-  const tagLabel = (tag) => {
-    if (tag === TAG_OTHERS) return "Others";
-    const app = apps.find((p) => p.id === tag);
-    return app?.title || tag;
-  };
+  const tagLabel = (tag) => formatTagLabel(tag, apps);
 
   useEffect(() => {
     if (appFromQuery) setTagFilter(appFromQuery);
@@ -175,6 +155,14 @@ export default function BlogDocsPage({
   }, []);
 
   const appIds = useMemo(() => new Set(apps.map((a) => a.id)), [apps]);
+  const customCategories = useMemo(
+    () => collectCustomCategories(docs, apps),
+    [docs, apps],
+  );
+  const draftCustomTags = useMemo(
+    () => (draft.tags || []).filter((tag) => tag !== TAG_OTHERS && !appIds.has(tag)),
+    [draft.tags, appIds],
+  );
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -262,20 +250,68 @@ export default function BlogDocsPage({
   const syncAppFields = (tags) => {
     const appTag = tags.find((t) => t !== TAG_OTHERS && appIds.has(t));
     const app = apps.find((p) => p.id === appTag);
+    const hasAppOrOthers = Boolean(appTag) || tags.includes(TAG_OTHERS);
     return {
-      tags,
+      tags: hasAppOrOthers ? tags : [...tags, TAG_OTHERS],
       appId: app?.id || null,
       appTitle: app?.title || null,
       appUrl: app?.url || null,
     };
   };
 
-  const toggleTag = (tag) => {
+  /** App / Others: single selection. Custom categories stay. */
+  const setAppCategory = (tag) => {
     setDraft((prev) => {
-      const has = prev.tags.includes(tag);
-      const tags = has ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag];
+      const custom = prev.tags.filter((t) => t !== TAG_OTHERS && !appIds.has(t));
+      if (tag === TAG_OTHERS) {
+        return {
+          ...prev,
+          tags: [...custom, TAG_OTHERS],
+          appId: null,
+          appTitle: null,
+          appUrl: null,
+        };
+      }
+      const app = apps.find((p) => p.id === tag);
+      return {
+        ...prev,
+        tags: [...custom, tag],
+        appId: app?.id || null,
+        appTitle: app?.title || null,
+        appUrl: app?.url || null,
+      };
+    });
+  };
+
+  const toggleCustomTag = (tag) => {
+    const slug = slugifyTag(tag);
+    if (!slug || slug === TAG_OTHERS || appIds.has(slug)) return;
+    setDraft((prev) => {
+      const has = prev.tags.includes(slug);
+      const tags = has
+        ? prev.tags.filter((t) => t !== slug)
+        : [...prev.tags, slug];
       return { ...prev, ...syncAppFields(tags) };
     });
+  };
+
+  const addCustomTagFromInput = () => {
+    const slug = slugifyTag(customTagInput);
+    if (!slug) {
+      setError("Kategori custom kosong / tidak valid");
+      return;
+    }
+    if (slug === TAG_OTHERS || appIds.has(slug)) {
+      setAppCategory(slug === TAG_OTHERS ? TAG_OTHERS : slug);
+      setCustomTagInput("");
+      return;
+    }
+    setDraft((prev) => {
+      if (prev.tags.includes(slug)) return prev;
+      return { ...prev, ...syncAppFields([...prev.tags, slug]) };
+    });
+    setCustomTagInput("");
+    setError("");
   };
 
   const insertAtCursor = (snippet) => {
@@ -319,47 +355,70 @@ export default function BlogDocsPage({
 
   const openImportedDraft = (data, { extra = "", sourceLabel = "berkas" } = {}) => {
     const preset = appPreset();
-    const suggested =
-      preset.appId
-        ? null
-        : suggestAppFromText(
-            apps,
-            `${data.fileName || ""} ${data.title || ""} ${data.summary || ""}`,
-          );
-    const appFields = suggested
-      ? {
-          tags: [suggested.id],
-          appId: suggested.id,
-          appTitle: suggested.title || null,
-          appUrl: suggested.url || null,
-        }
-      : preset;
-    setDraft({
-      ...emptyDraft(defaultAiRole),
-      ...appFields,
+    const suggested = suggestKnowledgeTags({
+      apps,
+      fileName: data.fileName || "",
       title: data.title || "",
       summary: data.summary || "",
       content: data.content || "",
+      presetAppId: preset.appId || null,
     });
-    setActiveId(null);
+    const looksLikeTable =
+      /\|.+\|/.test(String(data.content || "")) ||
+      String(data.fileName || "")
+        .toLowerCase()
+        .endsWith(".csv");
+    // CSV / tables need more RAG rows → technical cuplikan budget.
+    const importDocType = looksLikeTable ? "technical" : defaultAiRole;
+    const matches = (docs || []).filter((doc) => {
+      const title = String(doc.title || "")
+        .trim()
+        .toLowerCase();
+      const incoming = String(data.title || "")
+        .trim()
+        .toLowerCase();
+      return title && incoming && title === incoming;
+    });
+    const replaceId = matches.length === 1 ? matches[0]._id : null;
+    setDraft({
+      ...emptyDraft(importDocType),
+      tags: suggested.tags,
+      appId: suggested.appId,
+      appTitle: suggested.appTitle,
+      appUrl: suggested.appUrl,
+      title: data.title || "",
+      summary: data.summary || "",
+      content: data.content || "",
+      docType: importDocType,
+      visibility: importDocType === "howto" ? "public" : "internal",
+    });
+    setActiveId(replaceId || null);
     setFromImport(true);
+    setShowCover(false);
+    setCustomTagInput("");
     setMode("edit");
     const images = Number(data.imageCount) || 0;
-    const appNote = appFields.appId
-      ? suggested
-        ? ` Aplikasi terisi dari nama ${sourceLabel}; periksa apakah benar (POS vs Super POS tidak ditebak otomatis).`
-        : " Periksa aplikasi dan visibility, lalu simpan."
-      : " Tandai aplikasinya sebelum simpan. AI tidak cukup membedakan POS vs Super POS.";
-    setOkMsg(
-      `Draf siap${images ? ` dengan ${images} gambar` : ""}.${appNote}${extra}`,
-    );
+    const warn = Array.isArray(data.warnings) ? data.warnings.filter(Boolean) : [];
+    const tagPreview = suggested.tags.map((tag) => tagLabel(tag)).join(", ");
+    const replaceNote = replaceId
+      ? ` Judul sama dengan knowledge yang ada — Simpan akan **mengganti** dokumen lama (bukan dobel).`
+      : matches.length > 1
+        ? ` Ada beberapa knowledge berjudul sama — pilih yang benar di daftar atau ganti judul.`
+        : "";
+    const notes = [
+      `Draf siap${images ? ` dengan ${images} gambar` : ""} dari ${sourceLabel}. Kategori otomatis: ${tagPreview}. Boleh dibetulkan sebelum simpan.${replaceNote}${extra}`,
+      ...warn,
+    ];
+    setError("");
+    setOkMsg(notes.join(" "));
   };
 
   const importDocumentFile = async (file, { extra = "" } = {}) => {
     if (!requireIT()) return;
     if (!file) return;
-    if (!isImportFile(file)) {
-      setError("Format: PDF, CSV, TXT, TEXT, DOC, atau DOCX");
+    const blocked = validateImportFile(file);
+    if (blocked) {
+      setError(blocked);
       return;
     }
     setImporting(true);
@@ -383,6 +442,12 @@ export default function BlogDocsPage({
     const data = draftFromPastedText(raw);
     if (!data) {
       setError("Tempel teks dulu");
+      return;
+    }
+    if (data.content.length > MAX_KNOWLEDGE_CONTENT_CHARS) {
+      setError(
+        `Teks terlalu panjang (${data.content.length.toLocaleString("id-ID")} karakter). Batas ${MAX_KNOWLEDGE_CONTENT_CHARS.toLocaleString("id-ID")} — pecah topik, jangan dump massal.`,
+      );
       return;
     }
     setError("");
@@ -427,12 +492,21 @@ export default function BlogDocsPage({
   const save = async (e) => {
     e.preventDefault();
     if (!requireIT()) return;
-    if (!draft.title.trim() || !draft.content.trim()) {
-      setError("Judul dan konten wajib diisi");
+    const clientError = validateKnowledgeDraft(draft);
+    if (clientError) {
+      setOkMsg("");
+      setError(clientError);
+      requestAnimationFrame(() => {
+        document.getElementById("knowledge-save-feedback")?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
       return;
     }
     setSaving(true);
     setError("");
+    setOkMsg("");
     try {
       const body = {
         docType: draft.docType === "technical" ? "technical" : "howto",
@@ -447,19 +521,37 @@ export default function BlogDocsPage({
         visibility: draft.visibility === "public" ? "public" : "internal",
       };
       let saved;
+      let warnings = [];
       if (activeId) {
         const res = await hubApi.updateDoc(activeId, body);
         saved = res.data;
+        warnings = res.warnings || [];
       } else {
         const res = await hubApi.createDoc(body);
         saved = res.data;
+        warnings = res.warnings || [];
+      }
+      if (!saved?._id) {
+        throw new Error("Simpan berhasil tanpa id dokumen — coba muat ulang halaman");
       }
       await load();
       setActiveId(saved._id);
+      setFromImport(false);
       setMode("view");
-      setOkMsg("Artikel tersimpan");
+      setOkMsg(
+        warnings.length
+          ? `Tersimpan. Catatan: ${warnings.join(" ")}`
+          : "Knowledge tersimpan dan diindeks untuk AI",
+      );
     } catch (err) {
+      setOkMsg("");
       setError(err.message || "Gagal menyimpan");
+      requestAnimationFrame(() => {
+        document.getElementById("knowledge-save-feedback")?.scrollIntoView({
+          behavior: "smooth",
+          block: "nearest",
+        });
+      });
     } finally {
       setSaving(false);
     }
@@ -467,26 +559,15 @@ export default function BlogDocsPage({
 
   const remove = async () => {
     if (!requireIT() || !activeId) return;
-    if (!window.confirm("Hapus artikel ini?")) return;
+    if (!window.confirm("Hapus knowledge ini?")) return;
     try {
       await hubApi.deleteDoc(activeId);
       setMode("list");
       setActiveId(null);
       await load();
-      setOkMsg("Artikel dihapus");
+      setOkMsg("Knowledge dihapus");
     } catch (err) {
       setError(err.message || "Gagal menghapus");
-    }
-  };
-
-  const runRag = async (e) => {
-    e.preventDefault();
-    if (!ragQ.trim()) return;
-    try {
-      const res = await hubApi.ragSearch(ragQ.trim());
-      setRagHits(res?.data || []);
-    } catch (err) {
-      setError(err.message || "RAG search gagal");
     }
   };
 
@@ -514,7 +595,7 @@ export default function BlogDocsPage({
   };
 
   return (
-    <div className="blog-docs">
+    <div className="blog-docs knowledge-page">
       <header className="page-head blog-head">
         <div>
           <h1>{heading}</h1>
@@ -529,10 +610,19 @@ export default function BlogDocsPage({
               setMode("list");
             }}
           >
-            ← Daftar artikel
+            ← Daftar knowledge
           </button>
         )}
       </header>
+
+      <aside className="knowledge-rules" aria-label="Aturan knowledge">
+        <strong>Aturan korpus</strong>
+        <ul>
+          {KNOWLEDGE_RULES.map((rule) => (
+            <li key={rule}>{rule}</li>
+          ))}
+        </ul>
+      </aside>
 
       {error && <div className="alert error">{error}</div>}
       {okMsg && <div className="alert ok">{okMsg}</div>}
@@ -550,6 +640,11 @@ export default function BlogDocsPage({
             e.preventDefault();
             setDragOver(false);
             const files = [...(e.dataTransfer.files || [])];
+            const blocked = files.find(isBlockedSpreadsheet);
+            if (blocked) {
+              setError(validateImportFile(blocked));
+              return;
+            }
             const file = files.find(isImportFile);
             if (file) {
               importDocumentFile(file, {
@@ -562,10 +657,16 @@ export default function BlogDocsPage({
               applyDroppedImages(images);
               return;
             }
-            setError("Format: PDF, CSV, TXT, TEXT, DOC, DOCX, atau gambar");
+            setError("Format: CSV (tabel), PDF/DOC (narasi), TXT — bukan XLSX");
           }}
           onPaste={(e) => {
             const files = [...(e.clipboardData?.files || [])];
+            const blocked = files.find(isBlockedSpreadsheet);
+            if (blocked) {
+              e.preventDefault();
+              setError(validateImportFile(blocked));
+              return;
+            }
             const file = files.find(isImportFile);
             if (file) {
               e.preventDefault();
@@ -584,10 +685,10 @@ export default function BlogDocsPage({
             }
           }}
         >
-          <strong>Jatuhkan PDF, CSV, TXT, DOC, atau DOCX</strong>
+          <strong>Impor: CSV · TXT · PDF/DOC (narasi)</strong>
           <p>
-            Satu berkas menjadi satu draf. Tempel dari Word/Google Docs agar screenshot ikut
-            terunggah. Tandai aplikasinya di editor.
+            Satu topik per berkas. Tabel → CSV. XLSX ditolak. Tandai aplikasi di editor sebelum
+            simpan.
           </p>
           <button
             className="btn secondary"
@@ -608,14 +709,14 @@ export default function BlogDocsPage({
               importDocumentFile(file);
             }}
           />
-          <div className="paste-box">
-            <label htmlFor="docs-paste">Atau tempel teks panjang</label>
+          <div className="paste-box ">
+            <label htmlFor="docs-paste">Tempel teks / markdown (bukan dump massal)</label>
             <textarea
               id="docs-paste"
-              rows={6}
+              rows={4}
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}
-              placeholder="Tempel SOP, changelog, atau catatan teknis di sini. Screenshot dari Word/Docs ikut jika menempel di kotak ini."
+              placeholder="SOP singkat atau markdown table. Max 80.000 karakter setelah simpan."
             />
             <button
               className="btn secondary"
@@ -672,7 +773,7 @@ export default function BlogDocsPage({
               className={`chip-btn${tagFilter === "all" ? " active" : ""}`}
               onClick={clearAppFilter}
             >
-              Semua aplikasi
+              Semua kategori
             </button>
             <button
               type="button"
@@ -691,15 +792,25 @@ export default function BlogDocsPage({
                 {app.title}
               </button>
             ))}
+            {customCategories.map((tag) => (
+              <button
+                key={`custom-${tag}`}
+                type="button"
+                className={`chip-btn${tagFilter === tag ? " active" : ""}`}
+                onClick={() => applyTagFilter(tag)}
+              >
+                {tagLabel(tag)}
+              </button>
+            ))}
           </div>
 
           {loading ? (
             <div className="panel">Memuat…</div>
           ) : filtered.length === 0 ? (
             <div className="panel">
-              Belum ada artikel
+              Belum ada knowledge
               {tagFilter !== "all" ? ` untuk “${tagLabel(tagFilter)}”` : ""}.
-              {canEdit ? " Jatuhkan berkas atau tempel teks di atas." : ""}
+              {canEdit ? " Impor CSV/TXT atau tempel teks di atas." : ""}
             </div>
           ) : (
             <div className="blog-list">
@@ -794,7 +905,7 @@ export default function BlogDocsPage({
               onChange={(e) =>
                 setDraft((d) => ({ ...d, title: e.target.value }))
               }
-              placeholder="Judul artikel"
+              placeholder="Judul knowledge"
               required
             />
           </div>
@@ -805,17 +916,17 @@ export default function BlogDocsPage({
               onChange={(e) =>
                 setDraft((d) => ({ ...d, summary: e.target.value }))
               }
-              placeholder="Satu kalimat pembuka"
+              placeholder="Satu kalimat untuk daftar & retrieve"
             />
           </div>
 
           <div className="field">
-            <label>Tag aplikasi / others</label>
+            <label>Aplikasi (pilih satu — atau Others)</label>
             <div className="tag-row">
               <button
                 type="button"
                 className={`chip-btn${draft.tags.includes(TAG_OTHERS) ? " active" : ""}`}
-                onClick={() => toggleTag(TAG_OTHERS)}
+                onClick={() => setAppCategory(TAG_OTHERS)}
               >
                 Others
               </button>
@@ -823,12 +934,66 @@ export default function BlogDocsPage({
                 <button
                   key={app.id}
                   type="button"
-                  className={`chip-btn${draft.tags.includes(app.id) ? " active" : ""}`}
-                  onClick={() => toggleTag(app.id)}
+                  className={`chip-btn${draft.appId === app.id ? " active" : ""}`}
+                  onClick={() => setAppCategory(app.id)}
                 >
                   {app.title}
                 </button>
               ))}
+            </div>
+          </div>
+
+          <div className="field">
+            <label>Kategori custom</label>
+            <p className="blog-hint">
+              Otomatis dari nama berkas/isi saat impor. Bisa tambah atau cabut sebelum simpan.
+            </p>
+            <div className="tag-row">
+              {draftCustomTags.map((tag) => (
+                <button
+                  key={`draft-${tag}`}
+                  type="button"
+                  className="chip-btn active"
+                  onClick={() => toggleCustomTag(tag)}
+                  title="Klik untuk cabut"
+                >
+                  {tagLabel(tag)} ×
+                </button>
+              ))}
+              {customCategories
+                .filter((tag) => !draftCustomTags.includes(tag))
+                .slice(0, 12)
+                .map((tag) => (
+                  <button
+                    key={`pick-${tag}`}
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => toggleCustomTag(tag)}
+                  >
+                    + {tagLabel(tag)}
+                  </button>
+                ))}
+            </div>
+            <div className="knowledge-custom-tag">
+              <input
+                value={customTagInput}
+                onChange={(e) => setCustomTagInput(e.target.value)}
+                placeholder="Tambah kategori, mis. harga-distributor"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustomTagFromInput();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className="btn secondary"
+                onClick={addCustomTagFromInput}
+                disabled={!customTagInput.trim()}
+              >
+                Tambah
+              </button>
             </div>
           </div>
 
@@ -866,57 +1031,68 @@ export default function BlogDocsPage({
             </select>
             {fromImport && (
               <p className="blog-hint">
-                Draf dari impor. Tandai aplikasi yang benar, lalu simpan lewat jalur artikel yang
-                sama.
+                Draf impor. Periksa aplikasi + visibility, lalu simpan agar ter-embed.
               </p>
             )}
           </div>
 
           <div className="field">
-            <label>Cover image</label>
-            <div className="blog-cover-edit">
-              {draft.coverImage ? (
-                <img src={draft.coverImage} alt="" />
-              ) : (
-                <div className="blog-card-cover placeholder short" />
-              )}
-              <div className="actions">
-                <button
-                  type="button"
-                  className="btn secondary"
-                  disabled={uploading}
-                  onClick={() => coverInputRef.current?.click()}
-                >
-                  {uploading ? "Mengunggah…" : "Upload cover"}
-                </button>
-                {draft.coverImage && (
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setShowCover((v) => !v)}
+            >
+              {showCover ? "Sembunyikan cover" : "Cover opsional"}
+            </button>
+            {showCover ? (
+              <div className="blog-cover-edit" style={{ marginTop: "0.5rem" }}>
+                {draft.coverImage ? (
+                  <img src={draft.coverImage} alt="" />
+                ) : (
+                  <div className="blog-card-cover placeholder short" />
+                )}
+                <div className="actions">
                   <button
                     type="button"
-                    className="btn ghost"
-                    onClick={() =>
-                      setDraft((d) => ({ ...d, coverImage: "" }))
-                    }
+                    className="btn secondary"
+                    disabled={uploading}
+                    onClick={() => coverInputRef.current?.click()}
                   >
-                    Hapus cover
+                    {uploading ? "Mengunggah…" : "Upload cover"}
                   </button>
-                )}
+                  {draft.coverImage && (
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => setDraft((d) => ({ ...d, coverImage: "" }))}
+                    >
+                      Hapus cover
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={coverInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    handleUpload(file, { asCover: true });
+                  }}
+                />
               </div>
-              <input
-                ref={coverInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = "";
-                  handleUpload(file, { asCover: true });
-                }}
-              />
-            </div>
+            ) : null}
           </div>
 
           <div className="field">
-            <label>Konten (markdown sederhana)</label>
+            <label>
+              Konten (markdown){" "}
+              <span className="blog-hint">
+                {contentLen.toLocaleString("id-ID")} /{" "}
+                {MAX_KNOWLEDGE_CONTENT_CHARS.toLocaleString("id-ID")}
+              </span>
+            </label>
             <div className="blog-toolbar">
               <button
                 type="button"
@@ -1009,6 +1185,11 @@ export default function BlogDocsPage({
               </div>
             </div>
           )}
+
+          <div id="knowledge-save-feedback">
+            {error ? <div className="alert error">{error}</div> : null}
+            {okMsg && mode === "edit" ? <div className="alert ok">{okMsg}</div> : null}
+          </div>
 
           <div className="actions">
             <button className="btn" type="submit" disabled={saving}>

@@ -7,7 +7,7 @@ import { useChatStore } from "../store/chatStore";
 const EXTRAS = [
   { to: "/apps", label: "Aplikasi" },
   { to: "/updates", label: "Update fitur" },
-  { to: "/docs", label: "Dokumentasi" },
+  { to: "/docs", label: "Knowledge" },
   { to: "/agent/config", label: "Pengaturan agent" },
   { to: "/keys", label: "x-api-key" },
   { to: "/config", label: "Konfigurasi SOAP" },
@@ -96,18 +96,24 @@ export default function Shell({ children, user, onLogout, chat = false }) {
           <span aria-hidden="true">+</span>
           Percakapan baru
         </button>
-        <div className="history ">
-          {sessions.map((session) => (
-            <button
-              key={session.sessionId}
-              type="button"
-              className={activeId === String(session.sessionId) ? "active" : ""}
-              title={session.title}
-              onClick={() => openExisting(String(session.sessionId))}
-            >
-              <span className="history-title">{session.title}</span>
-            </button>
-          ))}
+        <div className="history">
+          <p className="history-label">Riwayat</p>
+          {sessions.map((session) => {
+            const title = String(session.title || "").trim() || "Percakapan";
+            const active = activeId === String(session.sessionId);
+            return (
+              <button
+                key={session.sessionId}
+                type="button"
+                className={active ? "active" : undefined}
+                title={title}
+                aria-current={active ? "page" : undefined}
+                onClick={() => openExisting(String(session.sessionId))}
+              >
+                <span className="history-title">{title}</span>
+              </button>
+            );
+          })}
           {user && !sessions.length ? (
             <p className="history-empty">Belum ada percakapan.</p>
           ) : null}

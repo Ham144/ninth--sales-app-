@@ -391,8 +391,13 @@ export function createAgentRouter(deps = {}) {
           ? (event) => writeSse(res, event.type, event.type === "token" ? { text: event.text } : { name: event.name })
           : undefined,
       });
-      const saved = await store.saveSession(session);
-      if (saved?._id) session._id = saved._id;
+      try {
+        const saved = await store.saveSession(session);
+        if (saved?._id) session._id = saved._id;
+      } catch (saveError) {
+        // Turn already produced a reply; do not replace it with a generic 502 banner.
+        console.error("agent chat saveSession:", saveError.message);
+      }
       for (const call of result.toolCallsUsed) {
         await store.addAudit({
           tenantSlug: tenant.slug,

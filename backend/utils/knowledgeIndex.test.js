@@ -49,16 +49,27 @@ test("splitChunks memisah paragraf sebelum memotong", () => {
 });
 
 test("setiap cuplikan membawa judul dan app, baris tabel membawa header", () => {
-  const table = expandMarkdownTables("| No | Web |\n| --- | --- |\n| TI500STI | 34718000 |\n");
+  const table = expandMarkdownTables(
+    "| No | Web |\n| --- | --- |\n| TI500STI | 34718000 |\n| M2110 | 1 |\n",
+  );
   assert.match(table, /No: TI500STI/);
   assert.match(table, /Web: 34718000/);
-  const chunks = splitChunks("Scan nota lalu simpan.", 1200, 200, {
+  const chunks = splitChunks(table, 1200, 200, {
+    title: "Aset",
+    appId: "midcsi-so",
+    docType: "technical",
+  });
+  const m2110 = chunks.find((chunk) => /M2110/.test(chunk.text));
+  assert.ok(m2110, "setiap baris tabel jadi cuplikan terpisah");
+  assert.match(m2110.text, /No: M2110/);
+  assert.match(m2110.text, /^\[technical \| midcsi-so \| Aset\]/);
+  const howto = splitChunks("Scan nota lalu simpan.", 1200, 200, {
     title: "Cara retur",
     appId: "catur-pos",
     docType: "howto",
   });
-  assert.match(chunks[0].text, /^\[howto \| catur-pos \| Cara retur\]/);
-  assert.match(chunks[0].text, /Scan nota/);
+  assert.match(howto[0].text, /^\[howto \| catur-pos \| Cara retur\]/);
+  assert.match(howto[0].text, /Scan nota/);
 });
 
 test("cosine mengurutkan vektor yang searah lebih tinggi", () => {
@@ -177,10 +188,11 @@ test("howto satu slug satu cuplikan, technical beberapa cuplikan", () => {
     ],
     3,
   );
-  assert.equal(howto.length, 1);
+  assert.ok(howto.length >= 1);
+  assert.ok(howto.length <= CHUNKS_PER_DOC.howto);
   assert.equal(howto[0].text, "judul ringkas isi lengkap prosedur stok");
 
-  const technical = Array.from({ length: 6 }, (_, index) => ({
+  const technical = Array.from({ length: CHUNKS_PER_DOC.technical + 2 }, (_, index) => ({
     slug: "soap",
     docType: "technical",
     text: `halaman ${index + 1} endpoint dan field`,

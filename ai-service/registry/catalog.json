@@ -57,7 +57,7 @@
           "kind": "http",
           "method": "POST",
           "path": "/api/v1/apps/midcsi/tools/customer_lookup",
-          "description": "Master customer toko. Piutang faktur memakai overdue_lookup.",
+          "description": "Master customer toko NAV (nomor/nama/kota). Bukan email/NPWP dari Knowledge CSV — itu search_knowledge. Piutang: overdue_lookup.",
           "parameters": {
             "type": "object",
             "properties": {
@@ -169,7 +169,7 @@
         {
           "name": "search_knowledge",
           "kind": "qdrant",
-          "description": "Cuplikan dokumentasi Hub (howto + teknikal). Bukan nomor produk atau invoice.",
+          "description": "Knowledge Hub RAG: prosedur, teknikal, CSV (aset, email, NPWP, BCC, non-PKP, acquisition_date). Wajib bila ada alamat email atau field sheet Hub — bukan customer_lookup/search_products.",
           "parameters": {
             "type": "object",
             "properties": { "q": { "type": "string" } },

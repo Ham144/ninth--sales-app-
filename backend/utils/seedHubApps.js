@@ -155,7 +155,7 @@ export const APP_ADVISOR_METADATA = {
       "tambah dokumentasi",
     ],
     deepLinks: [
-      { label: "Dokumentasi", url: "/docs" },
+      { label: "Knowledge", url: "/docs" },
     ],
     limitations: [
       "bukan tempat membuat sales order; SO baru dibuat di s-bit",
@@ -192,7 +192,7 @@ export const APP_ADVISOR_METADATA = {
       "tambah dokumentasi",
     ],
     deepLinks: [
-      { label: "Dokumentasi", url: "/docs" },
+      { label: "Knowledge", url: "/docs" },
     ],
     limitations: [
       "bukan tempat membuat sales order; SO baru dibuat di s-bit",

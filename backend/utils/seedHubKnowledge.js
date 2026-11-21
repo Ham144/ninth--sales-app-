@@ -85,14 +85,14 @@ const INTERNAL_GUIDES = [
   },
   {
     slug: "internal-tambah-dokumentasi-hub",
-    title: "Cara menambah dokumentasi project di Hub",
+    title: "Cara menambah knowledge di Hub",
     appId: "midcsi-so",
     appTitle: "MIDCSI",
     summary:
-      "Dokumentasi project ditulis di CSI System Hub yang sedang dibuka, menu Dokumentasi (/docs). Bukan di daftar Update fitur.",
+      "Knowledge curated ditulis di CSI System Hub, menu Knowledge (/docs). Bukan data lake dan bukan daftar Update fitur.",
     content:
-      "Percakapan agent ini berjalan di MIDCSI (WEB APP SAAT INI), yaitu CSI System Hub. Tempat menambah dokumentasi project adalah aplikasi ini sendiri. Buka menu Dokumentasi di /docs. How to use dan teknikal memakai penyimpanan dan RAG yang sama; bedanya hanya peran untuk AI (prosedur singkat vs catatan panjang). Pilih aplikasi terkait (appId) agar dokumentasi tertaut ke kartu aplikasi — jangan andalkan tebakan AI untuk membedakan aplikasi yang mirip (misalnya POS vs Super POS). IT menjatuhkan PDF/CSV/TXT/DOC atau menempel teks (gambar ikut jika menempel dari Word/Docs), mengatur visibility, lalu simpan. Daftar Update fitur hanya changelog tugas, bukan editor dokumentasi. Kartu katalog Hub ini ber-id midcsi-so.",
-    tags: ["dokumentasi", "dokumentasi project", "how to use", "docs teknikal", "hub", "pdf"],
+      "Percakapan agent ini berjalan di MIDCSI (WEB APP SAAT INI), yaitu CSI System Hub. Tempat menambah knowledge untuk AI adalah menu Knowledge di /docs. Ini korpus curated kecil (prosedur, catatan teknis, tabel CSV/markdown) — bukan tempat dump arsip 300GB. How to use dan teknikal memakai penyimpanan dan RAG yang sama; bedanya hanya peran untuk AI (prosedur singkat vs catatan panjang). Wajib tandai aplikasi terkait (atau Others). Tabel: unggah CSV; PDF untuk narasi (tabel PDF sering rusak). XLSX belum didukung. Daftar Update fitur hanya changelog tugas. Kartu katalog Hub ini ber-id midcsi-so.",
+    tags: ["knowledge", "dokumentasi", "how to use", "docs teknikal", "hub", "csv"],
   },
   {
     slug: "internal-pilih-aplikasi",

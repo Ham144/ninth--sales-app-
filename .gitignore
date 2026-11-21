@@ -3,6 +3,7 @@ python/**/.venv/
 python/**/__pycache__/
 python/**/.pytest_cache/
 ai-service/.venv/
+ai-service/.env
 ai-service/**/__pycache__/
 ai-service/**/.pytest_cache/
 *.pyc

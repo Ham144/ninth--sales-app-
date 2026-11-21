@@ -8,10 +8,14 @@ from typing import Any
 
 from app.config import Settings
 from app.guardrails import (
+    FINAL_ANSWER_NUDGE,
     action_from_messages,
     expand_empty_tool_reply,
+    knowledge_prefetch,
+    looks_like_tool_markup,
     present_reply,
     sales_order_lookup,
+    synthesize_reply_from_tools,
     wrap_tool_result,
 )
 from app.llm import complete_chat, resolve_model, to_llm_messages, window_messages
@@ -111,8 +115,44 @@ async def run_turn(
             }
         )
 
-    for _ in range(request.max_iter):
-        messages = to_llm_messages(request.system_prompt, window_messages(history, request.memory_window))
+    # Email / sheet fields / asset codes: Knowledge first (avoid customer_lookup hijack).
+    pref = knowledge_prefetch(request.message)
+    if pref and "search_knowledge" in tools_by_name and not lookup:
+        await emit("tool", {"name": "search_knowledge"})
+        t0 = time.perf_counter()
+        result = await dispatch_tool("search_knowledge", pref, settings=settings, visibility=request.visibility)
+        tool_calls_used.append(
+            ToolCallUsed(
+                name="search_knowledge",
+                args=pref,
+                latency_ms=int((time.perf_counter() - t0) * 1000),
+            )
+        )
+        call_id = "knowledge_prefetch"
+        history.append(
+            {
+                "role": "assistant",
+                "content": "",
+                "toolCalls": [
+                    {
+                        "id": call_id,
+                        "type": "function",
+                        "function": {"name": "search_knowledge", "arguments": json.dumps(pref)},
+                    }
+                ],
+            }
+        )
+        history.append(
+            {
+                "role": "tool",
+                "toolCallId": call_id,
+                "toolName": "search_knowledge",
+                "content": wrap_tool_result("search_knowledge", result.get("payload")),
+            }
+        )
+
+    async def _complete(messages: list[dict], tools: list) -> dict:
+        nonlocal llm_error, used_model, tokens_used
 
         async def on_token(piece: str) -> None:
             await emit("token", {"text": piece})
@@ -121,7 +161,7 @@ async def run_turn(
             completion = await complete_fn(
                 settings=settings,
                 messages=messages,
-                tools=spec_tools,
+                tools=tools,
                 model=model,
                 timeout_ms=timeout_ms,
                 on_token=on_token,
@@ -129,32 +169,57 @@ async def run_turn(
         except Exception as exc:
             if not fallback or fallback == model:
                 llm_error = str(exc)
-                break
-            try:
-                completion = await complete_fn(
-                    settings=settings,
-                    messages=messages,
-                    tools=spec_tools,
-                    model=fallback,
-                    timeout_ms=timeout_ms,
-                    on_token=on_token,
-                )
-            except Exception as inner:
-                llm_error = str(inner)
-                break
+                raise
+            completion = await complete_fn(
+                settings=settings,
+                messages=messages,
+                tools=tools,
+                model=fallback,
+                timeout_ms=timeout_ms,
+                on_token=on_token,
+            )
         tokens_used += int((completion.get("usage") or {}).get("total_tokens") or 0)
         used_model = completion.get("model") or model
+        return completion
+
+    def _finalize_text(raw: str) -> str:
+        cleaned = present_reply(raw or "")
+        if looks_like_tool_markup(raw or "") or not cleaned:
+            return ""
+        return expand_empty_tool_reply(cleaned, history)
+
+    async def _ask_final_text() -> str:
+        messages = to_llm_messages(request.system_prompt, window_messages(history, request.memory_window))
+        messages.append({"role": "user", "content": FINAL_ANSWER_NUDGE})
+        completion = await _complete(messages, [])
+        return _finalize_text(completion.get("content") or "")
+
+    for round_idx in range(request.max_iter):
+        messages = to_llm_messages(request.system_prompt, window_messages(history, request.memory_window))
+        # Last round after tools already ran: force a text answer (no more tool calls).
+        force_text = round_idx == request.max_iter - 1 and bool(tool_calls_used)
+        round_tools = [] if force_text else spec_tools
+        if force_text:
+            messages.append({"role": "user", "content": FINAL_ANSWER_NUDGE})
+        try:
+            completion = await _complete(messages, round_tools)
+        except Exception:
+            break
         calls = completion.get("toolCalls") or []
         if not calls:
-            reply = expand_empty_tool_reply(
-                present_reply(completion.get("content") or "") or "Saya tidak menemukan jawaban dari data yang tersedia.",
-                history,
-            )
+            candidate = _finalize_text(completion.get("content") or "")
+            if not candidate and tool_calls_used:
+                # Model emitted tool markup as text; keep looping/salvage instead of accepting garbage.
+                continue
+            reply = candidate or "Saya tidak menemukan jawaban dari data yang tersedia."
             history.append({"role": "assistant", "content": reply})
             if not streamed:
                 for i in range(0, len(reply), 48):
                     await emit("token", {"text": reply[i : i + 48]})
             break
+        if force_text:
+            # Tools were disabled; ignore phantom structured calls and salvage below.
+            continue
         history.append({"role": "assistant", "content": completion.get("content") or "", "toolCalls": calls})
         for call in calls:
             fn = call.get("function") or {}
@@ -178,6 +243,28 @@ async def run_turn(
                     "content": wrap_tool_result(name or "unknown", result.get("payload")),
                 }
             )
+
+    if not reply and tool_calls_used and not llm_error:
+        # Salvage: model kept requesting tools / dumped markup; one more text-only pass.
+        try:
+            candidate = await _ask_final_text()
+            if candidate:
+                reply = candidate
+                history.append({"role": "assistant", "content": reply})
+                if not streamed:
+                    for i in range(0, len(reply), 48):
+                        await emit("token", {"text": reply[i : i + 48]})
+        except Exception:
+            pass
+
+    if not reply and tool_calls_used and not llm_error:
+        synthesized = synthesize_reply_from_tools(history)
+        if synthesized:
+            reply = synthesized
+            history.append({"role": "assistant", "content": reply})
+            if not streamed:
+                for i in range(0, len(reply), 48):
+                    await emit("token", {"text": reply[i : i + 48]})
 
     if not reply:
         reply = "Saya belum bisa menyelesaikan permintaan itu dari data yang tersedia."
